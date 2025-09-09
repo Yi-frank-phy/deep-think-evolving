@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Project Prometheus: Control Tower</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <div id="chat-container">
+      <div id="chat-log">
+        <div class="message assistant">
+          <p>System standby. Awaiting your instructions.</p>
+        </div>
+      </div>
+      <form id="chat-form">
+        <input
+          type="text"
+          id="user-input"
+          placeholder="Enter your instructions here..."
+          autocomplete="off"
+          required
+        />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+    <script type="module" src="index.tsx"></script>
+  </body>
+</html>
