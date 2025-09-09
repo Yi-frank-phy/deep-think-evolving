@@ -9,12 +9,15 @@ def main():
     """
     Main function to test the full pipeline:
     1. Generate strategic blueprints.
-    2. Embed the strategies.
+    2. Embed the strategies (using mock data for this run).
     3. Calculate and display their cosine similarity matrix.
     """
     print("--- Running Full Pipeline Test Script ---")
 
-    # Check for API key first
+    # For this test, we will use mock data for the embedding step
+    USE_MOCK_EMBEDDING = True
+
+    # Check for API key first, as it's still needed for the generation step
     if not os.environ.get("GEMINI_API_KEY"):
         print("\n[ERROR] GEMINI_API_KEY environment variable is not set.")
         print("Please set the environment variable before running:")
@@ -33,7 +36,6 @@ def main():
     print(f"\nProblem State:\n{problem_state}")
     print("\nStep 1: Generating strategic blueprint...")
 
-    # Per the model usage policy, use the 'lite' version for testing.
     strategies = generate_strategic_blueprint(
         problem_state, model_name="gemini-2.5-flash-lite"
     )
@@ -50,7 +52,7 @@ def main():
     # 2. Embed Strategies
     # -------------------
     print("\nStep 2: Embedding generated strategies...")
-    embedded_strategies = embed_strategies(strategies)
+    embedded_strategies = embed_strategies(strategies, use_mock=USE_MOCK_EMBEDDING)
 
     if not embedded_strategies:
         print("\n[FAILURE] Failed to embed strategies. Exiting.")
@@ -76,8 +78,7 @@ def main():
     for i, name in enumerate(strategy_names):
         print(f"  {i}: {name}")
 
-    print("\nCosine Similarity Matrix:")
-    # Use numpy print options for better readability
+    print("\nCosine Similarity Matrix (from mock data):")
     np.set_printoptions(precision=4, suppress=True)
     print(similarity_matrix)
 

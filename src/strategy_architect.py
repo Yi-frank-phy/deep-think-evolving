@@ -25,14 +25,10 @@ def generate_strategic_blueprint(
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         print("Error: GEMINI_API_KEY environment variable not set.")
-        print("Please set the environment variable before running.")
-        # In a real application, we might use request_user_input here,
-        # but for this implementation, we'll rely on the env var.
         return []
 
     genai.configure(api_key=api_key)
 
-    # The prompt structure is taken directly from "readme of deep think final.md"
     system_prompt = (
         "你是一位'战略系统架构师' (Strategic Systems Architect)。"
         "你的主要职能是对复杂问题进行元层面分析。"
@@ -71,37 +67,9 @@ def generate_strategic_blueprint(
             )
         )
 
-        # The response text should be a JSON formatted string.
-        # We parse it into a Python object.
         parsed_json = json.loads(response.text)
         return parsed_json
 
     except Exception as e:
         print(f"An error occurred during API call or JSON parsing: {e}")
         return []
-
-if __name__ == '__main__':
-    # This is a simple test case that can be run directly
-    # For a comprehensive test, we will use the main.py script as planned.
-    print("Running a direct test of strategy_architect.py...")
-
-    # Check for API key before running the test
-    if not os.environ.get("GEMINI_API_KEY"):
-        print("\nSkipping test: GEMINI_API_KEY is not set.")
-        print("Please export your API key to run the test:")
-        print("export GEMINI_API_KEY='your_api_key_here'")
-    else:
-        sample_problem = (
-            "我们正在开发一个大型语言模型驱动的自主研究代理。"
-            "当前进展：代理可以分解问题、执行网络搜索并阅读文档。"
-            "遇到的困境：当面对需要综合来自多个来源的矛盾信息才能得出结论的复杂问题时，"
-            "代理的性能会急剧下降。它经常会陷入其中一个信源的观点，或者无法形成一个连贯的最终答案。"
-        )
-
-        strategies = generate_strategic_blueprint(sample_problem)
-
-        if strategies:
-            print("\nSuccessfully generated strategic blueprint:")
-            print(json.dumps(strategies, indent=2, ensure_ascii=False))
-        else:
-            print("\nFailed to generate strategic blueprint.")
