@@ -49,7 +49,7 @@ def generate_strategic_blueprint(
 请将结果输出为单一的JSON对象数组。每个对象必须包含以下三个键:
 * strategy_name: 一个简短的、描述性的中文标签 (例如, "几何构造法")。
 * rationale: 一句解释该策略核心逻辑的中文描述。
-* initial_assumption: 一句描述该策略若要可行所必须依赖的关键假设的中文描述。\
+* initial_assumption: 一句描述该策略若要可行所必须依赖的关键假设的中文描述。
 """
 
     full_user_prompt = user_prompt_template.format(problem_state=problem_state)
@@ -67,7 +67,10 @@ def generate_strategic_blueprint(
             )
         )
 
-        parsed_json = json.loads(response.text)
+        # The response text should be a JSON formatted string.
+        # It might be wrapped in ```json ... ```, so we need to clean it.
+        response_text = response.text.strip().replace("```json", "").replace("```", "").strip()
+        parsed_json = json.loads(response_text)
         return parsed_json
 
     except Exception as e:
