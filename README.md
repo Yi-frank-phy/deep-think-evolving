@@ -18,3 +18,18 @@ View your app in AI Studio: https://ai.studio/apps/drive/1U-U3t01354eboQIODrLozK
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Validate the AI pipeline environment
+
+To confirm that the Gemini API key and local Ollama embedding service are
+configured correctly, install the Python dependencies and execute the smoke
+tests:
+
+```bash
+pip install -r requirements.txt
+pytest -k smoke
+```
+
+The smoke suite exercises the strategic blueprint generation, embedding, and
+similarity calculation pipeline, and will skip automatically if any required
+service is unavailable.
