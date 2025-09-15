@@ -1,10 +1,40 @@
-import os
 import json
+from typing import Optional
+
 import requests
-import numpy as np
 
 OLLAMA_API_ENDPOINT = "http://localhost:11434/api/embeddings"
 EMBEDDING_MODEL = "dengcao/Qwen3-Embedding-8B:Q4_K_M"
+
+
+def _request_embedding(payload: dict) -> Optional[list[float]]:
+    """Perform the HTTP request to Ollama and return the embedding vector."""
+
+    try:
+        response = requests.post(
+            OLLAMA_API_ENDPOINT, headers={"Content-Type": "application/json"}, data=json.dumps(payload)
+        )
+        response.raise_for_status()
+        response_json = response.json()
+        embedding = response_json.get("embedding")
+        if not isinstance(embedding, list):
+            return []
+        return embedding
+    except requests.exceptions.ConnectionError as exc:
+        print(
+            f"\n[ERROR] Could not connect to Ollama server at {OLLAMA_API_ENDPOINT}.\n"
+            "Ensure the Ollama service is running and the embedding model is pulled."
+        )
+        print(f"Underlying error: {exc}")
+        return []
+    except requests.exceptions.HTTPError as exc:
+        print(f"\n[ERROR] HTTP Error during embedding: {exc}")
+        print(f"Response from server: {getattr(exc.response, 'text', '')}")
+        return []
+    except Exception as exc:  # pragma: no cover - defensive guard
+        print(f"\n[ERROR] Unexpected error while requesting embedding: {exc}")
+        return []
+
 
 def embed_strategies(strategies: list[dict]) -> list[dict]:
     """
@@ -25,8 +55,6 @@ def embed_strategies(strategies: list[dict]) -> list[dict]:
     if not strategies:
         return []
 
-    headers = {'Content-Type': 'application/json'}
-
     for i, strategy in enumerate(strategies):
         # Prepare the document for a single strategy
         document_to_embed = (
@@ -35,37 +63,24 @@ def embed_strategies(strategies: list[dict]) -> list[dict]:
             f"Assumption: {strategy.get('initial_assumption', '')}"
         )
 
-        payload = {
-            "model": EMBEDDING_MODEL,
-            "prompt": document_to_embed
-        }
-
         try:
             print(f"  Embedding strategy {i+1}/{len(strategies)} using Ollama: '{strategy.get('strategy_name', 'N/A')}'...")
-
-            # Make the POST request to the local Ollama server
-            response = requests.post(OLLAMA_API_ENDPOINT, headers=headers, data=json.dumps(payload))
-            response.raise_for_status()
-
-            response_json = response.json()
-            strategy['embedding'] = response_json.get('embedding')
-
+            payload = {"model": EMBEDDING_MODEL, "prompt": document_to_embed}
+            strategy['embedding'] = _request_embedding(payload)
             print("  ...Success.")
-
-        except requests.exceptions.ConnectionError as e:
-            print(f"\n[ERROR] Could not connect to Ollama server at {OLLAMA_API_ENDPOINT}.")
-            print("Please ensure the Ollama service is running and the model has been pulled.")
-            print(f"  (e.g., 'ollama pull {EMBEDDING_MODEL}')")
-            print(f"Underlying error: {e}")
-            return []
-        except requests.exceptions.HTTPError as e:
-            print(f"\n[ERROR] HTTP Error during embedding: {e}")
-            print(f"Response from server: {response.text}")
-            if "model not found" in response.text:
-                print(f"Model '{EMBEDDING_MODEL}' not found. Please ensure the model is available via 'ollama list'.")
-            return []
         except Exception as e:
             print(f"\nAn unexpected error occurred during embedding strategy {i+1}: {e}")
             return []
 
     return strategies
+
+
+def embed_text(document: str) -> list[float]:
+    """Generate an embedding vector for an arbitrary document string."""
+
+    if not document.strip():
+        return []
+
+    payload = {"model": EMBEDDING_MODEL, "prompt": document}
+    embedding = _request_embedding(payload)
+    return embedding or []
