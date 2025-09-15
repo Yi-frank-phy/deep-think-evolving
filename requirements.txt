@@ -1,3 +1,4 @@
 google-generativeai
 numpy
 requests
+pytest
