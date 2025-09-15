@@ -2,6 +2,7 @@ import os
 import json
 import numpy as np
 
+from src.grounding_search import GroundingSearchError, search_google_grounding
 from src.strategy_architect import generate_strategic_blueprint
 from src.embedding_client import embed_strategies
 from src.diversity_calculator import calculate_similarity_matrix
@@ -10,6 +11,32 @@ from src.diversity_calculator import calculate_similarity_matrix
 def main():
     """Run the end-to-end test pipeline for strategy generation and analysis."""
     print("--- Running Full Pipeline Test Script (Gemini + Ollama) ---")
+
+    print("\n--- Grounding Search Demo (Google Search Grounding) ---")
+    grounding_metadata_for_reference = None
+    try:
+        search_demo = search_google_grounding(
+            "Gemini 1.5 Flash 最新能力更新", top_k=3
+        )
+    except GroundingSearchError as error:
+        print("[GROUNDING ERROR] Could not run Google Search Grounding demo.")
+        print(error)
+        print(
+            "Please ensure GEMINI_API_KEY is configured and that your network allows "
+            "outbound access to Google APIs."
+        )
+    else:
+        print("Grounding results:")
+        print(json.dumps(search_demo["results"], indent=2, ensure_ascii=False))
+        grounding_metadata_for_reference = search_demo.get("grounding_metadata")
+        if isinstance(grounding_metadata_for_reference, dict):
+            chunk_count = len(grounding_metadata_for_reference.get("grounding_chunks", []))
+        else:
+            chunk_count = 0
+        print(
+            "Stored raw grounding metadata for future use "
+            f"({chunk_count} grounding chunks captured)."
+        )
 
     # Ensure the Gemini API key is available before attempting generation.
     if not os.environ.get("GEMINI_API_KEY"):
