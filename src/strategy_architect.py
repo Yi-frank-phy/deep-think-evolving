@@ -2,29 +2,25 @@ import os
 import json
 import google.generativeai as genai
 
+
 def generate_strategic_blueprint(
     problem_state: str, model_name: str = "gemini-2.5-flash"
 ) -> list[dict]:
-    """
-    Generates a strategic blueprint for a given problem state using a generative AI model.
-
-    This function takes a description of a problem and uses the "Strategy Architect"
-    prompt pattern defined in the project's design document to generate a list of
-    potential strategic directions.
+    """Generates a list of strategic blueprints for a given problem state.
 
     Args:
-        problem_state: A string describing the current problem, context, progress,
-                       and any specific dilemmas.
-        model_name: The name of the generative model to use.
+        problem_state: Description of the current problem, context, progress, and dilemmas.
+        model_name: The Gemini model name to use for generation.
 
     Returns:
-        A list of dictionaries, where each dictionary represents a strategy and
-        contains the keys 'strategy_name', 'rationale', and 'initial_assumption'.
-        Returns an empty list if the API key is not configured or an error occurs.
+        A list of dictionaries describing strategies. Each dictionary contains
+        ``strategy_name``, ``rationale``, and ``initial_assumption``. Returns an
+        empty list if the API key is missing or an error occurs.
     """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         print("Error: GEMINI_API_KEY environment variable not set.")
+        print("Please set the environment variable before running.")
         return []
 
     genai.configure(api_key=api_key)
@@ -47,7 +43,7 @@ def generate_strategic_blueprint(
 3. 保持中立: 不要对策略表示任何偏好或进行评估。你的角色是绘制蓝图，而非评判。
 
 请将结果输出为单一的JSON对象数组。每个对象必须包含以下三个键:
-* strategy_name: 一个简短的、描述性的中文标签 (例如, "几何构造法")。
+* strategy_name: 一个简短的、描述性的中文标签 (例如, "几何构造法").
 * rationale: 一句解释该策略核心逻辑的中文描述。
 * initial_assumption: 一句描述该策略若要可行所必须依赖的关键假设的中文描述。
 """
@@ -67,12 +63,36 @@ def generate_strategic_blueprint(
             )
         )
 
-        # The response text should be a JSON formatted string.
-        # It might be wrapped in ```json ... ```, so we need to clean it.
-        response_text = response.text.strip().replace("```json", "").replace("```", "").strip()
+        # Clean potential markdown code fences before parsing.
+        response_text = response.text.strip()
+        response_text = response_text.replace("```json", "").replace("```", "").strip()
         parsed_json = json.loads(response_text)
         return parsed_json
 
     except Exception as e:
         print(f"An error occurred during API call or JSON parsing: {e}")
         return []
+
+
+if __name__ == "__main__":
+    print("Running a direct test of strategy_architect.py...")
+
+    if not os.environ.get("GEMINI_API_KEY"):
+        print("\nSkipping test: GEMINI_API_KEY is not set.")
+        print("Please export your API key to run the test:")
+        print("export GEMINI_API_KEY='your_api_key_here'")
+    else:
+        sample_problem = (
+            "我们正在开发一个大型语言模型驱动的自主研究代理。"
+            "当前进展：代理可以分解问题、执行网络搜索并阅读文档。"
+            "遇到的困境：当面对需要综合来自多个来源的矛盾信息才能得出结论的复杂问题时，"
+            "代理的性能会急剧下降。它经常会陷入其中一个信源的观点，或者无法形成一个连贯的最终答案。"
+        )
+
+        strategies = generate_strategic_blueprint(sample_problem)
+
+        if strategies:
+            print("\nSuccessfully generated strategic blueprint:")
+            print(json.dumps(strategies, indent=2, ensure_ascii=False))
+        else:
+            print("\nFailed to generate strategic blueprint.")

@@ -1,21 +1,17 @@
 import os
 import json
 import numpy as np
+
 from src.strategy_architect import generate_strategic_blueprint
 from src.embedding_client import embed_strategies
 from src.diversity_calculator import calculate_similarity_matrix
 
+
 def main():
-    """
-    Main function to test the full pipeline:
-    1. Generate strategic blueprints using Gemini.
-    2. Embed the strategies using a local Ollama model.
-    3. Calculate and display their cosine similarity matrix.
-    """
+    """Run the end-to-end test pipeline for strategy generation and analysis."""
     print("--- Running Full Pipeline Test Script (Gemini + Ollama) ---")
 
-    # Check for Gemini API key for the generation step
-    # The key is set from a previous turn, but this check is good practice.
+    # Ensure the Gemini API key is available before attempting generation.
     if not os.environ.get("GEMINI_API_KEY"):
         print("\n[ERROR] GEMINI_API_KEY environment variable is not set.")
         print("This script requires a Google Gemini API key for the generation step.")
@@ -46,16 +42,21 @@ def main():
         return
 
     print(f"[SUCCESS] Generated {len(strategies)} strategies.")
-    strategy_names = [s.get('strategy_name', 'Unnamed Strategy') for s in strategies]
+    strategy_names = [s.get("strategy_name", "Unnamed Strategy") for s in strategies]
     for i, name in enumerate(strategy_names):
-        print(f"  {i+1}. {name}")
+        print(f"  {i + 1}. {name}")
+
+    print("\nGenerated strategies (JSON):")
+    print(json.dumps(strategies, indent=2, ensure_ascii=False))
 
     # 2. Embed Strategies using Ollama
     # --------------------------------
     print("\nStep 2: Embedding generated strategies using Ollama...")
     embedded_strategies = embed_strategies(strategies)
 
-    if not embedded_strategies or not all('embedding' in s and s['embedding'] for s in embedded_strategies):
+    if not embedded_strategies or not all(
+        "embedding" in s and s["embedding"] for s in embedded_strategies
+    ):
         print("\n[FAILURE] Failed to embed strategies using Ollama. Exiting.")
         return
 
@@ -84,6 +85,7 @@ def main():
     print(similarity_matrix)
 
     print("\n--- Test Script Finished ---")
+
 
 if __name__ == "__main__":
     main()
