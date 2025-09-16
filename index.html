@@ -7,22 +7,34 @@
     <link rel="stylesheet" href="index.css" />
   </head>
   <body>
-    <div id="chat-container">
-      <div id="chat-log">
-        <div class="message assistant">
-          <p>System standby. Awaiting your instructions.</p>
+    <div id="dashboard">
+      <section id="chat-container">
+        <div id="chat-log">
+          <div class="message assistant">
+            <p>System standby. Awaiting your instructions.</p>
+          </div>
         </div>
-      </div>
-      <form id="chat-form">
-        <input
-          type="text"
-          id="user-input"
-          placeholder="Enter your instructions here..."
-          autocomplete="off"
-          required
-        />
-        <button type="submit">Send</button>
-      </form>
+        <form id="chat-form">
+          <input
+            type="text"
+            id="user-input"
+            placeholder="Enter your instructions here..."
+            autocomplete="off"
+            required
+          />
+          <button type="submit">Send</button>
+        </form>
+      </section>
+
+      <aside id="knowledge-panel">
+        <div class="knowledge-header">
+          <h2>Reflection Knowledge Base</h2>
+          <span id="knowledge-status" class="status">Disconnected</span>
+        </div>
+        <div id="knowledge-feed" class="knowledge-feed empty">
+          <p class="placeholder">Waiting for reflections...</p>
+        </div>
+      </aside>
     </div>
     <script type="module" src="index.tsx"></script>
   </body>
