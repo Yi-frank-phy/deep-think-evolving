@@ -2,7 +2,10 @@ import os
 import json
 import google.generativeai as genai
 
-def generate_strategic_blueprint(problem_state: str) -> list[dict]:
+
+def generate_strategic_blueprint(
+    problem_state: str, model_name: str = "gemini-2.5-flash"
+) -> list[dict]:
     """
     Generates a strategic blueprint for a given problem state using a generative AI model.
 
@@ -12,7 +15,8 @@ def generate_strategic_blueprint(problem_state: str) -> list[dict]:
 
     Args:
         problem_state: A string describing the current problem, context, progress,
-                       and any specific dilemmas.
+            and any specific dilemmas.
+        model_name: The Gemini model name to use for generation.
 
     Returns:
         A list of dictionaries, where each dictionary represents a strategy and
@@ -23,13 +27,10 @@ def generate_strategic_blueprint(problem_state: str) -> list[dict]:
     if not api_key:
         print("Error: GEMINI_API_KEY environment variable not set.")
         print("Please set the environment variable before running.")
-        # In a real application, we might use request_user_input here,
-        # but for this implementation, we'll rely on the env var.
         return []
 
     genai.configure(api_key=api_key)
 
-    # The prompt structure is taken directly from "readme of deep think final.md"
     system_prompt = (
         "你是一位'战略系统架构师' (Strategic Systems Architect)。"
         "你的主要职能是对复杂问题进行元层面分析。"
@@ -50,14 +51,14 @@ def generate_strategic_blueprint(problem_state: str) -> list[dict]:
 请将结果输出为单一的JSON对象数组。每个对象必须包含以下三个键:
 * strategy_name: 一个简短的、描述性的中文标签 (例如, "几何构造法")。
 * rationale: 一句解释该策略核心逻辑的中文描述。
-* initial_assumption: 一句描述该策略若要可行所必须依赖的关键假设的中文描述。\
+* initial_assumption: 一句描述该策略若要可行所必须依赖的关键假设的中文描述。
 """
 
     full_user_prompt = user_prompt_template.format(problem_state=problem_state)
 
     model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash',
-        system_instruction=system_prompt
+        model_name=model_name,
+        system_instruction=system_prompt,
     )
 
     try:
@@ -65,24 +66,22 @@ def generate_strategic_blueprint(problem_state: str) -> list[dict]:
             full_user_prompt,
             generation_config=genai.types.GenerationConfig(
                 response_mime_type="application/json"
-            )
+            ),
         )
 
-        # The response text should be a JSON formatted string.
-        # We parse it into a Python object.
-        parsed_json = json.loads(response.text)
+        response_text = getattr(response, "text", "").strip()
+        response_text = response_text.replace("```json", "").replace("```", "").strip()
+        parsed_json = json.loads(response_text)
         return parsed_json
 
     except Exception as e:
         print(f"An error occurred during API call or JSON parsing: {e}")
         return []
 
-if __name__ == '__main__':
-    # This is a simple test case that can be run directly
-    # For a comprehensive test, we will use the main.py script as planned.
+
+if __name__ == "__main__":
     print("Running a direct test of strategy_architect.py...")
 
-    # Check for API key before running the test
     if not os.environ.get("GEMINI_API_KEY"):
         print("\nSkipping test: GEMINI_API_KEY is not set.")
         print("Please export your API key to run the test:")
