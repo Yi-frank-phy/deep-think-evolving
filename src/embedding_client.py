@@ -1,34 +1,87 @@
+from __future__ import annotations
+
 import os
-import json
-import requests
+from typing import Optional
+
 import numpy as np
+import requests
 
-OLLAMA_API_ENDPOINT = "http://localhost:11434/api/embeddings"
-EMBEDDING_MODEL = "dengcao/Qwen3-Embedding-8B:Q4_K_M"
+DEFAULT_OLLAMA_API_ENDPOINT = "http://localhost:11434/api/embeddings"
+DEFAULT_OLLAMA_MODEL = "dengcao/Qwen3-Embedding-8B:Q4_K_M"
+USE_MOCK_ENV_VAR = "USE_MOCK_EMBEDDING"
+MOCK_DIM_ENV_VAR = "MOCK_EMBEDDING_DIM"
+DEFAULT_MOCK_DIM = 768
+_TRUTHY_VALUES = {"1", "true", "yes", "on"}
 
-def embed_strategies(strategies: list[dict]) -> list[dict]:
-    """
-    Embeds a list of strategies using a local Ollama embedding model.
 
-    This function takes a list of strategy dictionaries, prepares the text content
-    from each, and calls the local Ollama API to get their vector embeddings.
+def _is_truthy(value: Optional[str]) -> bool:
+    """Return True when the given environment string represents truthy."""
+
+    return bool(value) and value.strip().lower() in _TRUTHY_VALUES
+
+
+def _resolve_use_mock(explicit: Optional[bool]) -> bool:
+    """Determine whether mock embeddings should be used."""
+
+    if explicit is not None:
+        return explicit
+    return _is_truthy(os.environ.get(USE_MOCK_ENV_VAR))
+
+
+def _mock_embedding_dimension() -> int:
+    """Read the mock embedding dimensionality from the environment."""
+
+    raw_value = os.environ.get(MOCK_DIM_ENV_VAR)
+    if raw_value:
+        try:
+            dimension = int(raw_value)
+            if dimension > 0:
+                return dimension
+            print(
+                f"[WARNING] {MOCK_DIM_ENV_VAR} must be positive; received {raw_value!r}. "
+                f"Falling back to {DEFAULT_MOCK_DIM}."
+            )
+        except ValueError:
+            print(
+                f"[WARNING] {MOCK_DIM_ENV_VAR} value {raw_value!r} is not an integer. "
+                f"Falling back to {DEFAULT_MOCK_DIM}."
+            )
+    return DEFAULT_MOCK_DIM
+
+
+def _apply_mock_embeddings(strategies: list[dict]) -> list[dict]:
+    """Populate each strategy with a randomly generated embedding."""
+
+    dimension = _mock_embedding_dimension()
+    for strategy in strategies:
+        strategy["embedding"] = np.random.rand(dimension).tolist()
+    return strategies
+
+
+def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) -> list[dict]:
+    """Embed strategies using Ollama or generated mock vectors.
 
     Args:
-        strategies: A list of strategy dictionaries. Each dict is expected to
-                    have 'strategy_name', 'rationale', and 'initial_assumption'.
+        strategies: Strategy dictionaries produced by ``generate_strategic_blueprint``.
+        use_mock: Optional explicit toggle for mock embeddings. When ``None``, the
+            ``USE_MOCK_EMBEDDING`` environment variable is consulted.
 
     Returns:
-        A list of the same strategy dictionaries, with a new 'embedding' key
-        added to each, containing the embedding vector. Returns an empty list
-        if an error occurs.
+        The same list of strategies enriched with an ``embedding`` key, or an empty
+        list when an error occurs.
     """
+
     if not strategies:
         return []
 
-    headers = {'Content-Type': 'application/json'}
+    if _resolve_use_mock(use_mock):
+        print("  (Using mock embedding data)...")
+        return _apply_mock_embeddings(strategies)
+
+    endpoint = os.environ.get("OLLAMA_API_ENDPOINT", DEFAULT_OLLAMA_API_ENDPOINT)
+    model = os.environ.get("OLLAMA_EMBEDDING_MODEL", DEFAULT_OLLAMA_MODEL)
 
     for i, strategy in enumerate(strategies):
-        # Prepare the document for a single strategy
         document_to_embed = (
             f"Strategy: {strategy.get('strategy_name', '')}\n"
             f"Rationale: {strategy.get('rationale', '')}\n"
@@ -36,36 +89,68 @@ def embed_strategies(strategies: list[dict]) -> list[dict]:
         )
 
         payload = {
-            "model": EMBEDDING_MODEL,
-            "prompt": document_to_embed
+            "model": model,
+            "prompt": document_to_embed,
         }
 
         try:
-            print(f"  Embedding strategy {i+1}/{len(strategies)} using Ollama: '{strategy.get('strategy_name', 'N/A')}'...")
-
-            # Make the POST request to the local Ollama server
-            response = requests.post(OLLAMA_API_ENDPOINT, headers=headers, data=json.dumps(payload))
+            print(
+                "  Embedding strategy "
+                f"{i + 1}/{len(strategies)} using Ollama: "
+                f"'{strategy.get('strategy_name', 'N/A')}'..."
+            )
+            response = requests.post(endpoint, json=payload, timeout=30)
             response.raise_for_status()
 
-            response_json = response.json()
-            strategy['embedding'] = response_json.get('embedding')
+            try:
+                response_json = response.json()
+            except ValueError as error:
+                print(
+                    "\n[ERROR] Ollama response did not contain valid JSON: "
+                    f"{error}"
+                )
+                return []
 
+            embedding = response_json.get("embedding")
+            if not embedding:
+                print(
+                    "\n[ERROR] Ollama response is missing the 'embedding' field."
+                )
+                return []
+
+            strategy["embedding"] = embedding
             print("  ...Success.")
 
-        except requests.exceptions.ConnectionError as e:
-            print(f"\n[ERROR] Could not connect to Ollama server at {OLLAMA_API_ENDPOINT}.")
+        except requests.exceptions.ConnectionError as error:
+            print(
+                f"\n[ERROR] Could not connect to Ollama server at {endpoint}."
+            )
             print("Please ensure the Ollama service is running and the model has been pulled.")
-            print(f"  (e.g., 'ollama pull {EMBEDDING_MODEL}')")
-            print(f"Underlying error: {e}")
+            print(f"  (e.g., 'ollama pull {model}')")
+            print(f"Underlying error: {error}")
             return []
-        except requests.exceptions.HTTPError as e:
-            print(f"\n[ERROR] HTTP Error during embedding: {e}")
+        except requests.exceptions.Timeout as error:
+            print(
+                f"\n[ERROR] Ollama request timed out when embedding strategy {i + 1}: {error}"
+            )
+            return []
+        except requests.exceptions.HTTPError as error:
+            print(f"\n[ERROR] HTTP error during embedding: {error}")
             print(f"Response from server: {response.text}")
-            if "model not found" in response.text:
-                print(f"Model '{EMBEDDING_MODEL}' not found. Please ensure the model is available via 'ollama list'.")
+            if "model not found" in response.text.lower():
+                print(
+                    f"Model '{model}' not found. Please ensure the model is available via 'ollama list'."
+                )
             return []
-        except Exception as e:
-            print(f"\nAn unexpected error occurred during embedding strategy {i+1}: {e}")
+        except requests.exceptions.RequestException as error:
+            print(
+                f"\n[ERROR] Unexpected network error during embedding strategy {i + 1}: {error}"
+            )
+            return []
+        except Exception as error:  # pragma: no cover - defensive guard
+            print(
+                f"\n[ERROR] An unexpected error occurred during embedding strategy {i + 1}: {error}"
+            )
             return []
 
     return strategies

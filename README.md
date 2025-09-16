@@ -33,3 +33,16 @@ pytest -k smoke
 The smoke suite exercises the strategic blueprint generation, embedding, and
 similarity calculation pipeline, and will skip automatically if any required
 service is unavailable.
+
+To run the pipeline without a local Ollama instance, enable mock embeddings by
+setting the `USE_MOCK_EMBEDDING` environment variable:
+
+```bash
+USE_MOCK_EMBEDDING=1 pytest -k smoke
+```
+
+The same flag applies when invoking the Python entry point directly:
+
+```bash
+USE_MOCK_EMBEDDING=1 python main.py
+```
