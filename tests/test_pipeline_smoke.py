@@ -23,12 +23,19 @@ from src.diversity_calculator import calculate_similarity_matrix
 pytestmark = pytest.mark.smoke
 
 OLLAMA_HEALTH_URL = os.environ.get("OLLAMA_HEALTH_URL", "http://localhost:11434/api/tags")
+_TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
 
 
 def _has_gemini_api_key() -> bool:
     """Return ``True`` when the Gemini API key is available."""
 
     return bool(os.environ.get("GEMINI_API_KEY"))
+
+
+def _use_mock_embeddings() -> bool:
+    """Return True when mock embeddings are enabled via environment flag."""
+
+    return os.environ.get("USE_MOCK_EMBEDDING", "").strip().lower() in _TRUTHY_ENV_VALUES
 
 
 def _is_ollama_running() -> bool:
@@ -48,7 +55,7 @@ def ensure_environment() -> None:
     if not _has_gemini_api_key():
         pytest.skip("GEMINI_API_KEY environment variable is not set.")
 
-    if not _is_ollama_running():
+    if not _use_mock_embeddings() and not _is_ollama_running():
         pytest.skip(f"Ollama service is not reachable at {OLLAMA_HEALTH_URL}.")
 
 
@@ -77,7 +84,7 @@ def test_pipeline_smoke(ensure_environment: None) -> None:
     assert strategies, "Strategy list should not be empty."
     _assert_strategy_schema(strategies)
 
-    embedded_strategies = embed_strategies(strategies)
+    embedded_strategies = embed_strategies(strategies, use_mock=_use_mock_embeddings())
     assert isinstance(embedded_strategies, list)
     assert embedded_strategies, "Embedding step returned no strategies."
     assert len(embedded_strategies) == len(strategies)
