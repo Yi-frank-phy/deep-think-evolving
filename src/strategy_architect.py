@@ -1,22 +1,72 @@
-import os
+from __future__ import annotations
+
 import json
+import os
+from typing import Iterable, List, TypedDict
+
 import google.generativeai as genai
+
+
+class StrategyBlueprint(TypedDict):
+    """Typed representation of a single strategy blueprint item."""
+
+    strategy_name: str
+    rationale: str
+    initial_assumption: str
+
+
+def _clean_response_text(raw_text: str) -> str:
+    """Remove Markdown code fences and surrounding whitespace."""
+
+    cleaned = raw_text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.replace("```json", "", 1)
+        cleaned = cleaned.replace("```", "")
+    return cleaned.strip()
+
+
+def _is_valid_strategy(candidate: object) -> bool:
+    """Return True when the candidate satisfies the required schema."""
+
+    if not isinstance(candidate, dict):
+        return False
+
+    required_keys = ("strategy_name", "rationale", "initial_assumption")
+    for key in required_keys:
+        value = candidate.get(key)
+        if not isinstance(value, str) or not value.strip():
+            return False
+    return True
+
+
+def _validate_strategies(strategies: Iterable[dict]) -> List[StrategyBlueprint]:
+    """Validate and normalise the generated strategies."""
+
+    valid_items: List[StrategyBlueprint] = []
+    for index, strategy in enumerate(strategies, start=1):
+        if not _is_valid_strategy(strategy):
+            print(
+                "Warning: Ignoring malformed strategy at position "
+                f"{index}: {strategy!r}"
+            )
+            continue
+
+        valid_items.append(
+            StrategyBlueprint(
+                strategy_name=strategy["strategy_name"].strip(),
+                rationale=strategy["rationale"].strip(),
+                initial_assumption=strategy["initial_assumption"].strip(),
+            )
+        )
+
+    return valid_items
 
 
 def generate_strategic_blueprint(
     problem_state: str, model_name: str = "gemini-2.5-flash"
-) -> list[dict]:
-    """Generates a list of strategic blueprints for a given problem state.
+) -> list[StrategyBlueprint]:
+    """Generate a list of strategic blueprints for the given problem state."""
 
-    Args:
-        problem_state: Description of the current problem, context, progress, and dilemmas.
-        model_name: The Gemini model name to use for generation.
-
-    Returns:
-        A list of dictionaries describing strategies. Each dictionary contains
-        ``strategy_name``, ``rationale``, and ``initial_assumption``. Returns an
-        empty list if the API key is missing or an error occurs.
-    """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         print("Error: GEMINI_API_KEY environment variable not set.")
@@ -52,7 +102,7 @@ def generate_strategic_blueprint(
 
     model = genai.GenerativeModel(
         model_name=model_name,
-        system_instruction=system_prompt
+        system_instruction=system_prompt,
     )
 
     try:
@@ -60,18 +110,30 @@ def generate_strategic_blueprint(
             full_user_prompt,
             generation_config=genai.types.GenerationConfig(
                 response_mime_type="application/json"
-            )
+            ),
         )
-
-        # Clean potential markdown code fences before parsing.
-        response_text = response.text.strip()
-        response_text = response_text.replace("```json", "").replace("```", "").strip()
-        parsed_json = json.loads(response_text)
-        return parsed_json
-
-    except Exception as e:
-        print(f"An error occurred during API call or JSON parsing: {e}")
+    except Exception as error:  # pragma: no cover - network errors
+        print(f"An error occurred during API call: {error}")
         return []
+
+    response_text = _clean_response_text(response.text)
+    try:
+        parsed_json = json.loads(response_text)
+    except json.JSONDecodeError as error:
+        print(f"Failed to parse JSON response from Gemini: {error}")
+        return []
+
+    if not isinstance(parsed_json, list):
+        print(
+            "Model response was not a JSON array; received "
+            f"{type(parsed_json).__name__} instead."
+        )
+        return []
+
+    validated = _validate_strategies(parsed_json)
+    if not validated:
+        print("No valid strategies were produced by the model.")
+    return validated
 
 
 if __name__ == "__main__":
