@@ -50,3 +50,21 @@ def test_record_reflection_persists_payload(tmp_path, monkeypatch):
     assert payload["thread_label"] == thread_id
     assert payload["embedding"] == [0.1, 0.2, 0.3]
     assert payload["source"]["metadata"] == {"score": 0.95}
+
+
+def test_append_step_enforces_history_limit(tmp_path, monkeypatch):
+    _configure_temp_roots(tmp_path, monkeypatch)
+
+    thread_id = "Gamma"
+    cm.create_context(thread_id)
+
+    total_entries = cm.MAX_HISTORY_ENTRIES + 5
+    for index in range(total_entries):
+        cm.append_step(thread_id, {"index": index})
+
+    history_path = cm.CONTEXT_ROOT / cm._sanitize_thread_id(thread_id) / "history.log"
+    lines = [line for line in history_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+    assert len(lines) == cm.MAX_HISTORY_ENTRIES
+    first_entry = json.loads(lines[0])
+    assert first_entry["data"]["index"] == total_entries - cm.MAX_HISTORY_ENTRIES
