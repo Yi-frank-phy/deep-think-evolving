@@ -104,6 +104,7 @@ def run_pipeline(
                 "strategy_name": strategy.get("strategy_name"),
                 "rationale": strategy.get("rationale"),
                 "initial_assumption": strategy.get("initial_assumption"),
+                "milestones": strategy.get("milestones", {}),
             },
         )
         thread_registry.append(

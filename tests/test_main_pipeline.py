@@ -14,8 +14,41 @@ def test_run_pipeline_success(tmp_path):
         logs.append(message)
 
     strategies = [
-        {"strategy_name": "Alpha", "rationale": "r1", "initial_assumption": "a1"},
-        {"strategy_name": "Beta", "rationale": "r2", "initial_assumption": "a2"},
+        {
+            "strategy_name": "Alpha",
+            "rationale": "r1",
+            "initial_assumption": "a1",
+            "milestones": {
+                "阶段 1": [
+                    {
+                        "title": "访谈",
+                        "summary": "完成核心用户访谈",
+                        "success_criteria": ["完成 5 次访谈"],
+                    }
+                ]
+            },
+        },
+        {
+            "strategy_name": "Beta",
+            "rationale": "r2",
+            "initial_assumption": "a2",
+            "milestones": {
+                "阶段 1": [
+                    {
+                        "title": "实验",
+                        "summary": "搭建初始实验",
+                        "success_criteria": ["实验环境上线"],
+                    }
+                ],
+                "阶段 2": [
+                    {
+                        "title": "评估",
+                        "summary": "评估实验结果",
+                        "success_criteria": ["形成评估报告"],
+                    }
+                ],
+            },
+        },
     ]
 
     append_events: List[Dict[str, Any]] = []
@@ -78,7 +111,15 @@ def test_run_pipeline_success(tmp_path):
 
     assert result["status"] == "success"
     assert len(result["strategies"]) == 2
+    assert all("milestones" in strategy for strategy in result["strategies"])
     assert any(event["payload"]["event"] == "similarity_scores" for event in append_events)
+    milestone_payloads = [
+        event["payload"]
+        for event in append_events
+        if event["payload"]["event"] == "strategy_initialised"
+    ]
+    assert milestone_payloads
+    assert all(isinstance(payload.get("milestones"), dict) for payload in milestone_payloads)
     assert reflections
     assert logs
 
