@@ -93,6 +93,25 @@ npm run dev
 
 > `runtime_contexts/` 与 `knowledge_base/` 在首次运行脚本或启动后端时会自动创建，可加入 `.gitignore` 避免提交运行时数据。
 
+## Spec Kit 工作流
+
+Spec Kit 文档位于 `docs/spec-kit/` 目录，包含以下内容：
+- `constitution.md`：项目宗旨、核心约束与质量门禁。
+- `spec.md`：当前系统功能需求与架构约定。
+- `plan.md`：迭代里程碑与风险管理。
+- `tasks.md`：可执行的任务拆解列表。
+
+日常协作建议流程：
+1. 变更前先阅读/更新 `spec.md` 与 `plan.md`，确认需求与实施步骤。
+2. 在 `tasks.md` 勾选或新增任务，确保工作可追踪。
+3. 开发完成后运行 `specify check` 验证工具链安装与规范完整性。
+4. 在 PR 中引用相关文档段落，说明如何满足宪章要求。
+
+在仓库根目录执行以下命令可快速自检：
+```bash
+specify check
+```
+
 ## 进一步阅读
 
 - [`mcp-readme.md`](./mcp-readme.md)：介绍如何基于 MCP 扩展模型工具链。
