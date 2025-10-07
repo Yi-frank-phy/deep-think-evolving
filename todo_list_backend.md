@@ -47,7 +47,7 @@
 -   [ ] **任务 2.1: 实现“人机协同的策略分叉”流程**
     -   [ ] **2.1.1: “战略架构师”Agent**: 创建一个调用“战略架构师”LLM的模块。
         -   [ ] 严格使用`readme`中定义的System Prompt。
-        -   [ ] 使用 `responseSchema` 强制输出为包含 `strategy_name`, `rationale`, `initial_assumption` 的JSON数组。
+        -   [ ] 使用 `responseSchema` 强制输出为包含 `strategy_name`, `rationale`, `initial_assumption`, `milestones` 的JSON数组。
         -   [ ] 创建一个API端点 (e.g., `POST /runs/{run_id}/generate-strategies`) 触发此Agent。
     -   [ ] **2.1.2: 并行线程实例化**: 在 `POST /runs/{run_id}/start` 接口中，根据HIL确认后的战略列表，为每个战略创建初始根节点，并启动独立的异步工作单元（并行搜索线程）。
 
