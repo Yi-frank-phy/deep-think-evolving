@@ -25,3 +25,29 @@ def test_calculate_similarity_matrix_with_valid_embeddings():
 def test_calculate_similarity_matrix_with_invalid_payload():
     assert calculate_similarity_matrix([]).size == 0
     assert calculate_similarity_matrix([{"no_embedding": []}]).size == 0
+
+
+def test_calculate_similarity_matrix_with_mismatched_dimensions(capfd):
+    strategies = [
+        {"embedding": [1.0, 0.0, 0.0]},
+        {"embedding": [0.0, 1.0]},
+    ]
+
+    matrix = calculate_similarity_matrix(strategies)
+
+    assert matrix.size == 0
+    captured = capfd.readouterr()
+    assert "inconsistent dimensions" in captured.out
+
+
+def test_calculate_similarity_matrix_with_empty_embedding(capfd):
+    strategies = [
+        {"embedding": []},
+        {"embedding": [1.0, 0.0, 0.0]},
+    ]
+
+    matrix = calculate_similarity_matrix(strategies)
+
+    assert matrix.size == 0
+    captured = capfd.readouterr()
+    assert "empty embedding" in captured.out
