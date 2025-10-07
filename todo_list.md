@@ -4,6 +4,8 @@ This document outlines the key areas for improvement for the Project Prometheus 
 
 ---
 
+- [ ] **测试基线**：在每个迭代结束时运行 `pytest`（或 `npm run test`）验证后端流水线。
+
 ### **Area 1: UI/UX & System Observability (The "Control Tower")**
 
 **Critique:** The current design places a high cognitive load on the "Architect" and operates as a "black box," lacking transparency into the system's internal processes.

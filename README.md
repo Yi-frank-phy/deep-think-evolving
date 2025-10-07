@@ -20,6 +20,8 @@
 ```bash
 # Python 3.10+ 与 Node.js 18+ 环境
 pip install -r requirements.txt
+# 如需安装测试工具，可使用扩展依赖
+pip install -r requirements-dev.txt
 npm install
 ```
 
@@ -72,6 +74,15 @@ npm run dev
   VITE_KNOWLEDGE_SOCKET_URL=wss://your-domain/ws/knowledge_base
   ```
   或者设置 `VITE_KNOWLEDGE_SOCKET_PORT` 覆盖默认端口。
+
+### 6. 运行测试套件
+
+```bash
+# 推荐使用 requirements-dev.txt 安装测试依赖
+pytest
+# 或通过统一的 npm 脚本触发
+npm run test
+```
 
 ## 目录结构
 
