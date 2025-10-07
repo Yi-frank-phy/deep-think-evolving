@@ -107,6 +107,8 @@ def append_step(thread_id: str, step_data: Any) -> Path:
         handle.write(json.dumps(entry, ensure_ascii=False))
         handle.write("\n")
 
+    _enforce_history_limit(history_path)
+
     return history_path
 
 
@@ -139,6 +141,23 @@ def _load_history(thread_id: str) -> list[HistoryEntry]:
 def _format_history(entries: Iterable[HistoryEntry]) -> str:
     formatted = [entry.rendered for entry in entries]
     return "\n\n".join(formatted) if formatted else "(no reasoning steps recorded yet)"
+
+
+def _enforce_history_limit(history_path: Path) -> None:
+    """Trim the history log so that at most ``MAX_HISTORY_ENTRIES`` remain."""
+
+    if not history_path.exists():
+        return
+
+    with history_path.open("r", encoding="utf-8") as handle:
+        lines = handle.readlines()
+
+    if len(lines) <= MAX_HISTORY_ENTRIES:
+        return
+
+    trimmed = lines[-MAX_HISTORY_ENTRIES:]
+    with history_path.open("w", encoding="utf-8") as handle:
+        handle.writelines(trimmed)
 
 
 def _generate_summary(thread_id: str, prompt_text: str, history_block: str) -> str:
