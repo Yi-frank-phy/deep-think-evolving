@@ -14,8 +14,18 @@ def test_run_pipeline_success(tmp_path):
         logs.append(message)
 
     strategies = [
-        {"strategy_name": "Alpha", "rationale": "r1", "initial_assumption": "a1"},
-        {"strategy_name": "Beta", "rationale": "r2", "initial_assumption": "a2"},
+        {
+            "strategy_name": "Alpha",
+            "rationale": "r1",
+            "initial_assumption": "a1",
+            "milestones": ["m1", "m2"],
+        },
+        {
+            "strategy_name": "Beta",
+            "rationale": "r2",
+            "initial_assumption": "a2",
+            "milestones": ["m3"],
+        },
     ]
 
     append_events: List[Dict[str, Any]] = []
@@ -78,6 +88,13 @@ def test_run_pipeline_success(tmp_path):
 
     assert result["status"] == "success"
     assert len(result["strategies"]) == 2
+    assert all("milestones" in item for item in result["strategies"])
+    assert append_events
+    for event in append_events:
+        payload = event["payload"]
+        if payload.get("event") == "strategy_initialised":
+            assert isinstance(payload.get("milestones"), list)
+            assert payload["milestones"]
     assert any(event["payload"]["event"] == "similarity_scores" for event in append_events)
     assert reflections
     assert logs

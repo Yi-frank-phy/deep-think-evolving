@@ -84,9 +84,6 @@ def run_pipeline(
 
     strategy_names = [s.get("strategy_name", "Unnamed Strategy") for s in strategies]
     emit(f"[SUCCESS] Generated {len(strategies)} strategies.")
-    for i, name in enumerate(strategy_names, start=1):
-        emit(f"  {i}. {name}")
-
     emit("\nGenerated strategies (JSON):")
     emit(json.dumps(strategies, indent=2, ensure_ascii=False))
 
@@ -97,6 +94,9 @@ def run_pipeline(
     for idx, strategy in enumerate(strategies, start=1):
         thread_id = f"strategy-{idx:02d}"
         context_path = create_context_fn(thread_id)
+        milestones = strategy.get("milestones") or []
+        if not isinstance(milestones, list):
+            milestones = [milestones]
         append_step_fn(
             thread_id,
             {
@@ -104,6 +104,7 @@ def run_pipeline(
                 "strategy_name": strategy.get("strategy_name"),
                 "rationale": strategy.get("rationale"),
                 "initial_assumption": strategy.get("initial_assumption"),
+                "milestones": milestones,
             },
         )
         thread_registry.append(
@@ -113,7 +114,14 @@ def run_pipeline(
                 "strategy": strategy,
             }
         )
-        emit(f"  → Context ready for {thread_id} at {context_path}")
+        emit(
+            "  → Context ready for "
+            f"{thread_id} at {context_path}"
+            f" (milestones logged: {len(milestones)})"
+        )
+
+    for i, name in enumerate(strategy_names, start=1):
+        emit(f"  Strategy {i}: {name}")
 
     emit("\nStep 2: Embedding generated strategies using Ollama...")
     embedded_strategies = config["embed_strategies"](strategies)

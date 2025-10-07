@@ -20,8 +20,10 @@ def generate_strategic_blueprint(
 
     Returns:
         A list of dictionaries, where each dictionary represents a strategy and
-        contains the keys 'strategy_name', 'rationale', and 'initial_assumption'.
-        Returns an empty list if the API key is not configured or an error occurs.
+        contains the keys 'strategy_name', 'rationale', 'initial_assumption', and
+        'milestones'. The 'milestones' key should be a list (or other structured
+        sequence) describing key progress checkpoints for that strategy. Returns
+        an empty list if the API key is not configured or an error occurs.
     """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -48,10 +50,11 @@ def generate_strategic_blueprint(
 2. 仅限高层次: 不要提供详细的程序步骤。专注于“做什么”和“为什么”，而不是“怎么做”。
 3. 保持中立: 不要对策略表示任何偏好或进行评估。你的角色是绘制蓝图，而非评判。
 
-请将结果输出为单一的JSON对象数组。每个对象必须包含以下三个键:
+请将结果输出为单一的JSON对象数组。每个对象必须包含以下字段:
 * strategy_name: 一个简短的、描述性的中文标签 (例如, "几何构造法")。
 * rationale: 一句解释该策略核心逻辑的中文描述。
 * initial_assumption: 一句描述该策略若要可行所必须依赖的关键假设的中文描述。
+* milestones: 一个按时间顺序排列的关键进展节点列表，每个节点用一句话描述该策略下需要达成的里程碑或验收标准。
 """
 
     full_user_prompt = user_prompt_template.format(problem_state=problem_state)
@@ -72,7 +75,27 @@ def generate_strategic_blueprint(
         response_text = getattr(response, "text", "").strip()
         response_text = response_text.replace("```json", "").replace("```", "").strip()
         parsed_json = json.loads(response_text)
-        return parsed_json
+
+        if isinstance(parsed_json, dict):
+            parsed_json = [parsed_json]
+
+        if not isinstance(parsed_json, list):
+            return []
+
+        normalized: list[dict] = []
+        for entry in parsed_json:
+            if not isinstance(entry, dict):
+                continue
+
+            milestones = entry.get("milestones", [])
+            if isinstance(milestones, dict):
+                milestones = [milestones]
+            elif not isinstance(milestones, list):
+                milestones = [milestones] if milestones else []
+
+            normalized.append({**entry, "milestones": milestones})
+
+        return normalized
 
     except Exception as e:
         print(f"An error occurred during API call or JSON parsing: {e}")
