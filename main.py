@@ -115,9 +115,8 @@ def run_pipeline(
             }
         )
         emit(
-            "  → Context ready for "
-            f"{thread_id} at {context_path}"
-            f" (milestones logged: {len(milestones)})"
+            f"  → Context ready for {thread_id} at {context_path} "
+            f"(milestones logged: {len(milestones)})"
         )
 
     for i, name in enumerate(strategy_names, start=1):
