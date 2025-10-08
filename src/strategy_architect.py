@@ -116,7 +116,12 @@ def generate_strategic_blueprint(
         print(f"An error occurred during API call: {error}")
         return []
 
-    response_text = _clean_response_text(response.text)
+    response_text_raw = getattr(response, "text", None)
+    if not isinstance(response_text_raw, str) or not response_text_raw.strip():
+        print("Model response did not contain textual content to parse.")
+        return []
+
+    response_text = _clean_response_text(response_text_raw)
     try:
         parsed_json = json.loads(response_text)
     except json.JSONDecodeError as error:
