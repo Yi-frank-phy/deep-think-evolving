@@ -110,4 +110,17 @@ EOF
 }
 
 check_file() { [[ -f "$1" ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
-check_dir() { [[ -d "$1" && -n $(ls -A "$1" 2>/dev/null) ]] && echo "  ✓ $2" || echo "  ✗ $2"; }
+check_dir() {
+    if [[ -d "$1" ]]; then
+        local dir_contents
+        dir_contents=$(ls -A "$1" 2>/dev/null || true)
+
+        if [[ -n "$dir_contents" ]]; then
+            echo "  ✓ $2"
+        else
+            echo "  ✗ $2"
+        fi
+    else
+        echo "  ✗ $2"
+    fi
+}
