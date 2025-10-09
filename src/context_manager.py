@@ -228,6 +228,20 @@ def _summary_path(thread_id: str) -> Path:
     return _context_dir(thread_id) / SUMMARY_FILENAME
 
 
+def _embed_reflection_payload(text: str) -> list[float]:
+    try:
+        embedding = embed_text(text)
+        if embedding is None:
+            return []
+        return embedding
+    except Exception as exc:
+        print(
+            "Warning: Failed to embed reflection text; storing without vector.",
+            f"Reason: {exc}",
+        )
+        return []
+
+
 def record_reflection(
     thread_id: str,
     reflection_text: str,
@@ -255,7 +269,7 @@ def record_reflection(
         "created_at": timestamp,
         "outcome": outcome,
         "reflection": reflection_text,
-        "embedding": embed_text(reflection_text),
+        "embedding": _embed_reflection_payload(reflection_text),
         "source": {
             "summary_path": str(summary_path) if summary_path.exists() else None,
             "metadata": dict(metadata or {}),
