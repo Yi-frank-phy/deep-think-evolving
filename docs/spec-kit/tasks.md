@@ -8,11 +8,11 @@
 | T-004 | 扩展 `server.py` WebSocket，增加客户端订阅过滤或鉴权机制 | 待定 | Backlog | 规范 §3.5 |
 | T-005 | 评估知识库持久化方案（向量数据库或外部存储），形成提案 | 待定 | Backlog | 规范 §5 |
 | T-006 | 将上下文历史截断策略写入规范并实现配置化（衔接 PR#14 建议） | 待定 | Done | 规范 §3.2 |
-| T-007 | 为 `search_google_grounding` 设计可注入客户端并编写模拟测试 | 待定 | TODO | 规范 §3.3 |
+| T-007 | 为 `search_google_grounding` 设计可注入客户端并编写模拟测试 | Codex Integration Pod | Done | 规范 §3.3 |
 | T-008 | 为策略冒烟测试提供 `use_mock`/离线模式并在 CI 中启用 | 待定 | TODO | 规范 §3.4 |
 | T-009 | 编写 Codex/人工协同的 PR 模板，要求引用 `spec.md`/`tasks.md` 并记录测试 | 待定 | Done | 宪章·流程约束 |
 | T-010 | 制定分支治理手册：合并后删除临时分支并设置 main 保护规则 | 待定 | Done | 计划 §风险缓解 |
-| T-011 | 定义验收日志格式与自动报告脚本，支撑非开发者验收 | 待定 | TODO | 规范 §3.4 |
+| T-011 | 定义验收日志格式与自动报告脚本，支撑非开发者验收 | Codex Integration Pod | Done | 规范 §3.4 |
 | T-012 | 整合 `codex/implement-google-grounding-search-functionality` 分支，保留主干规范并补充搜索助手条款 | Codex Integration Pod | In Progress | 规范 §3.3 |
 | T-013 | 整合 `codex/add-logging-helper-and-generate-acceptance-report` 分支，统一日志/验收脚本规范 | Codex Integration Pod | In Progress | 规范 §3.4 |
 | T-014 | 批量整合其余 `codex/*` 分支，记录冲突清单并同步规范/任务状态 | Codex Integration Pod | In Progress | 宪章·流程约束 |
