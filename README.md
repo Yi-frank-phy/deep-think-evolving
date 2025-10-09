@@ -58,6 +58,9 @@ python main.py --use-mock
 - 调用 Ollama 获取嵌入并输出余弦相似度矩阵；
 - 在 `knowledge_base/` 写入触发的长期反思（含嵌入向量）。
 
+流水线的终端日志通过 `logging_helper` 统一加上 `[Spec-OK]` 前缀，便于后续的自动验收报告解析；如需接入自定义日志系统，可在调用
+`run_pipeline(..., adapters={"logger": your_logger})` 时传入自定义回调，`logging_helper` 会自动封装前缀。
+
 若缺少 API Key 或 Ollama 服务，脚本会在终端提示相应错误并安全退出。
 
 ### 4. 启动知识库 WebSocket 服务
@@ -91,6 +94,20 @@ pytest -m smoke
 # 或通过统一的 npm 脚本触发
 npm run test
 ```
+
+新增的 `tests/test_logging_helper.py` 与 `tests/test_generate_acceptance_report.py` 会验证日志前缀格式、验收脚本的 JSON/Markdown 输出以及缺省日志时的友好提示。
+
+### 7. 生成验收报告
+
+执行以下命令可从流水线日志生成验收摘要：
+
+```bash
+python scripts/generate_acceptance_report.py --log-path logs/pipeline.log
+```
+
+- 默认读取 `logs/pipeline.log`，若日志路径不同，可通过 `--log-path` 指定。
+- 当日志缺失时，脚本会返回带 `[Spec-OK]` 前缀的提示，提醒先运行主流程。
+- 输出内容包含 JSON 统计以及 Markdown 摘要，方便粘贴至 Spec Kit 或人工验收记录。
 
 ## 目录结构
 
