@@ -46,6 +46,12 @@ npm install
 python main.py
 ```
 
+若在无法访问 Gemini/Ollama 的环境中，可启用离线模式：
+
+```bash
+python main.py --use-mock
+```
+
 该脚本将：
 - 调用 Gemini 生成多条策略；
 - 为每条策略创建独立的 `runtime_contexts/<strategy-id>` 目录；
@@ -80,6 +86,8 @@ npm run dev
 ```bash
 # 推荐使用 requirements-dev.txt 安装测试依赖
 pytest
+# 离线冒烟测试（无需外部服务）
+pytest -m smoke
 # 或通过统一的 npm 脚本触发
 npm run test
 ```
