@@ -11,6 +11,7 @@ def _configure_temp_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     knowledge_root = tmp_path / "knowledge_base"
     monkeypatch.setattr(cm, "CONTEXT_ROOT", context_root)
     monkeypatch.setattr(cm, "KNOWLEDGE_BASE_ROOT", knowledge_root)
+    monkeypatch.delenv(cm.HISTORY_LIMIT_ENV_VAR, raising=False)
 
 
 def test_context_creation_and_summary_fallback(tmp_path, monkeypatch):
@@ -58,13 +59,33 @@ def test_append_step_enforces_history_limit(tmp_path, monkeypatch):
     thread_id = "Gamma"
     cm.create_context(thread_id)
 
-    total_entries = cm.MAX_HISTORY_ENTRIES + 5
+    limit = cm.get_history_limit()
+    total_entries = limit + 5
     for index in range(total_entries):
         cm.append_step(thread_id, {"index": index})
 
     history_path = cm.CONTEXT_ROOT / cm._sanitize_thread_id(thread_id) / "history.log"
     lines = [line for line in history_path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
-    assert len(lines) == cm.MAX_HISTORY_ENTRIES
+    assert len(lines) == limit
     first_entry = json.loads(lines[0])
-    assert first_entry["data"]["index"] == total_entries - cm.MAX_HISTORY_ENTRIES
+    assert first_entry["data"]["index"] == total_entries - limit
+
+
+def test_append_step_respects_custom_history_limit(tmp_path, monkeypatch):
+    _configure_temp_roots(tmp_path, monkeypatch)
+
+    custom_limit = 5
+    monkeypatch.setenv(cm.HISTORY_LIMIT_ENV_VAR, str(custom_limit))
+
+    thread_id = "Custom"
+    cm.create_context(thread_id)
+
+    for index in range(custom_limit + 3):
+        cm.append_step(thread_id, {"index": index})
+
+    history_path = cm.CONTEXT_ROOT / cm._sanitize_thread_id(thread_id) / "history.log"
+    lines = [json.loads(line) for line in history_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+    assert len(lines) == custom_limit
+    assert lines[0]["data"]["index"] == 3

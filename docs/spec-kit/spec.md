@@ -17,7 +17,7 @@ Deep Think Evolving 是一个多代理研究助理原型，通过 Gemini 生成�
    - 失败处理：若 Gemini API 不可用，需记录错误并终止流水线。
 2. **上下文记录**
    - 能够为每个策略创建独立目录，存储 `prompt.md`、`history.log`、总结与反思文件。
-   - `append_step` 需保证写入 JSONL 格式，历史最多保留 50 条。
+   - `append_step` 需保证写入 JSONL 格式，历史默认最多保留 50 条，可通过环境变量 `CONTEXT_HISTORY_LIMIT` 配置为正整数。
    - `generate_summary` 在缺少 API Key 时应提供本地回退摘要。
 3. **嵌入与相似度**
    - `embed_strategies` 使用 `embedding_client.py` 调用本地服务，返回含 `embedding` 数组的策略。
