@@ -1,5 +1,7 @@
 import json
 import os
+from argparse import ArgumentParser, Namespace
+from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
 
 import numpy as np
@@ -14,6 +16,7 @@ from src.context_manager import (
 from src.diversity_calculator import calculate_similarity_matrix
 from src.embedding_client import embed_strategies
 from src.strategy_architect import generate_strategic_blueprint
+from src.logging_utils import emit_spec_event
 
 
 Logger = Callable[[str], None]
@@ -62,20 +65,28 @@ def run_pipeline(
         log_messages.append(message)
         logger(message)
 
+    def spec_emit(tag: str, message: str) -> None:
+        emit_spec_event(emit, tag, message)
+
     if not config["validate_api_key"]():
         error_message = "GEMINI_API_KEY environment variable is not set."
-        emit("\n[ERROR] GEMINI_API_KEY environment variable is not set.")
-        emit("This script requires a Google Gemini API key for the generation step.")
-        emit("\nPlease set the environment variable before running:")
-        emit("  export GEMINI_API_KEY='your_google_api_key_here'")
-        emit("\nScript finished without execution.")
+        spec_emit("ERR", "GEMINI_API_KEY environment variable is not set.")
+        spec_emit(
+            "GUIDE",
+            "This script requires a Google Gemini API key for the generation step.",
+        )
+        spec_emit(
+            "GUIDE",
+            "Please set the environment variable before running: \n  export GEMINI_API_KEY='your_google_api_key_here'",
+        )
+        spec_emit("ERR", "Script finished without execution.")
         return {"status": "missing_api_key", "error": error_message, "logs": log_messages}
 
-    emit("\nStep 1: Generating strategic blueprint (using Gemini)...")
+    spec_emit("STEP", "Step 1: Generating strategic blueprint (using Gemini)...")
     strategies = config["generate_blueprint"](problem_state)
 
     if not strategies:
-        emit("\n[FAILURE] Failed to generate strategic blueprint. Exiting.")
+        spec_emit("ERR", "Failed to generate strategic blueprint. Exiting.")
         return {
             "status": "blueprint_failed",
             "error": "Strategy generation returned no results.",
@@ -83,11 +94,11 @@ def run_pipeline(
         }
 
     strategy_names = [s.get("strategy_name", "Unnamed Strategy") for s in strategies]
-    emit(f"[SUCCESS] Generated {len(strategies)} strategies.")
-    emit("\nGenerated strategies (JSON):")
-    emit(json.dumps(strategies, indent=2, ensure_ascii=False))
+    spec_emit("OK", f"Generated {len(strategies)} strategies.")
+    spec_emit("DATA", "Generated strategies (JSON):")
+    spec_emit("DATA", json.dumps(strategies, indent=2, ensure_ascii=False))
 
-    emit("\nStep 1b: Initialising per-strategy reasoning contexts...")
+    spec_emit("STEP", "Step 1b: Initialising per-strategy reasoning contexts...")
     thread_registry: list[dict[str, Any]] = []
     create_context_fn = config["create_context"]
     append_step_fn = config["append_step"]
@@ -114,22 +125,24 @@ def run_pipeline(
                 "strategy": strategy,
             }
         )
-        emit(
-            "  → Context ready for "
-            f"{thread_id} at {context_path}"
-            f" (milestones logged: {len(milestones)})"
+        spec_emit(
+            "CTX",
+            (
+                f"Context ready for {thread_id} at {context_path} "
+                f"(milestones logged: {len(milestones)})"
+            ),
         )
 
     for i, name in enumerate(strategy_names, start=1):
-        emit(f"  Strategy {i}: {name}")
+        spec_emit("DATA", f"Strategy {i}: {name}")
 
-    emit("\nStep 2: Embedding generated strategies using Ollama...")
+    spec_emit("STEP", "Step 2: Embedding generated strategies using Ollama...")
     embedded_strategies = config["embed_strategies"](strategies)
 
     if not embedded_strategies or not all(
         "embedding" in s and s["embedding"] for s in embedded_strategies
     ):
-        emit("\n[FAILURE] Failed to embed strategies using Ollama. Exiting.")
+        spec_emit("ERR", "Failed to embed strategies using Ollama. Exiting.")
         return {
             "status": "embedding_failed",
             "error": "Embedding stage returned empty results.",
@@ -137,7 +150,7 @@ def run_pipeline(
             "logs": log_messages,
         }
 
-    emit("[SUCCESS] Strategies embedded successfully.")
+    spec_emit("OK", "Strategies embedded successfully.")
 
     for idx, strategy in enumerate(embedded_strategies, start=1):
         thread_id = thread_registry[idx - 1]["thread_id"]
@@ -151,11 +164,11 @@ def run_pipeline(
             },
         )
 
-    emit("\nStep 3: Calculating cosine similarity matrix...")
+    spec_emit("STEP", "Step 3: Calculating cosine similarity matrix...")
     similarity_matrix = config["calculate_similarity_matrix"](embedded_strategies)
 
     if not isinstance(similarity_matrix, np.ndarray) or similarity_matrix.size == 0:
-        emit("\n[FAILURE] Failed to calculate similarity matrix.")
+        spec_emit("ERR", "Failed to calculate similarity matrix.")
         return {
             "status": "similarity_failed",
             "error": "Similarity calculation produced no data.",
@@ -164,16 +177,16 @@ def run_pipeline(
             "logs": log_messages,
         }
 
-    emit("[SUCCESS] Similarity matrix calculated.")
+    spec_emit("OK", "Similarity matrix calculated.")
 
-    emit("\n--- Final Results ---")
-    emit("Strategy Names:")
+    spec_emit("SUMMARY", "--- Final Results ---")
+    spec_emit("SUMMARY", "Strategy Names:")
     for i, name in enumerate(strategy_names):
-        emit(f"  {i}: {name}")
+        spec_emit("DATA", f"{i}: {name}")
 
-    emit("\nCosine Similarity Matrix:")
+    spec_emit("SUMMARY", "Cosine Similarity Matrix:")
     matrix_str = np.array2string(similarity_matrix, precision=4, suppress_small=True)
-    emit(matrix_str)
+    spec_emit("DATA", matrix_str)
 
     for idx, registry_entry in enumerate(thread_registry):
         append_step_fn(
@@ -184,19 +197,22 @@ def run_pipeline(
             },
         )
 
-    emit("\nStep 4: Generating SoC summaries for downstream agents...")
+    spec_emit("STEP", "Step 4: Generating SoC summaries for downstream agents...")
     summary_results: dict[str, SummaryResult] = {}
     generate_summary_fn = config["generate_summary"]
     for registry_entry in thread_registry:
         summary_result = generate_summary_fn(registry_entry["thread_id"])
         registry_entry["summary"] = summary_result
         summary_results[registry_entry["thread_id"]] = summary_result
-        emit(
-            "  → Summary updated for "
-            f"{registry_entry['thread_id']} (stored at {summary_result.path})"
+        spec_emit(
+            "FILE",
+            (
+                f"Summary updated for {registry_entry['thread_id']} "
+                f"(stored at {summary_result.path})"
+            ),
         )
 
-    emit("\nStep 5: Evaluating whether to persist long-term reflections...")
+    spec_emit("STEP", "Step 5: Evaluating whether to persist long-term reflections...")
     reflection_candidates: dict[str, dict[str, Any]] = {}
     record_reflection_fn = config["record_reflection"]
 
@@ -264,7 +280,7 @@ def run_pipeline(
 
     reflections: list[dict[str, Any]] = []
     if not reflection_candidates:
-        emit("  → No reflection agents were triggered in this run.")
+        spec_emit("INFO", "No reflection agents were triggered in this run.")
     else:
         for thread_id, payload in reflection_candidates.items():
             append_step_fn(
@@ -290,9 +306,9 @@ def run_pipeline(
                 metadata={"reasons": payload["reasons"], "events": payload["metadata"]},
             )
 
-            emit(
-                "  → Long-term reflection stored for "
-                f"{thread_id} at {reflection_path}"
+            spec_emit(
+                "FILE",
+                f"Long-term reflection stored for {thread_id} at {reflection_path}",
             )
 
             reflections.append(
@@ -304,7 +320,7 @@ def run_pipeline(
                 }
             )
 
-    emit("\n--- Pipeline Execution Completed ---")
+    spec_emit("OK", "Pipeline execution completed.")
 
     return {
         "status": "success",
@@ -318,8 +334,127 @@ def run_pipeline(
     }
 
 
-def main() -> None:
+def _build_mock_adapters(base_dir: Path) -> Mapping[str, Any]:
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    def validate_api_key() -> bool:
+        return True
+
+    def generate_blueprint(_: str) -> list[dict[str, Any]]:
+        return [
+            {
+                "strategy_name": "Divergent Research Threads",
+                "rationale": "Establish parallel investigations for contested facts.",
+                "initial_assumption": "Multiple viewpoints must be reconciled via evidence weighting.",
+                "milestones": [
+                    "Collect primary sources",
+                    "Score credibility",
+                    "Synthesize consensus",
+                ],
+            },
+            {
+                "strategy_name": "Moderated Debate Loop",
+                "rationale": "Use an arbiter to merge findings from each expert persona.",
+                "initial_assumption": "A structured dialogue will surface contradictions early.",
+                "milestones": [
+                    "Draft debate agenda",
+                    "Run synthesis round",
+                ],
+            },
+        ]
+
+    def create_context(thread_id: str) -> Path:
+        path = base_dir / thread_id
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def append_step(thread_id: str, payload: dict[str, Any]) -> Path:
+        context_dir = base_dir / thread_id
+        context_dir.mkdir(parents=True, exist_ok=True)
+        history = context_dir / "history.log"
+        with history.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        return history
+
+    def embed_strategies(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        size = max(len(items), 1)
+        for index, item in enumerate(items):
+            embedding = [0.0] * size
+            embedding[index % size] = 1.0
+            item["embedding"] = embedding
+        return items
+
+    def calculate_similarity_matrix(items: list[dict[str, Any]]) -> np.ndarray:
+        size = len(items)
+        if size == 0:
+            return np.array([])
+        matrix = np.eye(size)
+        if size >= 2:
+            matrix[0, 1] = matrix[1, 0] = 0.42
+        return matrix
+
+    def generate_summary(thread_id: str) -> SummaryResult:
+        summary_path = base_dir / thread_id / "summary.md"
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_text = (
+            "# Mock Strategy Summary\n\n"
+            "This is a deterministic summary generated for acceptance testing."
+        )
+        summary_path.write_text(summary_text, encoding="utf-8")
+        return SummaryResult(path=summary_path, text=summary_text)
+
+    def record_reflection(thread_id: str, text: str, **kwargs: Any) -> Path:
+        reflection_path = base_dir / f"{thread_id}-reflection.json"
+        reflection_payload = {"thread_id": thread_id, "text": text, **kwargs}
+        reflection_path.write_text(
+            json.dumps(reflection_payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return reflection_path
+
+    return {
+        "validate_api_key": validate_api_key,
+        "generate_blueprint": generate_blueprint,
+        "create_context": create_context,
+        "append_step": append_step,
+        "embed_strategies": embed_strategies,
+        "calculate_similarity_matrix": calculate_similarity_matrix,
+        "generate_summary": generate_summary,
+        "record_reflection": record_reflection,
+    }
+
+
+def parse_args(argv: Optional[list[str]] = None) -> Namespace:
+    parser = ArgumentParser(description="Run the Deep Think acceptance pipeline.")
+    parser.add_argument(
+        "--use-mock",
+        action="store_true",
+        help="Use deterministic mock adapters instead of external services.",
+    )
+    parser.add_argument(
+        "--emit-spec-log",
+        action="store_true",
+        help="Persist spec-formatted logs to --spec-log-path after execution.",
+    )
+    parser.add_argument(
+        "--spec-log-path",
+        type=Path,
+        default=Path("artifacts/spec_pipeline.log"),
+        help="Path where spec logs should be written when --emit-spec-log is set.",
+    )
+    parser.add_argument(
+        "--artifacts-dir",
+        type=Path,
+        default=Path("artifacts/mock_run"),
+        help="Directory used to store mock artifacts when --use-mock is enabled.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Optional[list[str]] = None) -> None:
     """Run the end-to-end test pipeline for strategy generation and analysis."""
+
+    args = parse_args(argv)
 
     print("--- Running Full Pipeline Test Script (Gemini + Ollama) ---")
 
@@ -331,7 +466,19 @@ def main() -> None:
     )
     print(f"\nProblem State:\n{problem_state}")
 
-    result = run_pipeline(problem_state)
+    adapters: Optional[Mapping[str, Any]] = None
+    if args.use_mock:
+        adapters = _build_mock_adapters(args.artifacts_dir)
+
+    result = run_pipeline(problem_state, adapters=adapters)
+    if args.emit_spec_log and result.get("logs"):
+        log_path = args.spec_log_path
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        spec_log_entry = f"[Spec-FILE] Spec log stored at {log_path.resolve()}"
+        result["logs"].append(spec_log_entry)
+        log_path.write_text("\n".join(result["logs"]) + "\n", encoding="utf-8")
+        print(f"\nSpec log written to: {log_path.resolve()}")
+
     if result.get("status") != "success":
         print(f"\nPipeline exited early: {result.get('error', 'Unknown error')}")
         return
