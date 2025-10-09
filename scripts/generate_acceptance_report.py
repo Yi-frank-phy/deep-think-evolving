@@ -7,7 +7,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Sequence
 
 SPEC_PATTERN = re.compile(r"\[Spec-(?P<tag>[A-Z0-9_-]+)\]\s*(?P<message>.*)")
 
@@ -104,7 +104,12 @@ def _format_text_report(report: Dict[str, Any]) -> str:
 def _read_log_lines(path: Path | None) -> List[str]:
     if path is None or str(path) == "-":
         return sys.stdin.read().splitlines()
-    return Path(path).read_text(encoding="utf-8").splitlines()
+
+    log_path = Path(path)
+    try:
+        return log_path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"Log file not found: {log_path}") from exc
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
@@ -124,11 +129,16 @@ def build_argument_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Iterable[str] | None = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = build_argument_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-    log_lines = _read_log_lines(args.log_file)
+    try:
+        log_lines = _read_log_lines(args.log_file)
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
     report = generate_acceptance_report(log_lines)
 
     if args.format == "json":

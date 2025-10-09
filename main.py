@@ -474,10 +474,10 @@ def main(argv: Optional[list[str]] = None) -> None:
     if args.emit_spec_log and result.get("logs"):
         log_path = args.spec_log_path
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        spec_log_entry = f"[Spec-FILE] Spec log stored at {log_path.resolve()}"
-        result["logs"].append(spec_log_entry)
+        spec_message = f"Spec log stored at {log_path.resolve()}"
+        emit_spec_event(result["logs"].append, "FILE", spec_message)
+        emit_spec_event(_default_logger, "FILE", spec_message)
         log_path.write_text("\n".join(result["logs"]) + "\n", encoding="utf-8")
-        print(f"\nSpec log written to: {log_path.resolve()}")
 
     if result.get("status") != "success":
         print(f"\nPipeline exited early: {result.get('error', 'Unknown error')}")

@@ -1,4 +1,6 @@
-from scripts.generate_acceptance_report import generate_acceptance_report
+import json
+
+from scripts.generate_acceptance_report import generate_acceptance_report, main
 
 
 def test_generate_acceptance_report_success():
@@ -33,3 +35,35 @@ def test_generate_acceptance_report_failure():
     assert report["overall_status"] == "fail"
     assert report["tasks"], "Tasks should not be empty"
     assert report["tasks"][0]["status"] == "fail"
+
+
+def test_cli_outputs_json(tmp_path, capsys):
+    log_file = tmp_path / "spec.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "[Spec-STEP] Step 1: Generating strategic blueprint",
+                "[Spec-OK] Generated 2 strategies.",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    exit_code = main(["--log-file", str(log_file), "--format", "json"])
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    payload = json.loads(captured.out)
+    assert payload["overall_status"] == "pass"
+    assert not captured.err
+
+
+def test_cli_missing_file(tmp_path, capsys):
+    missing = tmp_path / "missing.log"
+
+    exit_code = main(["--log-file", str(missing)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "Log file not found" in captured.err

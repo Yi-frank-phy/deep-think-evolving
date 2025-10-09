@@ -18,6 +18,8 @@ Key flags:
   consistently.
 - `--emit-spec-log` writes the log lines (tagged with `[Spec-...]`) to the path
   specified by `--spec-log-path` (`artifacts/spec_pipeline.log` by default).
+  When the file is written the script also emits `[Spec-FILE] Spec log stored
+  at …` so you can confirm the location in the console output.
 
 If you would like to store artifacts in a different folder, add
 `--artifacts-dir path/to/folder` when invoking the command above.
@@ -29,6 +31,9 @@ Once the pipeline completes, feed the saved log into the reporting script:
 ```bash
 python scripts/generate_acceptance_report.py --log-file artifacts/spec_pipeline.log
 ```
+
+If the log file path is incorrect the script now exits with a helpful message,
+for example: `Error: Log file not found: artifacts/spec_pipeline.log`.
 
 Example text output:
 
