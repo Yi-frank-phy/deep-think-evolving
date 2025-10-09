@@ -1,0 +1,29 @@
+{
+  "task_id": "T-013",
+  "title": "Integrate logging helper and acceptance report branch",
+  "source_branch": "codex/add-logging-helper-and-generate-acceptance-report",
+  "integration_branch": "integration/codex-acceptance-report",
+  "owner": "Codex Integration Pod",
+  "status": "ready",
+  "description": "Merge the logging helper branch with main, preserving CONTEXT_HISTORY_LIMIT and offline mode sections while extending observability and acceptance criteria in the spec.",
+  "steps": [
+    "git fetch --all --prune",
+    "git checkout -b integration/codex-acceptance-report origin/codex/add-logging-helper-and-generate-acceptance-report",
+    "git merge origin/main",
+    "Capture conflict inventory and explain causes in the task log",
+    "Keep mainline CONTEXT_HISTORY_LIMIT/offline clauses and append logging + acceptance script notes to docs/spec-kit/spec.md",
+    "Extend README usage notes if new helper scripts require invocation instructions",
+    "Update docs/spec-kit/tasks.md to mark T-011 Done after integration"
+  ],
+  "validation_commands": [
+    "specify check",
+    "pytest",
+    "pytest -m smoke",
+    "npm run test"
+  ],
+  "acceptance_criteria": [
+    "Conflict resolution summary lists every file and rationale",
+    "Spec and README reflect logging helper workflows without regressing mainline clauses",
+    "Post-merge validation commands succeed with collected evidence"
+  ]
+}

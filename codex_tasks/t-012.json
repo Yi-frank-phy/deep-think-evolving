@@ -1,0 +1,29 @@
+{
+  "task_id": "T-012",
+  "title": "Integrate google grounding search branch with mainline spec",
+  "source_branch": "codex/implement-google-grounding-search-functionality",
+  "integration_branch": "integration/codex-google-grounding",
+  "owner": "Codex Integration Pod",
+  "status": "ready",
+  "description": "Create an integration branch for the Google grounding capability, merge the latest main updates, and resolve conflicts while retaining CONTEXT_HISTORY_LIMIT and offline mode clauses before adding the new grounding requirements.",
+  "steps": [
+    "git fetch --all --prune",
+    "git checkout -b integration/codex-google-grounding origin/codex/implement-google-grounding-search-functionality",
+    "git merge origin/main",
+    "List conflicted files with git status and git diff --name-only --diff-filter=U",
+    "Resolve conflicts giving priority to CONTEXT_HISTORY_LIMIT and offline mode language from main",
+    "Incorporate Google Grounding interface notes into docs/spec-kit/spec.md §3.3/§3.4",
+    "Update docs/spec-kit/tasks.md to mark T-007 Done after integration"
+  ],
+  "validation_commands": [
+    "specify check",
+    "pytest",
+    "pytest -m smoke",
+    "npm run test"
+  ],
+  "acceptance_criteria": [
+    "Conflicts are documented with root causes for each touched file",
+    "Merged spec retains latest mainline constraints while adding Google grounding requirements",
+    "All validation commands succeed and logs are captured for the integration record"
+  ]
+}
