@@ -16,6 +16,10 @@ from src.context_manager import (
 )
 from src.diversity_calculator import calculate_similarity_matrix
 from src.embedding_client import embed_strategies
+from src.google_grounding import (
+    default_google_grounding_client_factory,
+    search_google_grounding,
+)
 from src.strategy_architect import generate_strategic_blueprint
 
 
@@ -35,6 +39,8 @@ def _default_generate_blueprint(problem_state: str) -> list[dict[str, Any]]:
 DEFAULT_ADAPTERS: dict[str, Any] = {
     "validate_api_key": _default_validate_api_key,
     "generate_blueprint": _default_generate_blueprint,
+    "google_grounding_client_factory": default_google_grounding_client_factory,
+    "search_google_grounding": search_google_grounding,
     "create_context": create_context,
     "append_step": append_step,
     "embed_strategies": embed_strategies,
@@ -115,6 +121,8 @@ def _mock_append_step(thread_id: str, payload: Any) -> Path:
 MOCK_ADAPTERS: dict[str, Any] = {
     "validate_api_key": lambda: True,
     "generate_blueprint": _mock_generate_blueprint,
+    "google_grounding_client_factory": lambda: None,
+    "search_google_grounding": lambda *_, **__: [],
     "create_context": _mock_create_context,
     "append_step": _mock_append_step,
     "embed_strategies": _mock_embed_strategies,
@@ -162,6 +170,25 @@ def run_pipeline(
 
     emit("\nStep 1: Generating strategic blueprint (using Gemini)...")
     strategies = config["generate_blueprint"](problem_state)
+
+    grounding_fn = config.get("search_google_grounding")
+    grounding_factory = config.get("google_grounding_client_factory")
+
+    if grounding_fn and grounding_factory:
+        for strategy in strategies:
+            try:
+                references = grounding_fn(
+                    strategy,
+                    grounding_factory,
+                    logger=emit,
+                    use_mock=mock_enabled,
+                    test_mode=test_mode,
+                )
+            except Exception as exc:  # pragma: no cover - defensive guard
+                emit(f"[Grounding] Unexpected error while fetching references: {exc}")
+                references = []
+
+            strategy["references"] = references
 
     if not strategies:
         emit("\n[FAILURE] Failed to generate strategic blueprint. Exiting.")

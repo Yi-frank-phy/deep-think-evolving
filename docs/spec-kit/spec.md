@@ -6,7 +6,7 @@ Deep Think Evolving 是一个多代理研究助理原型，通过 Gemini 生成�
 ## 2. 需求概述
 - **策略生成**：调用 `src/strategy_architect.py` 的 `generate_strategic_blueprint`，基于输入问题生成多条研究策略，返回 JSON 结构（名称、假设、行动步骤等）。
 - **上下文管理**：`src/context_manager.py` 负责线程化管理推理日志，支持创建上下文、写入步骤、生成总结与长期反思。
-- **向量化与多样性分析**：`src/embedding_client.py` 通过本地 Ollama 接口计算策略向量；`src/diversity_calculator.py` 使用余弦相似度矩阵衡量策略差异度。
+- **向量化与多样性分析**：`src/embedding_client.py` 通过本地 Ollama 接口计算策略向量；`src/diversity_calculator.py` 使用余弦相似度矩阵衡量策略差异度；`src/google_grounding.py` 负责对策略执行 Google Grounding 搜索并整理引用。
 - **流水线执行**：`main.py` 组织上述模块完成端到端流程，输出策略列表、相似度矩阵与总结结果。
 - **知识库推送**：`server.py` 暴露 FastAPI WebSocket，实时将 `knowledge_base/` 中的反思 JSON 推送到前端。
 
@@ -23,9 +23,9 @@ Deep Think Evolving 是一个多代理研究助理原型，通过 Gemini 生成�
    - `embed_strategies` 使用 `embedding_client.py` 调用本地服务，返回含 `embedding` 数组的策略。
    - `calculate_similarity_matrix` 使用 NumPy 计算余弦矩阵，支持空列表与维度不一致的防御性处理。
    - `search_google_grounding` 提供 Google 搜索 Grounding 能力：
-     - 通过 Google GenAI SDK 的 `googleSearch` 工具检索来源，函数需支持传入客户端工厂以便测试时注入模拟对象。
-     - 解析 `groundingMetadata.groundingChunks`，返回包含 `uri`、`title`、`snippet` 的引用列表，并保证原始策略结构附带引用字段。
-     - 当 `use_mock`/`test_mode` 为真或外部依赖不可用时返回空引用，同时记录警告日志，保持流程可离线运行。
+     - 通过 Google GenAI SDK 的 `googleSearch` 工具检索来源，函数接受可注入的客户端工厂，便于在测试环境提供模拟对象。
+     - 解析 `groundingMetadata.groundingChunks`，返回包含 `uri`、`title`、`snippet` 的引用列表，并在 `main.py` 中写回策略字典的 `references` 字段。
+     - 当 `use_mock`/`test_mode` 为真或外部依赖不可用时记录 `[Grounding]` 警告并返回空列表，流水线保持可离线运行。
 4. **流水线输出、离线模式与验收支持**
    - `main.py` 需打印关键状态，确保开发者可观察执行进度；在关键节点调用 `append_step` 记录元数据。
    - 流水线结束时，根据相似度结果决定是否触发 `record_reflection`，并将文件写入 `knowledge_base/`。
