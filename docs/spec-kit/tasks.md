@@ -18,3 +18,7 @@
 | T-014 | 批量整合其余 `codex/*` 分支，记录冲突清单并同步规范/任务状态 | Codex Integration Pod | In Progress | 宪章·流程约束 |
 
 > 状态取值建议：`TODO`（待开始）、`In Progress`（进行中）、`Done`（完成）、`Backlog`（暂缓）。
+
+## 冲突合并备注
+
+- 2024-05：合并 `codex/add-logging-helper-and-generate-acceptance-report` 时，保留了 `SpecLogger` `[Spec-OK]` 前缀输出以及验收报告脚本对缺失日志的兼容性要求，确保主干文档与实现保持一致。
