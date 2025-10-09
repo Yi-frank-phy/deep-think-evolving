@@ -126,6 +126,8 @@ Spec Kit 文档位于 `docs/spec-kit/` 目录，包含以下内容：
 3. 开发完成后运行 `specify check` 验证工具链安装与规范完整性。
 4. 在 PR 中引用相关文档段落，说明如何满足宪章要求。
 
+如需配置分支保护与自动删除临时分支，请参考 [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) 的分支治理指南。
+
 在仓库根目录执行以下命令可快速自检：
 ```bash
 specify check
