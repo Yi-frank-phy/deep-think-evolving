@@ -1,0 +1,29 @@
+{
+  "task_id": "T-014",
+  "title": "Batch integrate remaining codex feature branches",
+  "source_branch": "codex/*",
+  "integration_branch": "integration/codex-*",
+  "owner": "Codex Integration Pod",
+  "status": "ready",
+  "description": "Iteratively create integration branches for every outstanding codex feature branch, merging main first, tracking conflicts, and synchronising new requirements back into the spec and tasks ledger.",
+  "steps": [
+    "git fetch --all --prune",
+    "Enumerate codex/* branches with git branch -r --list 'codex/*'",
+    "For each branch create integration/<branch> and merge origin/main",
+    "Document conflicts and explain causes before resolution",
+    "Preserve latest CONTEXT_HISTORY_LIMIT/offline clauses during every conflict fix",
+    "Backport new feature requirements into docs/spec-kit/spec.md and relevant README sections",
+    "Update docs/spec-kit/tasks.md entries (e.g., T-008+) to reflect completion status"
+  ],
+  "validation_commands": [
+    "specify check",
+    "pytest",
+    "pytest -m smoke",
+    "npm run test"
+  ],
+  "acceptance_criteria": [
+    "Every codex branch produces a conflict log and integration summary",
+    "Spec kit documents are synchronised with all new requirements without losing mainline terms",
+    "Quality gates succeed after each integration batch"
+  ]
+}

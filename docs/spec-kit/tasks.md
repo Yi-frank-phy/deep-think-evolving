@@ -13,5 +13,8 @@
 | T-009 | 编写 Codex/人工协同的 PR 模板，要求引用 `spec.md`/`tasks.md` 并记录测试 | 待定 | Done | 宪章·流程约束 |
 | T-010 | 制定分支治理手册：合并后删除临时分支并设置 main 保护规则 | 待定 | Done | 计划 §风险缓解 |
 | T-011 | 定义验收日志格式与自动报告脚本，支撑非开发者验收 | 待定 | TODO | 规范 §3.4 |
+| T-012 | 整合 `codex/implement-google-grounding-search-functionality` 分支，保留主干规范并补充搜索助手条款 | Codex Integration Pod | In Progress | 规范 §3.3 |
+| T-013 | 整合 `codex/add-logging-helper-and-generate-acceptance-report` 分支，统一日志/验收脚本规范 | Codex Integration Pod | In Progress | 规范 §3.4 |
+| T-014 | 批量整合其余 `codex/*` 分支，记录冲突清单并同步规范/任务状态 | Codex Integration Pod | In Progress | 宪章·流程约束 |
 
 > 状态取值建议：`TODO`（待开始）、`In Progress`（进行中）、`Done`（完成）、`Backlog`（暂缓）。
