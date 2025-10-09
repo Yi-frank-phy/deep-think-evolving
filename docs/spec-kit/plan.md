@@ -23,9 +23,16 @@
 - 设计面向架构师的验收日志/报告脚本，使验收仅依赖终端输出即可完成。
 
 ### 分支治理
-- **自动删除临时分支**：GitHub 仓库设置中勾选 “Automatically delete head branches” ，保持分支列表精简。
-- **Main 分支保护规则**：为 `main` 启用分支保护，至少要求 PR 审查、通过状态检查（如 `specify check`）以及禁止强制推送。
-- **PR 质量门禁**：在保护规则中配置必需的状态检查，并要求 PR 使用模板说明规范引用、测试记录与验收日志，确保合规性可追踪。
+1. **自动删除临时分支**
+   - GitHub 仓库 **Settings → General → Pull Requests** 中勾选 “Automatically delete head branches”。
+   - 在项目例会上确认该选项保持开启，必要时在 PR 模板中提醒合并人核对（见 `.github/pull_request_template.md`）。
+2. **Main 分支保护规则**
+   - 进入 **Settings → Branches**，为 `main` 新增 Branch protection rule。
+   - 启用以下约束：至少一名审查者、禁止强制推送、在合并前通过 `specify check`、`pytest`、`pytest -m smoke`、`npm run test` 等必需状态检查。
+   - 如仓库启用 Required Conversation Resolution，需在回归时再次确认该设置未被关闭。
+3. **PR 质量门禁**
+   - 要求所有 PR 使用统一模板，明确引用 `docs/spec-kit/spec.md` / `docs/spec-kit/tasks.md` 的章节编号及测试日志。
+   - 评审时核对模板勾选项与日志内容，确保验收信息可追踪；若缺失则标记为变更请求。
 
 ## 风险与缓解
 - **外部 API 依赖**：Gemini/Ollama 不可用时需准备降级方案；目前 `generate_summary` 已提供本地回退。
