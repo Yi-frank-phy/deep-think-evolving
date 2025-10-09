@@ -7,7 +7,7 @@
 ## 功能总览
 
 - **战略架构师 (src/strategy_architect.py)**：调用 Gemini 生成多条相互独立的高层策略蓝图。
-- **上下文管理器 (src/context_manager.py)**：为每条策略创建独立的推理上下文、维护 SoC 日志，并生成摘要/长期反思。
+- **上下文管理器 (src/context_manager.py)**：为每条策略创建独立的推理上下文、维护 SoC 日志，并生成摘要/长期反思。默认最多保留 50 条历史记录，可通过环境变量 `CONTEXT_HISTORY_LIMIT` 调整（需设为正整数）。
 - **嵌入与多样性分析 (src/embedding_client.py & src/diversity_calculator.py)**：通过本地 Ollama 嵌入模型量化策略间的相似度，形成余弦相似度矩阵。
 - **全流程脚本 (main.py)**：串联以上模块，演示从问题描述到知识库落地的完整流程。
 - **知识库 WebSocket 服务 (server.py)**：持续监测 `knowledge_base/`，将新增的反思条目推送给前端。

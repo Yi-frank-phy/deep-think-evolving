@@ -20,7 +20,8 @@ CONTEXT_ROOT = BASE_DIR / "runtime_contexts"
 KNOWLEDGE_BASE_ROOT = BASE_DIR / "knowledge_base"
 DEFAULT_MODEL_NAME = os.getenv("SUMMARY_MODEL_NAME", "gemini-1.5-flash")
 DEFAULT_INITIAL_PROMPT = """# Strategy Thread Bootstrapping\n\n- Thread ID: {thread_id}\n- Created (UTC): {timestamp}\n\nMaintain a detailed stream-of-consciousness reasoning log for this strategy branch.\nEach step should be appended as a JSON line in ``history.log`` using the ``append_step``\nhelper so downstream tooling can parse the progression of thought.\n"""
-MAX_HISTORY_ENTRIES = 50
+DEFAULT_HISTORY_LIMIT = 50
+HISTORY_LIMIT_ENV_VAR = "CONTEXT_HISTORY_LIMIT"
 SUMMARY_FILENAME = "summary.md"
 
 
@@ -112,6 +113,22 @@ def append_step(thread_id: str, step_data: Any) -> Path:
     return history_path
 
 
+def get_history_limit() -> int:
+    """Return the configured maximum number of history entries to retain."""
+
+    raw_value = os.getenv(HISTORY_LIMIT_ENV_VAR)
+    if raw_value is None or not raw_value.strip():
+        return DEFAULT_HISTORY_LIMIT
+
+    try:
+        parsed = int(raw_value)
+        if parsed < 1:
+            raise ValueError
+        return parsed
+    except (TypeError, ValueError):
+        return DEFAULT_HISTORY_LIMIT
+
+
 def _load_history(thread_id: str) -> list[HistoryEntry]:
     context_dir = _context_dir(thread_id)
     history_path = context_dir / "history.log"
@@ -135,7 +152,8 @@ def _load_history(thread_id: str) -> list[HistoryEntry]:
                 entries.append(
                     HistoryEntry(timestamp="", data=line.strip())
                 )
-    return entries[-MAX_HISTORY_ENTRIES:]
+    limit = get_history_limit()
+    return entries[-limit:]
 
 
 def _format_history(entries: Iterable[HistoryEntry]) -> str:
@@ -144,7 +162,7 @@ def _format_history(entries: Iterable[HistoryEntry]) -> str:
 
 
 def _enforce_history_limit(history_path: Path) -> None:
-    """Trim the history log so that at most ``MAX_HISTORY_ENTRIES`` remain."""
+    """Trim the history log so that at most the configured history limit remain."""
 
     if not history_path.exists():
         return
@@ -152,10 +170,12 @@ def _enforce_history_limit(history_path: Path) -> None:
     with history_path.open("r", encoding="utf-8") as handle:
         lines = handle.readlines()
 
-    if len(lines) <= MAX_HISTORY_ENTRIES:
+    limit = get_history_limit()
+
+    if len(lines) <= limit:
         return
 
-    trimmed = lines[-MAX_HISTORY_ENTRIES:]
+    trimmed = lines[-limit:]
     with history_path.open("w", encoding="utf-8") as handle:
         handle.writelines(trimmed)
 
