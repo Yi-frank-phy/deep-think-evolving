@@ -30,8 +30,8 @@ Deep Think Evolving 是一个多代理研究助理原型，通过 Gemini 生成�
    - `main.py` 需打印关键状态，确保开发者可观察执行进度；在关键节点调用 `append_step` 记录元数据。
    - 流水线结束时，根据相似度结果决定是否触发 `record_reflection`，并将文件写入 `knowledge_base/`。
    - 提供 `use_mock`/`test_mode` 配置以跳过 `validate_api_key`，使用内置假实现生成最小可验证输出，保证 `pytest -m smoke` 在缺乏外部服务时可复现。
-   - 日志助手：核心模块通过 `logging_helper.SpecLogger` 输出 `[Spec-OK]` 前缀的关键事件，可注入自定义记录器同时保持统一前缀，便于验收脚本解析终端输出。
-   - 验收报告脚本：`scripts/generate_acceptance_report.py` 读取流水线日志生成 JSON/Markdown 摘要，默认读取 `logs/pipeline.log`，在缺少日志时需返回带提示信息的降级输出。
+   - 日志助手：核心模块通过 `logging_helper.SpecLogger`（或等效封装）输出 `[Spec-OK]` 前缀的关键事件，可注入自定义记录器同时保持统一前缀，并确保不会破坏既有日志级别配置，便于验收脚本解析终端输出。
+   - 验收报告脚本：`scripts/generate_acceptance_report.py` 读取流水线日志生成 JSON/Markdown 摘要，默认读取 `logs/pipeline.log`，在缺少日志时需返回带提示信息的降级输出，同时保持与历史日志结构兼容。
 5. **WebSocket 服务**
    - WebSocket 端点 `/ws/knowledge_base` 首次连接时发送全量快照，后续按文件系统变更推送 `update/delete` 事件。
    - 提供 `/health` GET 接口用于探活。
