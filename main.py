@@ -2,10 +2,11 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Callable, Mapping, Optional
+from typing import Any, Mapping, Optional
 
 import numpy as np
 
+from logging_helper import SpecLogger, ensure_spec_logger
 from src.context_manager import (
     SummaryResult,
     append_step,
@@ -18,11 +19,7 @@ from src.embedding_client import embed_strategies
 from src.strategy_architect import generate_strategic_blueprint
 
 
-Logger = Callable[[str], None]
-
-
-def _default_logger(message: str) -> None:
-    print(message)
+DEFAULT_SPEC_LOGGER = SpecLogger()
 
 
 def _default_validate_api_key() -> bool:
@@ -44,7 +41,7 @@ DEFAULT_ADAPTERS: dict[str, Any] = {
     "calculate_similarity_matrix": calculate_similarity_matrix,
     "generate_summary": generate_summary,
     "record_reflection": record_reflection,
-    "logger": _default_logger,
+    "logger": DEFAULT_SPEC_LOGGER,
 }
 
 
@@ -147,12 +144,12 @@ def run_pipeline(
     if adapters:
         config.update(adapters)
 
-    logger: Logger = config.get("logger", _default_logger)
+    spec_logger = ensure_spec_logger(config.get("logger"))
     log_messages: list[str] = []
 
     def emit(message: str) -> None:
-        log_messages.append(message)
-        logger(message)
+        formatted = spec_logger.emit(message)
+        log_messages.append(formatted)
 
     if not mock_enabled and not config["validate_api_key"]():
         error_message = "GEMINI_API_KEY environment variable is not set."
@@ -428,7 +425,8 @@ def main(*, use_mock: bool = False, test_mode: bool = False) -> None:
     resolved_test_mode = test_mode or cli_test_mode or env_test_mode
     mock_enabled = resolved_use_mock or resolved_test_mode
 
-    print("--- Running Full Pipeline Test Script (Gemini + Ollama) ---")
+    cli_logger = ensure_spec_logger()
+    cli_logger("--- Running Full Pipeline Test Script (Gemini + Ollama) ---")
 
     problem_state = (
         "我们正在开发一个大型语言模型驱动的自主研究代理。"
@@ -436,18 +434,19 @@ def main(*, use_mock: bool = False, test_mode: bool = False) -> None:
         "遇到的困境：当面对需要综合来自多个来源的矛盾信息才能得出结论的复杂问题时，"
         "代理的性能会急剧下降。它经常会陷入其中一个信源的观点，或者无法形成一个连贯的最终答案。"
     )
-    print(f"\nProblem State:\n{problem_state}")
+    cli_logger(f"\nProblem State:\n{problem_state}")
 
     result = run_pipeline(
         problem_state,
         use_mock=mock_enabled,
         test_mode=resolved_test_mode,
+        adapters={"logger": cli_logger},
     )
     if result.get("status") != "success":
-        print(f"\nPipeline exited early: {result.get('error', 'Unknown error')}")
+        cli_logger(f"\nPipeline exited early: {result.get('error', 'Unknown error')}")
         return
 
-    print("\n--- Test Script Finished ---")
+    cli_logger("\n--- Test Script Finished ---")
 
 
 if __name__ == "__main__":
