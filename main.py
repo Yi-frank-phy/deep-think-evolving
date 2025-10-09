@@ -1,5 +1,7 @@
 import json
 import os
+import sys
+from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
 
 import numpy as np
@@ -46,12 +48,102 @@ DEFAULT_ADAPTERS: dict[str, Any] = {
 }
 
 
+def _mock_generate_blueprint(problem_state: str) -> list[dict[str, Any]]:
+    del problem_state  # Problem state is unused for deterministic mock data.
+    return [
+        {
+            "strategy_name": "Mock Strategy Alpha",
+            "rationale": "Offline smoke test placeholder.",
+            "initial_assumption": "Sufficient for pipeline verification.",
+            "milestones": [
+                "Capture requirements",
+                "Demonstrate mock data flow",
+            ],
+        },
+        {
+            "strategy_name": "Mock Strategy Beta",
+            "rationale": "Ensures similarity matrix shape > 1.",
+            "initial_assumption": "Mocks avoid external dependencies.",
+            "milestones": [
+                "Embed fake vectors",
+                "Return deterministic reflections",
+            ],
+        },
+    ]
+
+
+def _mock_embed_strategies(strategies: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    embedded: list[dict[str, Any]] = []
+    for index, strategy in enumerate(strategies, start=1):
+        strategy_copy = dict(strategy)
+        strategy_copy.setdefault("milestones", [])
+        strategy_copy["embedding"] = [float(index), float(index % 2)]
+        embedded.append(strategy_copy)
+    return embedded
+
+
+def _mock_calculate_similarity_matrix(strategies: list[dict[str, Any]]) -> np.ndarray:
+    size = len(strategies)
+    if size == 0:
+        return np.array([])
+    return np.eye(size, dtype=float)
+
+
+def _mock_generate_summary(thread_id: str) -> SummaryResult:
+    path = Path(f"mock_summary_{thread_id}.md")
+    text = f"Mock summary for {thread_id}."
+    return SummaryResult(path=path, text=text)
+
+
+def _mock_record_reflection(
+    thread_id: str,
+    reflection_text: str,
+    *,
+    outcome: str,
+    metadata: Optional[Mapping[str, Any]] = None,
+) -> Path:
+    del reflection_text, outcome, metadata
+    return Path(f"mock_reflection_{thread_id}.json")
+
+
+def _mock_create_context(thread_id: str) -> Path:
+    return Path(f"mock_context/{thread_id}")
+
+
+def _mock_append_step(thread_id: str, payload: Any) -> Path:
+    del thread_id, payload
+    return Path("mock_context/history.log")
+
+
+MOCK_ADAPTERS: dict[str, Any] = {
+    "validate_api_key": lambda: True,
+    "generate_blueprint": _mock_generate_blueprint,
+    "create_context": _mock_create_context,
+    "append_step": _mock_append_step,
+    "embed_strategies": _mock_embed_strategies,
+    "calculate_similarity_matrix": _mock_calculate_similarity_matrix,
+    "generate_summary": _mock_generate_summary,
+    "record_reflection": _mock_record_reflection,
+}
+
+
 def run_pipeline(
-    problem_state: str, *, adapters: Optional[Mapping[str, Any]] = None
+    problem_state: str,
+    *,
+    adapters: Optional[Mapping[str, Any]] = None,
+    use_mock: bool = False,
+    test_mode: bool = False,
 ) -> dict[str, Any]:
     """Execute the strategy pipeline and return structured telemetry for testing."""
 
+    adapters = dict(adapters or {})
+    mock_from_adapters = bool(adapters.pop("use_mock", False))
+
+    mock_enabled = use_mock or test_mode or mock_from_adapters
+
     config: dict[str, Any] = dict(DEFAULT_ADAPTERS)
+    if mock_enabled:
+        config.update(MOCK_ADAPTERS)
     if adapters:
         config.update(adapters)
 
@@ -62,7 +154,7 @@ def run_pipeline(
         log_messages.append(message)
         logger(message)
 
-    if not config["validate_api_key"]():
+    if not mock_enabled and not config["validate_api_key"]():
         error_message = "GEMINI_API_KEY environment variable is not set."
         emit("\n[ERROR] GEMINI_API_KEY environment variable is not set.")
         emit("This script requires a Google Gemini API key for the generation step.")
@@ -318,8 +410,23 @@ def run_pipeline(
     }
 
 
-def main() -> None:
+def _is_truthy(value: Optional[str]) -> bool:
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def main(*, use_mock: bool = False, test_mode: bool = False) -> None:
     """Run the end-to-end test pipeline for strategy generation and analysis."""
+
+    cli_args = set(sys.argv[1:])
+    cli_use_mock = "--use-mock" in cli_args
+    cli_test_mode = "--test-mode" in cli_args
+
+    env_use_mock = _is_truthy(os.getenv("USE_MOCK_PIPELINE"))
+    env_test_mode = _is_truthy(os.getenv("TEST_MODE"))
+
+    resolved_use_mock = use_mock or cli_use_mock or env_use_mock
+    resolved_test_mode = test_mode or cli_test_mode or env_test_mode
+    mock_enabled = resolved_use_mock or resolved_test_mode
 
     print("--- Running Full Pipeline Test Script (Gemini + Ollama) ---")
 
@@ -331,7 +438,11 @@ def main() -> None:
     )
     print(f"\nProblem State:\n{problem_state}")
 
-    result = run_pipeline(problem_state)
+    result = run_pipeline(
+        problem_state,
+        use_mock=mock_enabled,
+        test_mode=resolved_test_mode,
+    )
     if result.get("status") != "success":
         print(f"\nPipeline exited early: {result.get('error', 'Unknown error')}")
         return

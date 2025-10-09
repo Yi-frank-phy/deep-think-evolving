@@ -22,9 +22,10 @@ Deep Think Evolving 是一个多代理研究助理原型，通过 Gemini 生成�
 3. **嵌入与相似度**
    - `embed_strategies` 使用 `embedding_client.py` 调用本地服务，返回含 `embedding` 数组的策略。
    - `calculate_similarity_matrix` 使用 NumPy 计算余弦矩阵，支持空列表与维度不一致的防御性处理。
-4. **流水线输出**
+4. **流水线输出与离线模式**
    - `main.py` 需打印关键状态，确保开发者可观察执行进度；在关键节点调用 `append_step` 记录元数据。
    - 流水线结束时，根据相似度结果决定是否触发 `record_reflection`，并将文件写入 `knowledge_base/`。
+   - 提供 `use_mock`/`test_mode` 配置以跳过 `validate_api_key`，使用内置假实现生成最小可验证输出，保证 `pytest -m smoke` 在缺乏外部服务时可复现。
 5. **WebSocket 服务**
    - WebSocket 端点 `/ws/knowledge_base` 首次连接时发送全量快照，后续按文件系统变更推送 `update/delete` 事件。
    - 提供 `/health` GET 接口用于探活。
