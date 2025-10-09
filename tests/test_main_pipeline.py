@@ -89,6 +89,7 @@ def test_run_pipeline_success(tmp_path):
     assert result["status"] == "success"
     assert len(result["strategies"]) == 2
     assert all("milestones" in item for item in result["strategies"])
+    assert all("references" in item for item in result["strategies"])
     assert append_events
     for event in append_events:
         payload = event["payload"]
