@@ -12,7 +12,10 @@ from src.context_manager import (
 )
 from src.strategy_architect import generate_strategic_blueprint
 from src.embedding_client import embed_strategies
-from src.diversity_calculator import calculate_similarity_matrix
+from src.diversity_calculator import (
+    SimilarityAnalysis,
+    calculate_similarity_analysis,
+)
 
 
 def main():
@@ -108,9 +111,11 @@ def main():
     # 3. Calculate Similarity Matrix
     # ------------------------------
     print("\nStep 3: Calculating cosine similarity matrix...")
-    similarity_matrix = calculate_similarity_matrix(embedded_strategies)
+    similarity_analysis: SimilarityAnalysis = calculate_similarity_analysis(
+        embedded_strategies
+    )
 
-    if similarity_matrix.size == 0:
+    if not similarity_analysis.is_valid:
         print("\n[FAILURE] Failed to calculate similarity matrix.")
         return
 
@@ -125,15 +130,21 @@ def main():
 
     print("\nCosine Similarity Matrix:")
     np.set_printoptions(precision=4, suppress=True)
-    print(similarity_matrix)
+    print(similarity_analysis.matrix)
 
-    if similarity_matrix.size:
+    print("\nSimilarity Metrics:")
+    print(f"  • Average pairwise similarity: {similarity_analysis.average_similarity:.4f}")
+    print(f"  • Diversity score (1 - avg similarity): {similarity_analysis.diversity_score:.4f}")
+
+    if similarity_analysis.is_valid:
         for idx, registry_entry in enumerate(thread_registry):
             append_step(
                 registry_entry["thread_id"],
                 {
                     "event": "similarity_scores",
-                    "scores": similarity_matrix[idx].tolist(),
+                    "scores": similarity_analysis.matrix[idx].tolist(),
+                    "average_similarity": similarity_analysis.average_similarity,
+                    "diversity_score": similarity_analysis.diversity_score,
                 },
             )
 
@@ -158,6 +169,10 @@ def main():
                 "outcome": outcome,
                 "reasons": [],
                 "metadata": [],
+                "metrics": {
+                    "average_similarity": similarity_analysis.average_similarity,
+                    "diversity_score": similarity_analysis.diversity_score,
+                },
                 "thread_index": thread_index,
             },
         )
@@ -166,12 +181,12 @@ def main():
         if record["outcome"] == "success" and outcome == "failure":
             record["outcome"] = outcome
 
-    if similarity_matrix.size:
+    if similarity_analysis.is_valid:
         pair_scores: list[tuple[float, int, int]] = []
         num_threads = len(thread_registry)
         for i in range(num_threads):
             for j in range(i + 1, num_threads):
-                pair_scores.append((float(similarity_matrix[i][j]), i, j))
+                pair_scores.append((float(similarity_analysis.matrix[i][j]), i, j))
 
         if pair_scores:
             min_score, min_i, min_j = min(pair_scores, key=lambda item: item[0])
@@ -235,7 +250,11 @@ def main():
                 thread_id,
                 reflection_text,
                 outcome=outcome,
-                metadata={"reasons": payload["reasons"], "events": payload["metadata"]},
+                metadata={
+                    "reasons": payload["reasons"],
+                    "events": payload["metadata"],
+                    "metrics": payload.get("metrics", {}),
+                },
             )
 
             print(
