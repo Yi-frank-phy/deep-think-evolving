@@ -9,6 +9,7 @@
 - **战略架构师 (src/strategy_architect.py)**：调用 Gemini 生成多条相互独立的高层策略蓝图。
 - **上下文管理器 (src/context_manager.py)**：为每条策略创建独立的推理上下文、维护 SoC 日志，并生成摘要/长期反思。
 - **嵌入与多样性分析 (src/embedding_client.py & src/diversity_calculator.py)**：通过本地 Ollama 嵌入模型量化策略间的相似度，形成余弦相似度矩阵。
+- **搜索助理 (src/google_grounding.py)**：封装 Gemini Grounding 引用检索，支持依赖注入以在测试中使用假客户端。
 - **全流程脚本 (main.py)**：串联以上模块，演示从问题描述到知识库落地的完整流程。
 - **知识库 WebSocket 服务 (server.py)**：持续监测 `knowledge_base/`，将新增的反思条目推送给前端。
 - **控制塔前端 (index.html + index.tsx)**：展示聊天面板与知识库流，支持实时查看策略反思及嵌入信息。
@@ -39,6 +40,24 @@ npm install
    ollama run dengcao/Qwen3-Embedding-8B:Q4_K_M --keep-alive
    ```
    默认端口 `http://localhost:11434` 可通过修改 `src/embedding_client.py` 调整。
+
+3. **启用搜索助理**：当流水线需要为 Gemini 生成的回答附加外部网页引用时，可调用
+   `search_google_grounding(query)`：
+   ```python
+   from src.google_grounding import search_google_grounding
+
+   grounding = search_google_grounding(
+       "latest findings about quantum memories",
+       max_results=3,
+   )
+   if grounding["error"]:
+       print("Grounding assistant unavailable", grounding["error"])
+   else:
+       for chunk in grounding["results"]:
+           print(chunk["title"], chunk["url"])
+   ```
+   - 默认客户端依赖 `google.generativeai` SDK，会自动读取 `GEMINI_API_KEY`。
+   - 在测试或离线环境下，可通过 `client_factory` 参数注入假实现，避免真实网络请求。
 
 ### 3. 运行策略生成流水线
 
@@ -83,6 +102,9 @@ pytest
 # 或通过统一的 npm 脚本触发
 npm run test
 ```
+
+> Grounding 搜索模块默认依赖真实的 Gemini SDK。编写测试时可通过 `search_google_grounding(..., client_factory=fake_factory)` 注入假客户端，
+> 例如返回一个自定义对象或直接抛出异常，以验证解析逻辑与错误处理。
 
 ## 目录结构
 
