@@ -7,6 +7,7 @@ Deep Think Evolving 是一个多代理研究助理原型，通过 Gemini 生成�
 - **策略生成**：调用 `src/strategy_architect.py` 的 `generate_strategic_blueprint`，基于输入问题生成多条研究策略，返回 JSON 结构（名称、假设、行动步骤等）。
 - **上下文管理**：`src/context_manager.py` 负责线程化管理推理日志，支持创建上下文、写入步骤、生成总结与长期反思。
 - **向量化与多样性分析**：`src/embedding_client.py` 通过本地 Ollama 接口计算策略向量；`src/diversity_calculator.py` 使用余弦相似度矩阵衡量策略差异度。
+- **Grounding 搜索助理**：`src/google_grounding.py` 调用 Gemini Grounding 接口，返回结构化的网页引用列表并在异常场景下提供错误信息。
 - **流水线执行**：`main.py` 组织上述模块完成端到端流程，输出策略列表、相似度矩阵与总结结果。
 - **知识库推送**：`server.py` 暴露 FastAPI WebSocket，实时将 `knowledge_base/` 中的反思 JSON 推送到前端。
 
