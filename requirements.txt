@@ -1,5 +1,8 @@
 google-generativeai
+pytest
+pytest-asyncio
 numpy
-requests
 fastapi
 uvicorn
+websockets
+requests

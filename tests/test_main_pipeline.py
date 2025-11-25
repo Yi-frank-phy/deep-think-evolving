@@ -98,7 +98,7 @@ def test_run_pipeline_success(tmp_path):
             assert payload["milestones"]
     assert any(event["payload"]["event"] == "similarity_scores" for event in append_events)
     assert reflections
-    assert logs
+    assert result["logs"]
 
 
 def test_run_pipeline_missing_api_key():

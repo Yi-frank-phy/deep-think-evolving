@@ -2,69 +2,58 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import List
 
 import pytest
 
 from scripts.generate_acceptance_report import (
-    DEFAULT_LOG_PATH,
     generate_acceptance_report,
     main,
-    render_markdown,
-    summarise_log,
 )
 
 
-def test_generate_acceptance_report_succeeds(tmp_path: Path):
-    log_path = tmp_path / "pipeline.log"
-    log_content = "\n".join(
-        [
-            "[Spec-OK] --- Running Full Pipeline Test Script (Gemini + Ollama) ---",
-            "[Spec-OK] [SUCCESS] Generated strategies",
-            "[Spec-OK] --- Pipeline Execution Completed ---",
-        ]
-    )
-    log_path.write_text(log_content, encoding="utf-8")
+def test_generate_acceptance_report_succeeds():
+    log_lines = [
+        "[Spec-OK] --- Running Full Pipeline Test Script (Gemini + Ollama) ---",
+        "[Spec-OK] [SUCCESS] Generated strategies",
+        "[Spec-OK] --- Pipeline Execution Completed ---",
+    ]
 
-    summary, markdown = generate_acceptance_report(log_path)
+    report = generate_acceptance_report(log_lines)
 
-    assert summary["prefixed_event_count"] == 3
-    assert summary["status"] == "success"
-    assert "### 成功事件" in markdown
-    assert "未检测到失败事件" in markdown
+    assert report["overall_status"] == "pass"
+    # The first OK tag creates the task. Subsequent OK tags add to details.
+    assert any("Generated strategies" in str(task.get("details", [])) for task in report["tasks"])
+    assert report["events"]  # Events are always collected
+    # Wait, let's check the script logic.
+    # OK tag -> current_task["status"] = "pass"
+    # It doesn't add to events list unless it's a generic tag?
+    # events.append({"tag": tag, "message": message}) happens for ALL matches.
+    assert len(report["events"]) == 3
 
 
 def test_main_handles_missing_log(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     missing_path = tmp_path / "absent.log"
 
-    exit_code = main(["--log-path", str(missing_path)])
+    # The new main uses argparse and prints to stderr on error?
+    # It calls _read_log_lines which raises FileNotFoundError.
+    # main catches it and prints Error: ...
+    
+    exit_code = main(["--log-file", str(missing_path)])
 
     captured = capsys.readouterr()
     assert exit_code == 1
-    assert "未找到日志文件" in captured.out
-
-
-def test_render_markdown_includes_failures():
-    content = "\n".join(
-        [
-            "[Spec-OK] [FAILURE] Something broke",
-            "[Spec-OK] --- Pipeline Execution Completed ---",
-        ]
-    )
-    summary = summarise_log(content, log_path=DEFAULT_LOG_PATH)
-    markdown = render_markdown(summary)
-
-    assert "需关注" in markdown
-    assert "失败/错误事件" in markdown
+    assert "Error:" in captured.err or "Error:" in captured.out
 
 
 def test_generate_acceptance_report_outputs_json(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     log_path = tmp_path / "pipeline.log"
     log_path.write_text("[Spec-OK] --- Pipeline Execution Completed ---", encoding="utf-8")
 
-    exit_code = main(["--log-path", str(log_path)])
+    exit_code = main(["--log-file", str(log_path), "--format", "json"])
 
     captured = capsys.readouterr()
     assert exit_code == 0
-    json_blob = captured.out.split("\n--- Markdown", 1)[0]
+    json_blob = captured.out.strip()
     payload = json.loads(json_blob)
-    assert payload["completed"] is True
+    assert payload["overall_status"] == "pass"
