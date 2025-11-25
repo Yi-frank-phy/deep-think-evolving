@@ -1,11 +1,13 @@
 import os
 import json
+from typing import Any
+
 import google.generativeai as genai
 
 
 def generate_strategic_blueprint(
     problem_state: str, model_name: str = "gemini-2.5-flash"
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Generates a strategic blueprint for a given problem state using a generative AI model.
 
@@ -20,10 +22,12 @@ def generate_strategic_blueprint(
 
     Returns:
         A list of dictionaries, where each dictionary represents a strategy and
-        contains the keys 'strategy_name', 'rationale', 'initial_assumption', and
-        'milestones'. The 'milestones' key should be a list (or other structured
-        sequence) describing key progress checkpoints for that strategy. Returns
-        an empty list if the API key is not configured or an error occurs.
+        contains the keys 'strategy_name', 'rationale', 'initial_assumption',
+        and 'milestones'. The `milestones` field is a nested mapping of
+        high-level phases to milestone arrays. Each milestone entry must include
+        a `title`, a descriptive `summary`, and a list of `success_criteria`
+        strings that make the checkpoint verifiable. Returns an empty list if
+        the API key is not configured or an error occurs.
     """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -54,7 +58,10 @@ def generate_strategic_blueprint(
 * strategy_name: 一个简短的、描述性的中文标签 (例如, "几何构造法")。
 * rationale: 一句解释该策略核心逻辑的中文描述。
 * initial_assumption: 一句描述该策略若要可行所必须依赖的关键假设的中文描述。
-* milestones: 一个按时间顺序排列的关键进展节点列表，每个节点用一句话描述该策略下需要达成的里程碑或验收标准。
+* milestones: 一个JSON对象, 其键为阶段名称 (如 "阶段 1: 发现"), 值为该阶段的里程碑数组。
+  - 里程碑对象必须包含 title (名称)、summary (简要说明) 以及 success_criteria
+    (字符串数组, 描述达成该里程碑需满足的可验证标准)。
+  - 若某阶段没有额外需求, 仍需提供至少一个里程碑来解释该阶段的目标。
 """
 
     full_user_prompt = user_prompt_template.format(problem_state=problem_state)

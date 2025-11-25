@@ -3,62 +3,75 @@
 from __future__ import annotations
 
 import json
-from types import SimpleNamespace
+import types
 
+import google.generativeai as genai
 import pytest
 
-import src.strategy_architect as strategy_architect
+from src.strategy_architect import generate_strategic_blueprint
 
 
-class DummyResponse:
+class _DummyResponse:
     def __init__(self, payload: list[dict]):
         self.text = json.dumps(payload, ensure_ascii=False)
 
 
-class DummyModel:
-    def __init__(self):
-        self.last_prompt: str | None = None
+class _DummyModel:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
 
-    def generate_content(self, prompt: str, **_kwargs):  # pragma: no cover - interface compatibility
-        self.last_prompt = prompt
-        payload = [
-            {
-                "strategy_name": "探索多模型集成",
-                "rationale": "通过多源信息聚合提高鲁棒性",
-                "initial_assumption": "存在可组合的信息协调机制",
-                "milestones": [
-                    "建立冲突信息聚合的评估基线",
-                    {"name": "统一表示层", "description": "设计可共享的中间表示"},
-                    "在真实任务中验证协作推理质量",
-                ],
-            }
-        ]
-        return DummyResponse(payload)
+    def generate_content(self, *_args, **_kwargs):
+        return _DummyResponse(
+            [
+                {
+                    "strategy_name": "Alpha",
+                    "rationale": "多通路探索",
+                    "initial_assumption": "问题具有多阶段结构",
+                    "milestones": {
+                        "阶段 1: 诊断": [
+                            {
+                                "title": "访谈关键用户",
+                                "summary": "与目标用户确认首要痛点",
+                                "success_criteria": ["完成 5 次访谈", "形成洞察清单"],
+                            }
+                        ],
+                        "阶段 2: 验证": [
+                            {
+                                "title": "设计小规模实验",
+                                "summary": "在受控环境中验证假设",
+                                "success_criteria": ["实验完成", "收集关键指标"],
+                            }
+                        ],
+                    },
+                }
+            ]
+        )
 
 
-class DummyGenerationConfig:
-    def __init__(self, **_kwargs):
-        pass
-
-
-@pytest.fixture
-def patched_generation(monkeypatch) -> DummyModel:
+def test_generate_strategic_blueprint_returns_nested_milestones(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setattr(strategy_architect.genai, "configure", lambda **_: None)
-    dummy_model = DummyModel()
-    monkeypatch.setattr(strategy_architect.genai, "GenerativeModel", lambda **_: dummy_model)
-    monkeypatch.setattr(strategy_architect.genai, "types", SimpleNamespace(GenerationConfig=DummyGenerationConfig))
-    return dummy_model
 
+    monkeypatch.setattr(genai, "configure", lambda api_key: None)
+    monkeypatch.setattr(genai, "GenerativeModel", lambda **kwargs: _DummyModel(**kwargs))
 
-def test_generate_strategic_blueprint_returns_milestones(patched_generation: DummyModel):
-    results = strategy_architect.generate_strategic_blueprint("problem state", model_name="test")
+    monkeypatch.setattr(
+        genai,
+        "types",
+        types.SimpleNamespace(GenerationConfig=lambda **kwargs: types.SimpleNamespace(**kwargs)),
+    )
 
-    assert results, "Expected strategies to be returned"
-    strategy = results[0]
+    blueprint = generate_strategic_blueprint("example problem", model_name="fake-model")
+
+    assert blueprint
+    strategy = blueprint[0]
     assert "milestones" in strategy
-    assert isinstance(strategy["milestones"], list)
-    assert strategy["milestones"]
-    assert all(m is not None for m in strategy["milestones"])
-    assert patched_generation.last_prompt is not None
-    assert "milestones" in patched_generation.last_prompt
+    assert isinstance(strategy["milestones"], dict)
+    assert set(strategy["milestones"].keys()) == {"阶段 1: 诊断", "阶段 2: 验证"}
+
+    for phase, milestones in strategy["milestones"].items():
+        assert isinstance(phase, str)
+        assert isinstance(milestones, list)
+        assert milestones
+        assert all("title" in item and "summary" in item for item in milestones)
+        assert all(isinstance(item.get("success_criteria"), list) for item in milestones)
