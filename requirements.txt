@@ -1,8 +1,12 @@
 google-generativeai
+<<<<<<< HEAD
 pytest
 pytest-asyncio
 numpy
 fastapi
 uvicorn
 websockets
+=======
+numpy
+>>>>>>> origin/codex/fix-validation-issues-from-codex-review
 requests

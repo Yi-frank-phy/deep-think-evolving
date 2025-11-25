@@ -7,6 +7,16 @@
 ## 功能总览
 
 - **战略架构师 (src/strategy_architect.py)**：调用 Gemini 生成多条相互独立的高层策略蓝图。
+
+Deep Think · Evolving
+
+> 「普罗米修斯计划」的原型，实现多策略生成、上下文记忆与知识库可视化的全流程演示。
+
+本仓库已脱离 Google AI Studio 的默认模板，改造成一个由 **Python 推理流水线 + 本地嵌入服务 + FastAPI 后端 + Vite 前端控制台** 组成的多模态实验环境。核心目标是验证“多策略并行探索 + 记忆反馈”这一混合智能体架构在复杂问题求解中的可行性。
+
+## 功能总览
+
+- **战略架构师 (src/strategy_architect.py)**：调用 Gemini 生成多条相互独立的高层策略蓝图。
 - **上下文管理器 (src/context_manager.py)**：为每条策略创建独立的推理上下文、维护 SoC 日志，并生成摘要/长期反思。默认最多保留 50 条历史记录，可通过环境变量 `CONTEXT_HISTORY_LIMIT` 调整（需设为正整数）。
 - **嵌入与多样性分析 (src/embedding_client.py & src/diversity_calculator.py)**：通过本地 Ollama 嵌入模型量化策略间的相似度，形成余弦相似度矩阵。
 - **全流程脚本 (main.py)**：串联以上模块，演示从问题描述到知识库落地的完整流程。
@@ -30,14 +40,18 @@ npm install
 ### 2. 配置外部服务
 
 1. **Gemini API**：脚本依赖 `GEMINI_API_KEY` 环境变量。
+
    ```bash
    export GEMINI_API_KEY="your_google_api_key"
    ```
+
 2. **Ollama 嵌入服务**：需要本地运行 Ollama，并提前拉取 `dengcao/Qwen3-Embedding-8B:Q4_K_M`。
+
    ```bash
    ollama pull dengcao/Qwen3-Embedding-8B:Q4_K_M
    ollama run dengcao/Qwen3-Embedding-8B:Q4_K_M --keep-alive
    ```
+
    默认端口 `http://localhost:11434` 可通过修改 `src/embedding_client.py` 调整。
 
 ### 3. 运行策略生成流水线
@@ -53,6 +67,7 @@ python main.py --use-mock
 ```
 
 该脚本将：
+
 - 调用 Gemini 生成多条策略；
 - 为每条策略创建独立的 `runtime_contexts/<strategy-id>` 目录；
 - 调用 Ollama 获取嵌入并输出余弦相似度矩阵；
@@ -79,9 +94,11 @@ npm run dev
 
 - 访问 `http://localhost:5173` 查看控制面板。
 - 如需连接远程后端，可在 `.env.local` 中配置：
+
   ```bash
   VITE_KNOWLEDGE_SOCKET_URL=wss://your-domain/ws/knowledge_base
   ```
+
   或者设置 `VITE_KNOWLEDGE_SOCKET_PORT` 覆盖默认端口。
 
 ### 6. 运行测试套件
@@ -132,12 +149,14 @@ python scripts/generate_acceptance_report.py --log-path logs/pipeline.log
 ## Spec Kit 工作流
 
 Spec Kit 文档位于 `docs/spec-kit/` 目录，包含以下内容：
+
 - `constitution.md`：项目宗旨、核心约束与质量门禁。
 - `spec.md`：当前系统功能需求与架构约定。
 - `plan.md`：迭代里程碑与风险管理。
 - `tasks.md`：可执行的任务拆解列表。
 
 日常协作建议流程：
+
 1. 变更前先阅读/更新 `spec.md` 与 `plan.md`，确认需求与实施步骤。
 2. 在 `tasks.md` 勾选或新增任务，确保工作可追踪。
 3. 开发完成后运行 `specify check` 验证工具链安装与规范完整性。
@@ -146,6 +165,7 @@ Spec Kit 文档位于 `docs/spec-kit/` 目录，包含以下内容：
 如需配置分支保护与自动删除临时分支，请参考 [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md) 的分支治理指南。
 
 在仓库根目录执行以下命令可快速自检：
+
 ```bash
 specify check
 ```

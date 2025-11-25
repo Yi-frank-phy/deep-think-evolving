@@ -1,13 +1,81 @@
-import os
+from __future__ import annotations
+
 import json
-from typing import Any
+import os
+from typing import Any, Iterable, List, TypedDict, Union
 
 import google.generativeai as genai
 
 
+class StrategyBlueprint(TypedDict):
+    """Typed representation of a single strategy blueprint item."""
+
+    strategy_name: str
+    rationale: str
+    initial_assumption: str
+    milestones: Union[dict[str, Any], list[Any]]
+
+
+def _clean_response_text(raw_text: str) -> str:
+    """Remove Markdown code fences and surrounding whitespace."""
+
+    cleaned = raw_text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.replace("```json", "", 1)
+        cleaned = cleaned.replace("```", "")
+    return cleaned.strip()
+
+
+def _is_valid_strategy(candidate: object) -> bool:
+    """Return True when the candidate satisfies the required schema."""
+
+    if not isinstance(candidate, dict):
+        return False
+
+    required_keys = ("strategy_name", "rationale", "initial_assumption")
+    for key in required_keys:
+        value = candidate.get(key)
+        if not isinstance(value, str) or not value.strip():
+            return False
+            
+    # Milestones are optional in strict validation but should be present in final output
+    # We don't strictly validate the internal structure of milestones here to allow flexibility
+    # between list (old) and dict (new) schemas during transition, though we prefer dict.
+    return True
+
+
+def _validate_strategies(strategies: Iterable[dict]) -> List[StrategyBlueprint]:
+    """Validate and normalise the generated strategies."""
+
+    valid_items: List[StrategyBlueprint] = []
+    for index, strategy in enumerate(strategies, start=1):
+        if not _is_valid_strategy(strategy):
+            print(
+                "Warning: Ignoring malformed strategy at position "
+                f"{index}: {strategy!r}"
+            )
+            continue
+
+        milestones = strategy.get("milestones", {})
+        # Normalize milestones: ensure it's a dict or list, default to dict
+        if not isinstance(milestones, (dict, list)):
+            milestones = {}
+
+        valid_items.append(
+            StrategyBlueprint(
+                strategy_name=strategy["strategy_name"].strip(),
+                rationale=strategy["rationale"].strip(),
+                initial_assumption=strategy["initial_assumption"].strip(),
+                milestones=milestones,
+            )
+        )
+
+    return valid_items
+
+
 def generate_strategic_blueprint(
     problem_state: str, model_name: str = "gemini-2.5-flash"
-) -> list[dict[str, Any]]:
+) -> list[StrategyBlueprint]:
     """
     Generates a strategic blueprint for a given problem state using a generative AI model.
 
@@ -78,35 +146,36 @@ def generate_strategic_blueprint(
                 response_mime_type="application/json"
             ),
         )
-
-        response_text = getattr(response, "text", "").strip()
-        response_text = response_text.replace("```json", "").replace("```", "").strip()
-        parsed_json = json.loads(response_text)
-
-        if isinstance(parsed_json, dict):
-            parsed_json = [parsed_json]
-
-        if not isinstance(parsed_json, list):
-            return []
-
-        normalized: list[dict] = []
-        for entry in parsed_json:
-            if not isinstance(entry, dict):
-                continue
-
-            milestones = entry.get("milestones", {})
-            # If it's a list (old schema), keep it. If it's a dict (new schema), keep it.
-            # If it's neither, default to empty dict.
-            if not isinstance(milestones, (dict, list)):
-                milestones = {}
-
-            normalized.append({**entry, "milestones": milestones})
-
-        return normalized
-
-    except Exception as e:
-        print(f"An error occurred during API call or JSON parsing: {e}")
+    except Exception as error:  # pragma: no cover - network errors
+        print(f"An error occurred during API call: {error}")
         return []
+
+    response_text_raw = getattr(response, "text", None)
+    if not isinstance(response_text_raw, str) or not response_text_raw.strip():
+        print("Model response did not contain textual content to parse.")
+        return []
+
+    response_text = _clean_response_text(response_text_raw)
+    try:
+        parsed_json = json.loads(response_text)
+    except json.JSONDecodeError as error:
+        print(f"Failed to parse JSON response from Gemini: {error}")
+        return []
+
+    if isinstance(parsed_json, dict):
+        parsed_json = [parsed_json]
+
+    if not isinstance(parsed_json, list):
+        print(
+            "Model response was not a JSON array; received "
+            f"{type(parsed_json).__name__} instead."
+        )
+        return []
+
+    validated = _validate_strategies(parsed_json)
+    if not validated:
+        print("No valid strategies were produced by the model.")
+    return validated
 
 
 if __name__ == "__main__":
