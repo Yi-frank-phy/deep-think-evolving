@@ -154,3 +154,28 @@ def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) ->
             return []
 
     return strategies
+
+
+def embed_text(document: str) -> list[float]:
+    """Generate an embedding vector for an arbitrary document string."""
+
+    if not document.strip():
+        return []
+
+    endpoint = os.environ.get("OLLAMA_API_ENDPOINT", DEFAULT_OLLAMA_API_ENDPOINT)
+    model = os.environ.get("OLLAMA_EMBEDDING_MODEL", DEFAULT_OLLAMA_MODEL)
+
+    payload = {
+        "model": model,
+        "prompt": document,
+    }
+
+    try:
+        response = requests.post(endpoint, json=payload, timeout=30)
+        response.raise_for_status()
+        response_json = response.json()
+        return response_json.get("embedding", [])
+    except Exception as error:
+        print(f"[ERROR] Failed to embed text: {error}")
+        return []
+
