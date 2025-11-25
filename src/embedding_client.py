@@ -133,7 +133,8 @@ def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) ->
             print(
                 f"\n[ERROR] Ollama request timed out when embedding strategy {i + 1}: {error}"
             )
-            return []
+            strategy["embedding"] = []
+            continue
         except requests.exceptions.HTTPError as error:
             print(f"\n[ERROR] HTTP error during embedding: {error}")
             print(f"Response from server: {response.text}")
@@ -141,17 +142,20 @@ def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) ->
                 print(
                     f"Model '{model}' not found. Please ensure the model is available via 'ollama list'."
                 )
-            return []
+            strategy["embedding"] = []
+            continue
         except requests.exceptions.RequestException as error:
             print(
                 f"\n[ERROR] Unexpected network error during embedding strategy {i + 1}: {error}"
             )
-            return []
+            strategy["embedding"] = []
+            continue
         except Exception as error:  # pragma: no cover - defensive guard
             print(
                 f"\n[ERROR] An unexpected error occurred during embedding strategy {i + 1}: {error}"
             )
-            return []
+            strategy["embedding"] = []
+            continue
 
     return strategies
 
