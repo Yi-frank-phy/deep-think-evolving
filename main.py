@@ -215,10 +215,7 @@ def run_pipeline(
         summary_results[registry_entry["thread_id"]] = summary_result
         spec_emit(
             "FILE",
-            (
-                f"Summary updated for {registry_entry['thread_id']} "
-                f"(stored at {summary_result.path})"
-            ),
+            f"Summary updated for {registry_entry['thread_id']} (stored at {summary_result.path})"
         )
 
     spec_emit("STEP", "Step 5: Evaluating whether to persist long-term reflections...")
