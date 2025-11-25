@@ -15,10 +15,12 @@
 | T-011 | 定义验收日志格式与自动报告脚本，支撑非开发者验收 | Codex Integration Pod | Done | 规范 §3.4 |
 | T-013 | 整合 `codex/add-logging-helper-and-generate-acceptance-report` 分支，统一日志/验收脚本规范 | Codex Integration Pod | Done | 规范 §3.4 |
 | T-012 | 整合 `codex/implement-google-grounding-search-functionality` 分支，保留主干规范并补充搜索助手条款 | Codex Integration Pod | Done | 规范 §3.3 |
-| T-014 | 批量整合其余 `codex/*` 分支，记录冲突清单并同步规范/任务状态 | Codex Integration Pod | In Progress | 宪章·流程约束 |
+| T-014 | 批量整合其余 `codex/*` 分支，记录冲突清单并同步规范/任务状态 | Codex Integration Pod | Done | 宪章·流程约束 |
+| T-015 | 创建规范检查脚本 `scripts/check_specs.py` 以自动验证文档一致性 | Codex Integration Pod | Done | 规范 §3.4 |
 
 > 状态取值建议：`TODO`（待开始）、`In Progress`（进行中）、`Done`（完成）、`Backlog`（暂缓）。
 
 ## 冲突合并备注
 
 - 2024-05：合并 `codex/add-logging-helper-and-generate-acceptance-report` 时，保留了 `SpecLogger` `[Spec-OK]` 前缀输出以及验收报告脚本对缺失日志的兼容性要求，确保主干文档与实现保持一致。
+- 2025-11：清理了过时的远程分支 `origin/52eajn-ctrategic-blueprintts-for-st`，确认主干为最新状态。
