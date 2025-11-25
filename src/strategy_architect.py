@@ -94,11 +94,11 @@ def generate_strategic_blueprint(
             if not isinstance(entry, dict):
                 continue
 
-            milestones = entry.get("milestones", [])
-            if isinstance(milestones, dict):
-                milestones = [milestones]
-            elif not isinstance(milestones, list):
-                milestones = [milestones] if milestones else []
+            milestones = entry.get("milestones", {})
+            # If it's a list (old schema), keep it. If it's a dict (new schema), keep it.
+            # If it's neither, default to empty dict.
+            if not isinstance(milestones, (dict, list)):
+                milestones = {}
 
             normalized.append({**entry, "milestones": milestones})
 
