@@ -20,8 +20,15 @@ class DummyResponse:
 
 
 def test_embed_text_success(monkeypatch):
-    def fake_post(url, headers, data):
-        body = json.loads(data)
+    def fake_post(url, headers=None, data=None, json=None, **kwargs):
+        if json:
+            body = json
+        elif data:
+            import json as j
+            body = j.loads(data)
+        else:
+            body = {}
+            
         assert body["prompt"] == "hello"
         return DummyResponse({"embedding": [0.1, 0.2, 0.3]})
 
@@ -42,7 +49,7 @@ def test_embed_text_handles_connection_error(monkeypatch):
 
 
 def test_embed_strategies_handles_http_error(monkeypatch):
-    def fake_post(url, headers, data):
+    def fake_post(url, headers=None, data=None, json=None, **kwargs):
         return DummyResponse({}, status_code=500)
 
     monkeypatch.setattr(ec.requests, "post", fake_post)
