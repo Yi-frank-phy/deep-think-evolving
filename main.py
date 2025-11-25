@@ -18,6 +18,15 @@ from src.embedding_client import embed_strategies
 from src.strategy_architect import generate_strategic_blueprint
 from src.logging_utils import emit_spec_event
 
+_TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
+
+
+def _use_mock_embeddings() -> bool:
+    """Return True when mock embeddings are requested via the environment."""
+
+    value = os.environ.get("USE_MOCK_EMBEDDING", "")
+    return value.strip().lower() in _TRUTHY_ENV_VALUES
+
 
 Logger = Callable[[str], None]
 
@@ -483,6 +492,59 @@ def main(argv: Optional[list[str]] = None) -> None:
         print(f"\nPipeline exited early: {result.get('error', 'Unknown error')}")
         return
 
+<<<<<<< HEAD
+=======
+    print(f"[SUCCESS] Generated {len(strategies)} strategies.")
+    strategy_names = [s.get("strategy_name", "Unnamed Strategy") for s in strategies]
+    for i, name in enumerate(strategy_names):
+        print(f"  {i + 1}. {name}")
+
+    print("\nGenerated strategies (JSON):")
+    print(json.dumps(strategies, indent=2, ensure_ascii=False))
+
+    # 2. Embed Strategies using Ollama or mock vectors
+    # ------------------------------------------------
+    use_mock_embedding = _use_mock_embeddings()
+    if use_mock_embedding:
+        print("\nStep 2: Embedding generated strategies (mock embeddings enabled)...")
+        print("[INFO] Set USE_MOCK_EMBEDDING=0 to restore Ollama-based embeddings.")
+    else:
+        print("\nStep 2: Embedding generated strategies using Ollama...")
+    embedded_strategies = embed_strategies(strategies, use_mock=use_mock_embedding)
+
+    if not embedded_strategies or not all(
+        "embedding" in s and s["embedding"] for s in embedded_strategies
+    ):
+        print("\n[FAILURE] Failed to embed strategies using the configured embedding mode. Exiting.")
+        return
+
+    print("[SUCCESS] Strategies embedded successfully.")
+
+    # 3. Calculate Similarity Matrix
+    # ------------------------------
+    print("\nStep 3: Calculating cosine similarity matrix...")
+    similarity_matrix = calculate_similarity_matrix(embedded_strategies)
+
+    if similarity_matrix.size == 0:
+        print("\n[FAILURE] Failed to calculate similarity matrix.")
+        return
+
+    print("[SUCCESS] Similarity matrix calculated.")
+
+    # 4. Display Results
+    # ------------------
+    print("\n--- Final Results ---")
+    print("Strategy Names:")
+    for i, name in enumerate(strategy_names):
+        print(f"  {i}: {name}")
+
+    if use_mock_embedding:
+        print("\nCosine Similarity Matrix (mock embeddings):")
+    else:
+        print("\nCosine Similarity Matrix:")
+    np.set_printoptions(precision=4, suppress=True)
+    print(similarity_matrix)
+>>>>>>> origin/ndl0ps-codex/add-smoke-tests-for-strategic-blueprint
 
     print("\n--- Test Script Finished ---")
 
