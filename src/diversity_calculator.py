@@ -11,18 +11,13 @@ def calculate_similarity_matrix(strategies: list[dict]) -> np.ndarray:
     Returns:
         A numpy.ndarray representing the N x N matrix of pairwise cosine
         similarities, where N is the number of strategies.
-<<<<<<< HEAD
         Returns an empty array if the input is invalid, contains empty embeddings,
         or embeddings have inconsistent dimensions.
-=======
-        Returns an empty array if the input is invalid.
->>>>>>> origin/codex/fix-validation-issues-from-codex-review
     """
     if not strategies or not all('embedding' in s for s in strategies):
         print("Error: Input is not a valid list of embedded strategies.")
         return np.array([])
 
-<<<<<<< HEAD
     embeddings_list = []
     expected_dim = None
 
@@ -49,14 +44,6 @@ def calculate_similarity_matrix(strategies: list[dict]) -> np.ndarray:
 
     # Extract the embedding vectors into a numpy array
     embeddings = np.vstack(embeddings_list)
-=======
-    # Extract the embedding vectors into a numpy array
-    embeddings = np.array([s['embedding'] for s in strategies])
-
-    # Check for empty embeddings
-    if embeddings.size == 0:
-        return np.array([])
->>>>>>> origin/codex/fix-validation-issues-from-codex-review
 
     # Normalize each vector to unit length. Add a small epsilon to avoid division by zero.
     norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
