@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-import json
 import os
 from typing import Any, Iterable, List, TypedDict, Union
 
-import google.generativeai as genai
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.prompts import PromptTemplate
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+DEFAULT_MODEL_NAME = "models/gemini-flash-latest"
 
 
 class StrategyBlueprint(TypedDict):
@@ -14,16 +17,6 @@ class StrategyBlueprint(TypedDict):
     rationale: str
     initial_assumption: str
     milestones: Union[dict[str, Any], list[Any]]
-
-
-def _clean_response_text(raw_text: str) -> str:
-    """Remove Markdown code fences and surrounding whitespace."""
-
-    cleaned = raw_text.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.replace("```json", "", 1)
-        cleaned = cleaned.replace("```", "")
-    return cleaned.strip()
 
 
 def _is_valid_strategy(candidate: object) -> bool:
@@ -39,8 +32,6 @@ def _is_valid_strategy(candidate: object) -> bool:
             return False
             
     # Milestones are optional in strict validation but should be present in final output
-    # We don't strictly validate the internal structure of milestones here to allow flexibility
-    # between list (old) and dict (new) schemas during transition, though we prefer dict.
     return True
 
 
@@ -74,28 +65,10 @@ def _validate_strategies(strategies: Iterable[dict]) -> List[StrategyBlueprint]:
 
 
 def generate_strategic_blueprint(
-    problem_state: str, model_name: str = "gemini-2.5-flash"
+    problem_state: str, model_name: str = DEFAULT_MODEL_NAME
 ) -> list[StrategyBlueprint]:
     """
-    Generates a strategic blueprint for a given problem state using a generative AI model.
-
-    This function takes a description of a problem and uses the "Strategy Architect"
-    prompt pattern defined in the project's design document to generate a list of
-    potential strategic directions.
-
-    Args:
-        problem_state: A string describing the current problem, context, progress,
-            and any specific dilemmas.
-        model_name: The Gemini model name to use for generation.
-
-    Returns:
-        A list of dictionaries, where each dictionary represents a strategy and
-        contains the keys 'strategy_name', 'rationale', 'initial_assumption',
-        and 'milestones'. The `milestones` field is a nested mapping of
-        high-level phases to milestone arrays. Each milestone entry must include
-        a `title`, a descriptive `summary`, and a list of `success_criteria`
-        strings that make the checkpoint verifiable. Returns an empty list if
-        the API key is not configured or an error occurs.
+    Generates a strategic blueprint for a given problem state using LangChain and Gemini.
     """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -103,7 +76,13 @@ def generate_strategic_blueprint(
         print("Please set the environment variable before running.")
         return []
 
-    genai.configure(api_key=api_key)
+    # Initialize the ChatGoogleGenerativeAI model
+    llm = ChatGoogleGenerativeAI(
+        model=model_name,
+        google_api_key=api_key,
+        temperature=0.7,
+        convert_system_message_to_human=True, # Sometimes needed for older models, safe to keep
+    )
 
     system_prompt = (
         "你是一位'战略系统架构师' (Strategic Systems Architect)。"
@@ -132,54 +111,40 @@ def generate_strategic_blueprint(
   - 若某阶段没有额外需求, 仍需提供至少一个里程碑来解释该阶段的目标。
 """
 
-    full_user_prompt = user_prompt_template.format(problem_state=problem_state)
-
-    model = genai.GenerativeModel(
-        model_name=model_name,
-        system_instruction=system_prompt,
+    parser = JsonOutputParser()
+    
+    prompt = PromptTemplate(
+        template=f"{system_prompt}\n\n{user_prompt_template}\n\n{{format_instructions}}",
+        input_variables=["problem_state"],
+        partial_variables={"format_instructions": parser.get_format_instructions()},
     )
 
+    chain = prompt | llm | parser
+
     try:
-        response = model.generate_content(
-            full_user_prompt,
-            generation_config=genai.types.GenerationConfig(
-                response_mime_type="application/json"
-            ),
-        )
-    except Exception as error:  # pragma: no cover - network errors
-        print(f"An error occurred during API call: {error}")
+        response = chain.invoke({"problem_state": problem_state})
+    except Exception as error:
+        print(f"An error occurred during LangChain execution: {error}")
         return []
 
-    response_text_raw = getattr(response, "text", None)
-    if not isinstance(response_text_raw, str) or not response_text_raw.strip():
-        print("Model response did not contain textual content to parse.")
-        return []
+    if isinstance(response, dict):
+        response = [response]
 
-    response_text = _clean_response_text(response_text_raw)
-    try:
-        parsed_json = json.loads(response_text)
-    except json.JSONDecodeError as error:
-        print(f"Failed to parse JSON response from Gemini: {error}")
-        return []
-
-    if isinstance(parsed_json, dict):
-        parsed_json = [parsed_json]
-
-    if not isinstance(parsed_json, list):
+    if not isinstance(response, list):
         print(
             "Model response was not a JSON array; received "
-            f"{type(parsed_json).__name__} instead."
+            f"{type(response).__name__} instead."
         )
         return []
 
-    validated = _validate_strategies(parsed_json)
+    validated = _validate_strategies(response)
     if not validated:
         print("No valid strategies were produced by the model.")
     return validated
 
 
 if __name__ == "__main__":
-    print("Running a direct test of strategy_architect.py...")
+    print("Running a direct test of strategy_architect.py (LangChain)...")
 
     if not os.environ.get("GEMINI_API_KEY"):
         print("\nSkipping test: GEMINI_API_KEY is not set.")
@@ -196,6 +161,7 @@ if __name__ == "__main__":
         strategies = generate_strategic_blueprint(sample_problem)
 
         if strategies:
+            import json
             print("\nSuccessfully generated strategic blueprint:")
             print(json.dumps(strategies, indent=2, ensure_ascii=False))
         else:

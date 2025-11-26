@@ -7,3 +7,6 @@ uvicorn
 websockets
 requests
 pytest
+langchain
+langchain-google-genai
+langgraph
