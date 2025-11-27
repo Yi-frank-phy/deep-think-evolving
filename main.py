@@ -3,6 +3,10 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from src.agent_graph import build_graph
 from src.logging_utils import emit_spec_event
 
