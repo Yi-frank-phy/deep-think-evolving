@@ -49,48 +49,62 @@ Agent 自己可以使用的工具：mcp tools, groundings，
 * **挑战**: 完全依赖自主Agent（无论是单个还是多个）来生成高质量、多样化的战略分叉点，在工程上是脆弱且不可靠的。  
 * **对策**: 我们采用一个\*\*“LLM生成可能性，人类进行决策 (LLM Proposes, Human Disposes)”\*\* 的人机协同流程，将LLM定位为“战略架构师”，而将人类专家定位为最终的“总设计师”。
 
-3.2.2. 【v3.6 核心更新】新增：人机协同的策略分叉 (Human-in-the-Loop Strategy Forking)  
-此机制由系统协调器 (System Orchestrator)（见5.1节）在关键节点（如初始步骤或搜索停滞时）启动和管理：
+3.2.2. 【v3.7 核心更新】冷启动与人机协同 (Cold Start & Human-in-the-Loop)
 
-1. **架构师生成 (Architect Generation)**: 系统协调器调用一个专用的“**战略架构师 (Strategy Architect)**”LLM，其任务不是解决问题，而是生成一份包含所有可能方向的“战略蓝图”。
+**1. 基于 Deep Research 的搜索辅助冷启动 (Search-Assisted Cold Start)**
+为了打破 LLM 的“闭门造车”并解决冷启动多样性不足的问题，在生成初始策略前，系统引入**搜索辅助思考**流程：
 
-   【优化版提示词】  
-   System Prompt:  
-   你是一位'战略系统架构师' (Strategic Systems Architect)。你的主要职能是对复杂问题进行元层面分析。你不直接解决问题，而是识别并绘制出所有通往解决方案的基础战略路径。你的分析必须广博、多样，并专注于概念上截然不同的方法。  
-   **User Prompt**: 分析以下问题状态：  
-   \[问题状态：包含完整的上下文、当前进展，以及遇到的具体困境或决策点\]  
-   你的任务是生成一份详尽的、包含所有从此状态出发的、相互排斥的战略方向清单。对每一个方向，请提供一个简洁的名称、清晰的理由和其所依赖的核心假设。  
-   **约束**:
+* **任务分解**: 将复杂问题拆解为若干关键子问题。
+* **广度搜索**: 针对子问题进行广泛的外部知识搜索 (借助 Google Search Grounding)，获取最新的研究成果、类似案例或多元观点。
+* **信息蒸馏 (Information Distiller)**: 参考 `langchainai/open-deep-research` 的架构，引入一个专门的筛选器 Agent，负责从海量搜索结果中去噪、提炼核心观点，并生成高质量的上下文摘要（Contextual Summary）。
+* **灵感注入**: 将蒸馏后的摘要作为“灵感种子”注入给战略架构师，确保生成的初始策略蓝图建立在广阔的信息视野之上。
 
-   1. ## **最大化多样性: 策略之间必须存在根本性差异。避免对同一核心思想的微小改动。**
+**2. 战略架构师 (Strategy Architect)**
+基于搜索结果，生成互斥的战略蓝图（JSON格式）。人类的主动输入（如新的约束或方向）主要在此阶段或通过 Judge Agent 注入。
 
-   2. **仅限高层次**: 不要提供详细的程序步骤。专注于“做什么”和“为什么”，而不是“怎么做”。  
-   3. **保持中立**: 不要对策略表示任何偏好或进行评估。你的角色是绘制蓝图，而非评判。
+**3. 工具化人机协作 (Tool-Use HIL)**
 
-      **请将结果输出为单一的JSON对象数组。每个对象必须包含以下三个键**:
+* **双向交互协议**:
+  * **LLM -> Human (Pull)**: 系统中**任何** LLM Agent (Architect, Judge, Executor) 均可调用 `ask_human` 工具。人类的回复将直接回传给**发起调用的 Agent**，作为上下文的一部分。
+  * **Human -> LLM (Push)**: 人类专家的**主动干预**（如纠偏、注入新约束）**只能**发送给 **Strategy Architect**（重构蓝图）或 **Judge Agent**（调整评分标准）。**严禁**直接干预正在执行具体原子任务的 Executor，以避免破坏其思维连贯性。
 
-   * strategy\_name: 一个简短的、描述性的中文标签 (例如, "几何构造法")。  
-   * rationale: 一句解释该策略核心逻辑的中文描述。  
-   * initial\_assumption: 一句描述该策略若要可行所必须依赖的关键假设的中文描述。  
-2. **人类确认与迭代 (Human Confirmation & Iteration)**: “战略架构师”生成的JSON输出，会通过**人类在环 (HIL) 接口**（见5.2节）呈现给人类专家。专家可以：  
-   * **确认 (Confirm)**: 勾选所有他们认为可行或值得探索的战略方向。  
-   * **修改 (Modify)**: 编辑某个策略的描述或其核心假设。  
-   * **补充 (Add)**: 手动添加LLM未能想到的全新战略方向。  
-   * 否决 (Reject): 要求系统基于新的指示重新生成蓝图。  
-     这个“建议-返工-修改”的循环会一直持续，直到人类专家对战略分叉的最终方案感到满意。  
-3. **强制并行实例化 (Forced Parallel Instantiation)**: 系统协调器接收到**经人类最终确认**的战略方向列表后，为每一个方向启动一个**全新的、独立的并行搜索线程**，并施加硬约束。
+3.2.3. 【v3.8 核心重构】进化波束搜索 (Evolutionary Beam Search, EBS)
 
-3.2.3. 【v3.5 核心修正】线程内的在线进化 (Intra-Thread Online Evolution)  
-每一个并行线程内部，都独立运行基于种群熵的在线进化搜索算法。此算法是实现无偏UCB估计的关键。  
-**3.2.3.1. 算法流程 (Algorithm Flow)**  
-在每个推理步骤 (depth d):
+我们正式将**波束搜索 (Beam Search)** 与 **进化算法 (Evolutionary Algorithms)** 统一在同一个数学框架下。在此视角下，LLM 的推理不再是简单的文本生成，而是策略空间中的**变异算子**。
 
-1. **繁殖 (Propagation)**: 对当前种群（大小为k的波束）中的每个候选路径，调用“生成器”LLM，产生多个潜在的下一步，形成一个更大的“后代池 (offspring pool)”。  
-2. 评估 (Evaluation): 对“后代池”中的每一个新候选者 c，计算其最终适应度分数：  
-   Final\_Score(c) \= Value\_Score(c) \+ C \* Exploration\_Bonus(c)  
-3. **选择 (Selection)**: 从“后代池”中，选择Final\_Score最高的k个候选者，形成深度为d+1的新一代种群（新波束）。
+**3.2.3.1. 同构映射 (Isomorphic Mapping)**
 
-**3.2.3.2. 空间熵与探索奖励 (Spatial Entropy & Exploration Bonus)**
+| 进化概念 (EA) | 波束搜索概念 (Beam Search) | 本系统实现 (Implementation) |
+| :--- | :--- | :--- |
+| **种群 (Population)** | 波束 (Beam) | 当前保留的 $k$ 个候选推理路径 |
+| **变异 (Mutation)** | 扩展 (Expansion) | **单次调用单策略 (One-Call-One-Strategy)**：<br>严禁在单次回复中生成多个变体。必须通过 $N$ 次独立的 API 调用来生成 $N$ 个子节点。<br>**理由**: Transformer 的线性思维会导致同一上下文中生成的多个策略趋同，严重损害多样性。 |
+| **选择 (Selection)** | 剪枝 (Pruning) | 基于 **UCB 公式** 的评分排序，保留 Top-$k$。 |
+| **适应度 (Fitness)** | 启发式评分 (Heuristic) | **Judge Agent**：评估路径的可行性与一致性。 |
+
+**3.2.3.2. 动态提示工程与测试时计算 (Dynamic Prompting & Test-Time Scaling)**
+
+为了最大化 **Test-Time Scaling** 收益，我们摒弃静态 Prompt 模板，采用**父子动态生成机制**：
+
+1. **父节点定义任务 (Parent Defines Task)**:
+    父 Agent 不直接生成答案，而是根据当前问题状态和多样性需求（由 $T$ 决定），为子 Agent **动态编写 Prompt**。
+2. **原子化专精 (Atomic Specialization)**:
+    子 Agent 的 Prompt 被严格限制在**极小粒度的原子任务**上。
+    * *错误示范*: "Solve the rest of the problem."
+    * *正确示范*: "Calculate the derivative of equation (3) under condition X."
+3. **思维预算最大化 (Thinking Budget Optimization)**:
+    通过将复杂任务拆解为大量简单的原子任务，我们确保每个子 Agent 都能将其全部的 Context Window 和推理能力（Thinking Budget）集中在当前的小点上，从而实现整体智能的涌现。
+
+**3.2.3.3. 算法流程 (EBS Loop)**
+
+1. **变异 (Mutation / Expansion)**:
+    对波束中的每个父节点 $P$，**并行发起 $m$ 次独立的 API 调用**。每次调用使用由父节点动态生成的、略有差异的 Prompt。
+2. **评估 (Evaluation)**:
+    调用 **Judge Agent** 对新生成的子节点进行**可行性打分**。
+    * *注*: Judge 仅关注逻辑是否自洽、是否符合物理/代码约束，不负责验证外部事实真伪（Hallucination is accepted as a capability limitation）。
+3. **选择 (Selection)**:
+    计算所有候选子节点的 **Dynamic Normalized UCB** 分数，选出新的 Top-$k$ 形成下一代种群。
+
+**3.2.3.4. 空间熵与探索奖励 (Spatial Entropy & Exploration Bonus)**
 
 1. **语义向量化 (Semantic Embedding)**: 将每个策略 $x$ 映射为高维向量 $v(x)$。
 2. **空间熵 (Spatial Entropy)**: 定义为种群在语义空间中的“平均离散度”。
@@ -102,6 +116,7 @@ Agent 自己可以使用的工具：mcp tools, groundings，
 **3.2.4.1. 核心思想：成本导向的收敛 (Cost-Driven Convergence)**
 
 受 MCTS (蒙特卡洛树搜索) 启发，我们引入一种**正反馈冷却机制**。
+
 * **高熵阶段**: 当解法百花齐放时，系统认为“还有很多未知领域”，保持**高温度**，鼓励进一步探索。
 * **低熵阶段**: 当解法开始趋同（$H_{spatial}$ 下降）时，系统判断“已找到潜在最优域”，主动**降低温度**，加速收敛以节省计算成本。
 
@@ -109,19 +124,24 @@ Agent 自己可以使用的工具：mcp tools, groundings，
 
 **1. 自适应温度 (Adaptive Temperature)**
 $$ T = T_{max} \times \left( \frac{H_{spatial}}{H_{target}} \right)^\gamma $$
+
 * $T$: 系统当前的探索率。
 * $H_{target}$: 预期的最大多样性（归一化基准）。
 * $\gamma$: 敏感度系数（通常 $\ge 1$），用于控制收敛速度。
 
-**2. 多样性加权 UCB (Diversity-Weighted UCB)**
-$$ Score(x) = \tilde{V}(x) + c \cdot T \cdot \sigma_{local}(x) $$
-* $\tilde{V}(x)$: 归一化的价值评分 (Normalized Value Score)。
-* $T$: 由全局熵决定的“探索幅度” (Standard Deviation Scale)。
-* $\sigma_{local}(x)$: 候选解 $x$ 的**局部唯一性 (Local Uniqueness)**。
+**2. 动态归一化 UCB (Dynamic Normalized UCB)**
+为了解决价值分与探索项的量纲失衡风险，我们引入**动态 Min-Max 归一化**：
+
+$$ Score(x) = \frac{V(x) - V_{min}}{V_{max} - V_{min} + \epsilon} + c \cdot T \cdot \sigma_{local}(x) $$
+
+* **利用项 (Exploitation)**: $V(x)$ 为原始价值分。通过当前候选池的 $V_{max}$ 和 $V_{min}$ 将其动态映射到 $[0, 1]$ 区间，确保其始终与探索项处于同一数量级。
+* **探索项 (Exploration)**:
+  * $T$: 全局温度（由 $H_{spatial}$ 决定）。
+  * $\sigma_{local}(x)$: 局部唯一性，定义为 $x$ 与种群中最近邻居的余弦距离。
     $$ \sigma_{local}(x) = \min_{y \in Population, y \neq x} (1 - \text{sim}(v(x), v(y))) $$
-    *注：此项奖励那些“离现有种群最远”的新解。*
 
 **3.2.4.3. 机制优势**
+
 * **自动止损**: 一旦出现统治级策略导致多样性下降，系统会自动“关火”，停止无效的广度搜索，转为深度优化。
 * **动态平衡**: 在 $T$ 的调节下，系统在初期表现为“随机游走”，在后期表现为“梯度下降”，无需人工设定冷却时间表。
 
