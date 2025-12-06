@@ -43,10 +43,10 @@
 - [ ] **Selection & Pruning (The "Evolver")**
   - [ ] Implement `SemanticEmbedding`: Vectorize strategies using Google Embeddings.
   - [ ] Implement `KDE` (Kernel Density Estimation) for probability density field construction.
-  - [ ] Implement `PopulationEntropy` calculation using Monte Carlo integration on KDE.
+  - [ ] Implement `TemperatureEstimation` via O(N) Least Squares (Slope Analysis of Energy-LogProbability).
+  - [ ] Implement `CalculatedEffectiveTemperature` ($T_{eff}$) logic.
   - [ ] Implement `PseudoCount` estimation from density ($N \propto p$).
-  - [ ] Implement `DynamicNormalizedUCB` scoring logic with Exploration Bonus $\propto 1/\sqrt{p}$.
-  - [ ] Implement `AdaptiveTemperature` control based on entropy.
+  - [ ] Implement `DynamicNormalizedUCB` scoring logic with $\tau = T_{eff}/T_{max}$ and Exploration $\propto 1/\sqrt{p}$.
 
 ## Phase 4: Outer Loop - Offline Strategy Evolution
 
