@@ -16,7 +16,9 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
     print("\n[Judge] Evaluating strategy feasibility...")
     
     api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
+    use_mock = os.environ.get("USE_MOCK_AGENTS", "false").lower() == "true" or not api_key
+    
+    if not api_key and not use_mock:
         print("[Judge] Error: GEMINI_API_KEY not set. Skipping evaluation.")
         return state
 
@@ -71,6 +73,11 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
     evaluated_count = 0
     pruned_count = 0
     
+    use_mock = os.environ.get("USE_MOCK_AGENTS", "false").lower() == "true" or not api_key
+    if use_mock:
+        print("[Judge] Running in MOCK MODE.")
+        import random
+
     new_strategies = list(strategies) # Shallow copy to modify
 
     for idx in active_indices:
@@ -80,20 +87,26 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
         # For now, we assume Judge runs once per generation
         
         try:
-            result = chain.invoke({
-                "problem_state": state["problem_state"],
-                "strategy_name": strategy["name"],
-                "rationale": strategy["rationale"],
-                "initial_assumption": strategy["assumption"]
-            })
-            
-            score = float(result.get("feasibility_score", 5.0))
-            is_pruned = result.get("is_pruned", False)
-            reasoning = result.get("reasoning", "")
+            if not use_mock:
+                result = chain.invoke({
+                    "problem_state": state["problem_state"],
+                    "strategy_name": strategy["name"],
+                    "rationale": strategy["rationale"],
+                    "initial_assumption": strategy["assumption"]
+                })
+                
+                score = float(result.get("feasibility_score", 5.0))
+                is_pruned = result.get("is_pruned", False)
+                reasoning = result.get("reasoning", "")
+            else:
+                # Mock Logic
+                score = random.uniform(4.0, 9.5)
+                is_pruned = score < 5.0
+                reasoning = "Mock evaluation: Logic seems okay." if not is_pruned else "Mock evaluation: Too risky."
             
             # Simple logic: Update history/trajectory
             new_strategies[idx]["trajectory"] = strategy.get("trajectory", []) + [
-                f"[Judge] Score: {score}, Pruned: {is_pruned}, Reasoning: {reasoning}"
+                f"[Judge] Score: {score:.2f}, Pruned: {is_pruned}, Reasoning: {reasoning}"
             ]
             
             # Store base score (normalized to 0-1 for UCB later?) 
@@ -106,7 +119,7 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
                 pruned_count += 1
             
             evaluated_count += 1
-            print(f"  > '{strategy['name']}' Score: {score}, Pruned: {is_pruned}")
+            print(f"  > '{strategy['name']}' Score: {score:.2f}, Pruned: {is_pruned}")
             
         except Exception as e:
             print(f"[Judge] Error evaluating strategy {strategy['name']}: {e}")

@@ -13,9 +13,21 @@ def strategy_architect_node(state: DeepThinkState) -> DeepThinkState:
     problem = state["problem_state"]
     print(f"\n[Architect] Generating strategies for: {problem[:50]}...")
     
-    # Call the legacy function
-    # Note: Ensure GEMINI_API_KEY is set in environment
-    raw_strategies = generate_strategic_blueprint(problem)
+    # Check for Mock Mode or Missing Key
+    import os
+    api_key = os.environ.get("GEMINI_API_KEY")
+    use_mock = os.environ.get("USE_MOCK_AGENTS", "false").lower() == "true" or not api_key
+
+    if use_mock:
+        print("[Architect] Running in MOCK MODE (Key missing or forced).")
+        raw_strategies = [
+            {"strategy_name": "Mock Strategy A (Solar)", "rationale": "Solar capture is efficient.", "initial_assumption": "Materials available.", "milestones": ["Build", "Launch"]},
+            {"strategy_name": "Mock Strategy B (Nuclear)", "rationale": "Nuclear is dense.", "initial_assumption": "Fusion solved.", "milestones": ["Ignite", "Sustain"]},
+            {"strategy_name": "Mock Strategy C (Swarm)", "rationale": "Swarm is resilient.", "initial_assumption": "AI control solved.", "milestones": ["Replicate", "Coordination"]}
+        ]
+    else:
+        # Call the legacy function
+        raw_strategies = generate_strategic_blueprint(problem)
     
     new_strategy_nodes: List[StrategyNode] = []
     
@@ -25,7 +37,7 @@ def strategy_architect_node(state: DeepThinkState) -> DeepThinkState:
             "name": raw["strategy_name"],
             "rationale": raw["rationale"],
             "assumption": raw["initial_assumption"],
-            "milestones": raw["milestones"],
+            "milestones": raw.get("milestones", []), # Safety get
             
             # Initialize metrics
             "embedding": None,
