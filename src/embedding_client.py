@@ -166,6 +166,11 @@ def embed_text(document: str) -> list[float]:
     if not document.strip():
         return []
 
+    # Check for mock
+    if _resolve_use_mock(None):
+        dim = _mock_embedding_dimension()
+        return np.random.rand(dim).tolist()
+
     endpoint = os.environ.get("OLLAMA_API_ENDPOINT", DEFAULT_OLLAMA_API_ENDPOINT)
     model = os.environ.get("OLLAMA_EMBEDDING_MODEL", DEFAULT_OLLAMA_MODEL)
 

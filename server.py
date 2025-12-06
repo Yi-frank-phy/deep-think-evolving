@@ -99,3 +99,119 @@ async def knowledge_base_updates(websocket: WebSocket) -> None:
     except Exception as exc:  # pragma: no cover - defensive guard
         logger.exception("Knowledge base websocket crashed", exc_info=exc)
         await websocket.close(code=1011)
+
+
+# --- Simulation Control & Telemetry ---
+
+from pydantic import BaseModel
+from src.core.graph_builder import build_deep_think_graph
+from src.core.state import DeepThinkState
+
+class SimulationConfig(BaseModel):
+    t_max: float = 2.0
+    c_explore: float = 1.0
+    beam_width: int = 3
+
+class SimulationRequest(BaseModel):
+    problem: str
+    config: SimulationConfig = SimulationConfig()
+
+class SimulationManager:
+    def __init__(self):
+        self.active_websockets: List[WebSocket] = []
+        self.current_task: asyncio.Task | None = None
+        self.is_running = False
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_websockets.append(websocket)
+        logger.info(f"Client connected to simulation stream. Total: {len(self.active_websockets)}")
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_websockets:
+            self.active_websockets.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for ws in self.active_websockets:
+            try:
+                await ws.send_json(message)
+            except Exception as e:
+                logger.warning(f"Failed to send to client: {e}")
+
+    async def run_graph(self, problem: str, config: SimulationConfig):
+        self.is_running = True
+        await self.broadcast({"type": "status", "data": "started"})
+        
+        try:
+            print(f"Building graph for: {problem} with config {config}")
+            graph_app = build_deep_think_graph()
+            
+            initial_state: DeepThinkState = {
+                "problem_state": problem,
+                "strategies": [],
+                "research_context": None,
+                "spatial_entropy": 0.0,
+                "effective_temperature": 0.0,
+                "normalized_temperature": 0.0,
+                "config": config.dict(),
+                "virtual_filesystem": {},
+                "history": ["Graph initialized via Server"]
+            }
+
+            # Use astream (stream_mode="updates" gives diffs, "values" gives full state)
+            # "updates" is better for bandwidth if supported, but "values" is easier to debug.
+            # Let's use "values" for now to ensure we have full context.
+            async for event in graph_app.astream(initial_state, stream_mode="values"):
+                # Clean up event for JSON serialization (remove unserializable objects if any)
+                # StrategyNode is dict, so should be fine.
+                
+                # Emit state update
+                await self.broadcast({
+                    "type": "state_update",
+                    "data": event # 'event' IS the DeepThinkState dict
+                })
+                
+                # Sleep a tiny bit to allow UI to render if loop is tight
+                await asyncio.sleep(0.1)
+                
+            await self.broadcast({"type": "status", "data": "completed"})
+            
+        except Exception as e:
+            logger.exception("Simulation failed")
+            await self.broadcast({"type": "error", "data": str(e)})
+        finally:
+            self.is_running = False
+            self.current_task = None
+
+sim_manager = SimulationManager()
+
+@app.post("/api/simulation/start")
+async def start_simulation(req: SimulationRequest):
+    if sim_manager.is_running:
+        return {"status": "error", "message": "Simulation already running"}
+    
+    sim_manager.current_task = asyncio.create_task(sim_manager.run_graph(req.problem, req.config))
+    return {"status": "started", "problem": req.problem}
+
+@app.get("/api/simulation/stop")
+async def stop_simulation():
+    if sim_manager.current_task:
+        sim_manager.current_task.cancel()
+        sim_manager.is_running = False
+        await sim_manager.broadcast({"type": "status", "data": "stopped"})
+        return {"status": "stopped"}
+    return {"status": "not_running"}
+
+@app.websocket("/ws/simulation")
+async def simulation_websocket(websocket: WebSocket):
+    await sim_manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection alive, maybe listen for client commands (breakpoints?)
+            data = await websocket.receive_text()
+            # Echo or process
+    except WebSocketDisconnect:
+        sim_manager.disconnect(websocket)
+    except Exception as e:
+        logger.error(f"WS error: {e}")
+        sim_manager.disconnect(websocket)

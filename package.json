@@ -10,13 +10,18 @@
     "test": "pytest"
   },
   "dependencies": {
+    "@reactflow/background": "^11.3.14",
+    "@reactflow/controls": "^11.2.14",
+    "lucide-react": "^0.556.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "reactflow": "^11.11.4"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

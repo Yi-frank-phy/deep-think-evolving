@@ -14,3 +14,31 @@ export type KnowledgeMessage =
     | { type: "snapshot"; data: KnowledgeEntry[] }
     | { type: "update"; data: KnowledgeEntry }
     | { type: "delete"; data: { id: string } };
+
+export interface StrategyNode {
+    id: string;
+    name: string;
+    rationale: string;
+    assumption: string;
+    milestones: any;
+    status: "active" | "pruned" | "pruned_beam" | "pruned_error" | "completed";
+    score: number;
+    density: number;
+    embedding_preview: number[];
+    trajectory: string[];
+}
+
+export interface DeepThinkState {
+    problem_state: string;
+    strategies: StrategyNode[];
+    research_context: string | null;
+    spatial_entropy: number;
+    effective_temperature: number;
+    normalized_temperature: number;
+    history: string[];
+}
+
+export type SimulationMessage =
+    | { type: "status"; data: "started" | "completed" | "stopped" }
+    | { type: "state_update"; data: DeepThinkState }
+    | { type: "error"; data: string };
