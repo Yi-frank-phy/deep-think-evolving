@@ -4,7 +4,9 @@ import { ChatPanel } from './ChatPanel';
 import { KnowledgePanel } from './KnowledgePanel';
 import { TaskGraph } from './TaskGraph';
 import { KPIDashboard } from './KPIDashboard';
+import { NodeDetailModal } from './NodeDetailModal';
 import { useSimulation } from '../hooks/useSimulation';
+import { StrategyNode } from '../types';
 
 export const ControlTower: React.FC = () => {
     const { isConnected, state, startSimulation, stopSimulation } = useSimulation();
@@ -16,6 +18,7 @@ export const ControlTower: React.FC = () => {
         thinking_budget: 1024
     });
     const [showConfig, setShowConfig] = useState(false);
+    const [selectedNode, setSelectedNode] = useState<StrategyNode | null>(null);
 
     const handleStart = () => {
         startSimulation(problemInput, config);
@@ -94,12 +97,18 @@ export const ControlTower: React.FC = () => {
             <main className="dashboard-main">
                 <div className="left-panel">
                     <KPIDashboard state={state} />
-                    <TaskGraph state={state} />
+                    <TaskGraph state={state} onNodeClick={setSelectedNode} />
                     <ChatPanel />
                 </div>
 
                 <KnowledgePanel />
             </main>
+
+            <NodeDetailModal
+                node={selectedNode}
+                isOpen={!!selectedNode}
+                onClose={() => setSelectedNode(null)}
+            />
         </div>
     );
 };

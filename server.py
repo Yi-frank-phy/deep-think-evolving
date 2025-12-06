@@ -106,6 +106,13 @@ async def knowledge_base_updates(websocket: WebSocket) -> None:
 from pydantic import BaseModel
 from src.core.graph_builder import build_deep_think_graph
 from src.core.state import DeepThinkState
+from src.strategy_architect import expand_strategy_node
+
+class ExpandNodeRequest(BaseModel):
+    rationale: str
+    context: str | None = None
+    model_name: str = "gemini-1.5-flash"  # Default
+
 
 class SimulationConfig(BaseModel):
     t_max: float = 2.0
@@ -202,6 +209,24 @@ async def stop_simulation():
         await sim_manager.broadcast({"type": "status", "data": "stopped"})
         return {"status": "stopped"}
     return {"status": "not_running"}
+
+@app.post("/api/expand_node")
+async def expand_node_endpoint(req: ExpandNodeRequest):
+    """
+    Stateless endpoint to expand a node's rationale.
+    """
+    try:
+        # Pydantic validates the request body against ExpandNodeRequest
+        content = expand_strategy_node(
+            rationale=req.rationale,
+            context=req.context,
+            model_name=req.model_name
+        )
+        return {"expanded_content": content}
+    except Exception as e:
+        logger.error(f"Error in expand_node_endpoint: {e}")
+        return {"expanded_content": f"Error: {str(e)}"}
+
 
 @app.websocket("/ws/simulation")
 async def simulation_websocket(websocket: WebSocket):

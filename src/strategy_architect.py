@@ -156,7 +156,39 @@ def generate_strategic_blueprint(
     return validated
 
 
-if __name__ == "__main__":
+def expand_strategy_node(
+    rationale: str,
+    context: str | None = None,
+    model_name: str = DEFAULT_MODEL_NAME
+) -> str:
+    """
+    Expands a strategy node's rationale into a detailed explanation using the specified model.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return "Error: GEMINI_API_KEY not set."
+
+    # Use a simpler setup for expansion - standard chat
+    llm = ChatGoogleGenerativeAI(
+        model=model_name,
+        google_api_key=api_key,
+        temperature=0.7
+    )
+
+    prompt = (
+        f"Context: {context or 'No specific context provided.'}\n\n"
+        f"Strategy Rationale: {rationale}\n\n"
+        "Please provide a detailed expansion of this strategy. "
+        "Explain the theoretical basis, potential challenges, and a step-by-step implementation outline. "
+        "Keep the tone professional and analytical."
+    )
+
+    try:
+        response = llm.invoke(prompt)
+        return response.content
+    except Exception as e:
+        return f"Error expanding node: {str(e)}"
+
     print("Running a direct test of strategy_architect.py (LangChain)...")
 
     if not os.environ.get("GEMINI_API_KEY"):

@@ -14,9 +14,10 @@ import { DeepThinkState, StrategyNode } from '../types';
 
 interface TaskGraphProps {
     state: DeepThinkState | null;
+    onNodeClick?: (node: StrategyNode) => void;
 }
 
-export const TaskGraph: React.FC<TaskGraphProps> = ({ state }) => {
+export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -37,7 +38,9 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state }) => {
             return {
                 id: strat.id || `strat-${index}`,
                 position: { x, y },
-                data: { label: strat.name + `\n(${strat.score?.toFixed(2)})` },
+                data: {
+                    label: strat.name + `\n(${strat.score?.toFixed(2)})`
+                },
                 style: {
                     background: isActive ? '#1a1a1a' : '#2a1a1a',
                     color: '#fff',
@@ -45,9 +48,18 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state }) => {
                     width: 200,
                     borderRadius: '8px',
                     fontSize: '12px',
-                    padding: '10px'
+                    padding: '10px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                    transition: 'transform 0.2s',
+                    zIndex: 10
                 },
-                type: 'default' // or custom
+                type: 'default',
+                // ReactFlow passes the specific node object to event handlers, 
+                // but we need the StrategyNode data. We can pass it via data or handle generic lookup.
+                // Simpler: Use the StrategyNode directly if possible, or mapping.
+                // We'll attach the handler to the node properties in a way ReactFlow supports 
+                // but ReactFlow 'onNodeClick' is a prop on the Flow component, not individual nodes.
             };
         });
 
@@ -77,6 +89,17 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state }) => {
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
+                onNodeClick={(_, node) => {
+                    // Find the original StrategyNode based on ID or index
+                    if (!state?.strategies) return;
+                    // Our IDs are strat-${index} or strat.id
+                    const strategy = state.strategies.find((s, i) =>
+                        (s.id && s.id === node.id) || `strat-${i}` === node.id
+                    );
+                    if (strategy && onNodeClick) {
+                        onNodeClick(strategy);
+                    }
+                }}
                 fitView
             >
                 <Background color="#333" gap={16} />
