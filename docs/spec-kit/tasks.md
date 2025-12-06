@@ -17,6 +17,11 @@
 | T-012 | 整合 `codex/implement-google-grounding-search-functionality` 分支，保留主干规范并补充搜索助手条款 | Codex Integration Pod | Done | 规范 §3.3 |
 | T-014 | 批量整合其余 `codex/*` 分支，记录冲突清单并同步规范/任务状态 | Codex Integration Pod | Done | 宪章·流程约束 |
 | T-015 | 创建规范检查脚本 `scripts/check_specs.py` 以自动验证文档一致性 | Codex Integration Pod | Done | 规范 §3.4 |
+| T-016 | [Track A] 实现数学引擎 (KDE, Temp, UCB) 与单元测试 | Backend Agent | Done | Readme §3 |
+| T-017 | [Track A] 定义 DeepThinkState 与迁移 Architect 节点 | Backend Agent | Done | Readme §3 |
+| T-018 | [Track A] 实现 Judge 与 Evolution 节点 | Backend Agent | Done | Readme §3 |
+| T-019 | [Track A] 实现 Research 与 Distiller 代理 (Search Grounding) | Backend Agent | Done | Readme §3 |
+| T-020 | [Track A] 构建 LangGraph 工作流与运行脚本 | Backend Agent | Done | Readme §3 |
 
 > 状态取值建议：`TODO`（待开始）、`In Progress`（进行中）、`Done`（完成）、`Backlog`（暂缓）。
 
