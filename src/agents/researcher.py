@@ -1,18 +1,15 @@
 
 import os
-import google.generativeai as genai
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_google_genai import ChatGoogleGenerativeAI
+from google import genai
+from google.genai import types
 from src.core.state import DeepThinkState
 
 def research_node(state: DeepThinkState) -> DeepThinkState:
     """
-    Provides research context for the problem.
-    Note: Google Search Grounding is disabled for compatibility with thinking models.
-    Uses the model's knowledge base instead.
+    Performs Google Search Grounding to gather context for the problem.
+    Uses the new google-genai SDK with Tool(google_search=GoogleSearch()).
     """
-    print("\n[Researcher] Starting research analysis...")
+    print("\n[Researcher] Starting Google Search Grounding...")
     
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -21,29 +18,41 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
 
     problem = state["problem_state"]
     
-    # Configure GenAI
-    genai.configure(api_key=api_key)
+    # Initialize client with API key
+    client = genai.Client(api_key=api_key)
     
-    # Use standard GenerativeModel WITHOUT tools for compatibility with thinking models
-    model_name = os.environ.get("GEMINI_MODEL_RESEARCHER", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
+    # Configure grounding tool
+    grounding_tool = types.Tool(
+        google_search=types.GoogleSearch()
+    )
+    
+    # Get model name from env
+    model_name = os.environ.get("GEMINI_MODEL_RESEARCHER", os.environ.get("GEMINI_MODEL", "gemini-2.5-flash-lite"))
     print(f"[Researcher] Using model: {model_name}")
-    model = genai.GenerativeModel(model_name)
+    
+    config = types.GenerateContentConfig(
+        tools=[grounding_tool]
+    )
     
     prompt = f"""
-    Please provide relevant background knowledge for the following problem:
+    Please research the following topic to provide a comprehensive background for solving it:
     
     Topic: {problem}
     
     Focus on:
     1. Key concepts and definitions.
-    2. Known approaches or state-of-the-art methods.
+    2. Recent developments or state-of-the-art approaches.
     3. Potential challenges or conflicting viewpoints.
     
-    Provide a comprehensive summary based on your knowledge.
+    Provide a detailed summary with citations if possible.
     """
     
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=config,
+        )
         research_context = response.text
         
         print(f"[Researcher] Research complete. Length: {len(research_context)} chars.")
@@ -51,9 +60,9 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
         return {
             **state,
             "research_context": research_context,
-            "history": state.get("history", []) + ["Researcher gathered context"]
+            "history": state.get("history", []) + ["Researcher gathered context via Google Search"]
         }
         
     except Exception as e:
-        print(f"[Researcher] Error during research: {e}")
+        print(f"[Researcher] Error during search: {e}")
         return state
