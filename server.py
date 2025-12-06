@@ -111,6 +111,7 @@ class SimulationConfig(BaseModel):
     t_max: float = 2.0
     c_explore: float = 1.0
     beam_width: int = 3
+    thinking_budget: int = 1024  # Default token budget for thinking
 
 class SimulationRequest(BaseModel):
     problem: str
@@ -215,3 +216,6 @@ async def simulation_websocket(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WS error: {e}")
         sim_manager.disconnect(websocket)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

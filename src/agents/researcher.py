@@ -8,9 +8,11 @@ from src.core.state import DeepThinkState
 
 def research_node(state: DeepThinkState) -> DeepThinkState:
     """
-    Performs Google Search Grounding to gather context for the problem.
+    Provides research context for the problem.
+    Note: Google Search Grounding is disabled for compatibility with thinking models.
+    Uses the model's knowledge base instead.
     """
-    print("\n[Researcher] Starting Google Search Grounding...")
+    print("\n[Researcher] Starting research analysis...")
     
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -19,36 +21,30 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
 
     problem = state["problem_state"]
     
-    # Configure GenAI directly for Search Grounding
+    # Configure GenAI
     genai.configure(api_key=api_key)
     
-    # Using the 'tools' parameter in Model 
-    # Reference: https://ai.google.dev/gemini-api/docs/grounding?lang=python
-    
-    model = genai.GenerativeModel(
-        'models/gemini-1.5-flash-latest',
-        tools='google_search_retrieval'
-    )
+    # Use standard GenerativeModel WITHOUT tools for compatibility with thinking models
+    model_name = os.environ.get("GEMINI_MODEL_RESEARCHER", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
+    print(f"[Researcher] Using model: {model_name}")
+    model = genai.GenerativeModel(model_name)
     
     prompt = f"""
-    Please research the following topic to provide a comprehensive background for solving it:
+    Please provide relevant background knowledge for the following problem:
     
     Topic: {problem}
     
     Focus on:
     1. Key concepts and definitions.
-    2. Recent developments or state-of-the-art approaches.
+    2. Known approaches or state-of-the-art methods.
     3. Potential challenges or conflicting viewpoints.
     
-    Provide a detailed summary with citations if possible.
+    Provide a comprehensive summary based on your knowledge.
     """
     
     try:
         response = model.generate_content(prompt)
         research_context = response.text
-        
-        # Accessing grounding metadata if needed (not supported in simple text extraction)
-        # grounding_metadata = response.candidates[0].grounding_metadata
         
         print(f"[Researcher] Research complete. Length: {len(research_context)} chars.")
         
@@ -59,5 +55,5 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
         }
         
     except Exception as e:
-        print(f"[Researcher] Error during search: {e}")
+        print(f"[Researcher] Error during research: {e}")
         return state

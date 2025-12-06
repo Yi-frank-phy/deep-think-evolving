@@ -27,7 +27,9 @@ def strategy_architect_node(state: DeepThinkState) -> DeepThinkState:
         ]
     else:
         # Call the legacy function
-        raw_strategies = generate_strategic_blueprint(problem)
+        # Extract thinking_budget from state config
+        thinking_budget = state.get("config", {}).get("thinking_budget", 1024)
+        raw_strategies = generate_strategic_blueprint(problem, thinking_budget=thinking_budget)
     
     new_strategy_nodes: List[StrategyNode] = []
     

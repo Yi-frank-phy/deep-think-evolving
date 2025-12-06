@@ -7,7 +7,8 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-DEFAULT_MODEL_NAME = "models/gemini-flash-latest"
+import os
+DEFAULT_MODEL_NAME = os.environ.get("GEMINI_MODEL_ARCHITECT", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
 
 
 class StrategyBlueprint(TypedDict):
@@ -65,7 +66,7 @@ def _validate_strategies(strategies: Iterable[dict]) -> List[StrategyBlueprint]:
 
 
 def generate_strategic_blueprint(
-    problem_state: str, model_name: str = DEFAULT_MODEL_NAME
+    problem_state: str, model_name: str = DEFAULT_MODEL_NAME, thinking_budget: int = 1024
 ) -> list[StrategyBlueprint]:
     """
     Generates a strategic blueprint for a given problem state using LangChain and Gemini.
@@ -77,11 +78,23 @@ def generate_strategic_blueprint(
         return []
 
     # Initialize the ChatGoogleGenerativeAI model
+    # Note: 'thinking_v2' is a hypothetical config for Gemini 2.5. 
+    # If the library doesn't support 'thinking_config', this might need adjustment.
+    # We pass it as a kwarg hoping the underlying client picks it up, or use generation_config.
+    
+    generation_config = {}
+    if thinking_budget > 0:
+        # Based on docs: thinking_config with snake_case keys for Python SDK
+        generation_config["thinking_config"] = {
+            "include_thoughts": True, 
+            "thinking_budget": thinking_budget
+        }
+
     llm = ChatGoogleGenerativeAI(
         model=model_name,
         google_api_key=api_key,
         temperature=0.7,
-        convert_system_message_to_human=True, # Sometimes needed for older models, safe to keep
+        generation_config=generation_config
     )
 
     system_prompt = (

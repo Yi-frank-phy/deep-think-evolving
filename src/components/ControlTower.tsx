@@ -12,7 +12,8 @@ export const ControlTower: React.FC = () => {
     const [config, setConfig] = useState({
         t_max: 2.0,
         c_explore: 1.0,
-        beam_width: 3
+        beam_width: 3,
+        thinking_budget: 1024
     });
     const [showConfig, setShowConfig] = useState(false);
 
@@ -78,6 +79,12 @@ export const ControlTower: React.FC = () => {
                             <label>Beam Width (k)</label>
                             <input type="number" step="1" value={config.beam_width}
                                 onChange={e => setConfig({ ...config, beam_width: parseInt(e.target.value) })}
+                                style={{ width: '100%', padding: '0.25rem', background: '#333', border: '1px solid #555', color: '#fff' }} />
+                        </div>
+                        <div className="config-item">
+                            <label>Thinking Budget</label>
+                            <input type="number" step="128" value={config.thinking_budget}
+                                onChange={e => setConfig({ ...config, thinking_budget: parseInt(e.target.value) })}
                                 style={{ width: '100%', padding: '0.25rem', background: '#333', border: '1px solid #555', color: '#fff' }} />
                         </div>
                     </div>

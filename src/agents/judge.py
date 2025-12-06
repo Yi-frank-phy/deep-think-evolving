@@ -29,8 +29,10 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
         print("[Judge] No active strategies to evaluate.")
         return state
 
+    model_name = os.environ.get("GEMINI_MODEL_JUDGE", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
+    print(f"[Judge] Using model: {model_name}")
     llm = ChatGoogleGenerativeAI(
-        model="models/gemini-flash-latest",
+        model=model_name,
         google_api_key=api_key,
         temperature=0.1, # Low temperature for objective evaluation
     )

@@ -99,7 +99,7 @@ def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) ->
                 f"{i + 1}/{len(strategies)} using Ollama: "
                 f"'{strategy.get('strategy_name', 'N/A')}'..."
             )
-            response = requests.post(endpoint, json=payload, timeout=30)
+            response = requests.post(endpoint, json=payload, timeout=120)
             response.raise_for_status()
 
             try:
@@ -180,7 +180,7 @@ def embed_text(document: str) -> list[float]:
     }
 
     try:
-        response = requests.post(endpoint, json=payload, timeout=30)
+        response = requests.post(endpoint, json=payload, timeout=120)
         response.raise_for_status()
         response_json = response.json()
         return response_json.get("embedding", [])

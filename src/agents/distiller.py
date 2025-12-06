@@ -21,8 +21,10 @@ def distiller_node(state: DeepThinkState) -> DeepThinkState:
     if not api_key:
         return state
 
+    model_name = os.environ.get("GEMINI_MODEL_DISTILLER", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
+    print(f"[Distiller] Using model: {model_name}")
     llm = ChatGoogleGenerativeAI(
-        model="models/gemini-flash-latest",
+        model=model_name,
         google_api_key=api_key,
         temperature=0.2,
     )
