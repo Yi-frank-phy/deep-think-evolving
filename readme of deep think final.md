@@ -1,10 +1,10 @@
 # **开发需求文档：一个“自适应进化压力”下的“混合智能体”生态系统**
 
-版本: final draft v0
+版本: final draft v0  
 日期: 2025年9月8日  
 核心约束 (Core Constraint): 不可以涉及对于调用的LLM API内部参数的权重更新 (No modification to the internal weights of the called LLM APIs is allowed)。  
-可控接口 (Controllable Interfaces): Google/GenAI SDK, LangChain, etc.
-框架选择：建议全局使用langchain和langgraph，特别是其中的langchain google的包。但是，对于涉及到及其细粒度的控制，则直接改为Google/GenAI SDK，不建议使用其他框架，除非必须
+可控接口 (Controllable Interfaces): Google/GenAI SDK, LangChain, etc.  
+框架选择：建议全局使用langchain和langgraph，特别是其中的langchain google的包。但是，对于涉及到及其细粒度的控制，则直接改为Google/GenAI SDK，不建议使用其他框架，除非必须  
 Agent 自己可以使用的工具：mcp tools, groundings，
 
 ### **1\. 系统顶层设计哲学 (Guiding Principles)**
@@ -28,8 +28,8 @@ Agent 自己可以使用的工具：mcp tools, groundings，
 * **核心技术**: 类似agent fly 框架的对于记忆的训练
 
 2.3. 嵌套统一关系 (Nested Unification)  
-外循环进化出内循环的“进化规则”，内循环则在这些规则的指导下进化出具体问题的“解”。例如，外循环可以进化出用于Value\_Score评估的最佳Prompt模板，或者调整探索项的平衡系数C。  
-2.4. 【继承自v3.1】循环接口 \- 启发式部署与验证协议 (Heuristic Deployment & Validation Protocol)  
+外循环进化出内循环的“进化规则”，内循环则在这些规则的指导下进化出具体问题的“解”。例如，外循环可以进化出用于Value_Score评估的最佳Prompt模板，或者调整探索项的平衡系数C。  
+2.4. 【继承自v3.1】循环接口 - 启发式部署与验证协议 (Heuristic Deployment & Validation Protocol)  
 外循环产生的新策略需经过策略暂存区 (Staging Area) 和 A/B测试，验证其有效性后才能部署到整个生态。
 
 ### **3\. 内循环：并行进化搜索引擎 (Parallel Evolutionary Search Engine)**
@@ -78,7 +78,7 @@ Agent 自己可以使用的工具：mcp tools, groundings，
 | :--- | :--- | :--- |
 | **种群 (Population)** | 波束 (Beam) | 当前保留的 $k$ 个候选推理路径 |
 | **变异 (Mutation)** | 扩展 (Expansion) | **单次调用单策略 (One-Call-One-Strategy)**：<br>严禁在单次回复中生成多个变体。必须通过 $N$ 次独立的 API 调用来生成 $N$ 个子节点。<br>**理由**: Transformer 的线性思维会导致同一上下文中生成的多个策略趋同，严重损害多样性。 |
-| **选择 (Selection)** | 剪枝 (Pruning) | 基于 **UCB 公式** 的评分排序，保留 Top-$k$。 |
+| **选择 (Selection)** | 剪枝 (Pruning) | 基于 **UCB 式评分** 的排序，保留 Top-$k$。 |
 | **适应度 (Fitness)** | 启发式评分 (Heuristic) | **Judge Agent**：评估路径的可行性与一致性。 |
 
 **3.2.3.2. 动态提示工程与测试时计算 (Dynamic Prompting & Test-Time Scaling)**
@@ -102,48 +102,95 @@ Agent 自己可以使用的工具：mcp tools, groundings，
     调用 **Judge Agent** 对新生成的子节点进行**可行性打分**。
     * *注*: Judge 仅关注逻辑是否自洽、是否符合物理/代码约束，不负责验证外部事实真伪（Hallucination is accepted as a capability limitation）。
 3. **选择 (Selection)**:
-    计算所有候选子节点的 **Dynamic Normalized UCB** 分数，选出新的 Top-$k$ 形成下一代种群。
+    计算所有候选子节点的 **UCB 式评分**，选出新的 Top-$k$ 形成下一代种群。
 
-**3.2.3.4. 空间熵与探索奖励 (Spatial Entropy & Exploration Bonus)**
+3.2.3.4. 理论推导：从 KDE 到 UCB (Theoretical Derivation: From KDE to UCB)
 
-1. **语义向量化 (Semantic Embedding)**: 将每个策略 $x$ 映射为高维向量 $v(x)$。
-2. **空间熵 (Spatial Entropy)**: 定义为种群在语义空间中的“平均离散度”。
-    $$ H_{spatial} = \frac{1}{N(N-1)} \sum_{i \neq j} (1 - \text{sim}(v_i, v_j)) $$
-    其中 $\text{sim}$ 为余弦相似度。$H_{spatial}$ 越高，代表种群在语义空间分布越广（多样性越高）。
+**第一部分：从 KDE 到 种群微分熵 (Derivation of Entropy from KDE)**
+这是宏观状态量的定义基础。
 
-3.2.4. 【新增】高级探索机制：基于数据驱动冷却的自适应 UCB
+1. **概率密度场的构建**：
+   假设我们在语义空间 $\Omega \subseteq \mathbb{R}^d$ 中观测到 $N$ 个策略样本 $\{v_1, \dots, v_N\}$。利用 Parzen-Rosenblatt 窗方法，空间中任意位置 $v$ 的概率密度 $\hat{p}(v)$ 为：
+   $$
+   \hat{p}(v) = \frac{1}{N} \sum_{i=1}^N K_h(v - v_i)
+   $$
+   其中 $K_h$ 为带宽为 $h$ 的归一化高斯核。
 
-**3.2.4.1. 核心思想：成本导向的收敛 (Cost-Driven Convergence)**
+2. **种群熵 (Shannon Entropy) 的离散化计算**：
+   根据香农定义，系统的微分熵为 $S = -\int \hat{p}(v) \ln \hat{p}(v) dv$。
+   在实际计算中，我们采用蒙特卡洛积分的思路，利用已有的样本点 $v_i$ 作为采样点来近似该积分：
+   $$
+   S \approx -\frac{1}{N} \sum_{i=1}^N \ln \hat{p}(v_i)
+   $$
+   这个 $S$ 精确描述了当前种群在语义空间中的混乱度（Disorder）。
 
-受 MCTS (蒙特卡洛树搜索) 启发，我们引入一种**正反馈冷却机制**。
+**第二部分：从 伪计数 到 UCB 探索项 (Derivation of UCB from Pseudo-counts)**
+这是微观决策的统计学基础。
 
-* **高熵阶段**: 当解法百花齐放时，系统认为“还有很多未知领域”，保持**高温度**，鼓励进一步探索。
-* **低熵阶段**: 当解法开始趋同（$H_{spatial}$ 下降）时，系统判断“已找到潜在最优域”，主动**降低温度**，加速收敛以节省计算成本。
+1. **从密度到有效伪计数 (Pseudo-counts)**：
+   在连续空间无法计数，我们利用概率密度 $\hat{p}(v)$ 的物理含义：单位体积内的样本分布概率。
+   定义特征体积元 $V_{unit}$（通常由带宽 $h$ 决定），则位置 $v$ 处的有效观测次数（Pseudo-count） $\hat{N}(v)$ 为：
+   $$
+   \hat{N}(v) \approx N_{total} \cdot \hat{p}(v) \cdot V_{unit}
+   $$
+   即：$\hat{N}(v) \propto \hat{p}(v)$。
+
+2. **置信区间上界 (UCB) 的方差估计**：
+   UCB 算法的核心是估计平均收益 $\mu$ 的置信上界：$\mu + c \cdot \sigma_{error}$。
+   根据大数定律和中心极限定理，估计的标准误差 $\sigma_{error}$ 与样本量的平方根成反比：
+   $$
+   \sigma_{error} \propto \frac{1}{\sqrt{\hat{N}(v)}}
+   $$
+
+3. **代入推导**：
+   将 $\hat{N}(v) \propto \hat{p}(v)$ 代入，得到严格的探索项形式：
+   $$
+   \text{Exploration Bonus} \propto \sqrt{\frac{\ln N_{total}}{\hat{p}(v)}} = \frac{\sqrt{\ln N_{total}}}{\sqrt{\hat{p}(v)}}
+   $$
+   这证明了探索项应与概率密度的平方根成反比 ($\frac{1}{\sqrt{p}}$)，而非对数关系。
+
+3.2.4. 【新增】高级探索机制：基于熵的自适应温度与 UCB 式评分
+
+**3.2.4.1. 理论背景与核心思想**
+
+在统计力学中，正则系综在温度 $T$ 下的平衡分布为 $p(x) \propto \exp(V(x)/T)$，其中 $V(x)$ 为状态的价值（负能量）。该分布使得在给定平均价值约束下熵最大。温度 $T$ 控制着熵 $S$ 的大小：$T \to \infty$ 时分布趋于均匀，熵达到最大值 $S_{\max}$；$T \to 0$ 时分布集中于价值最高的状态，熵最小。
+
+我们将当前种群视为一个正在演化的统计系统，其熵 $S$ 由上述核密度估计计算。我们希望随着演化的进行，温度逐渐降低以收敛到高价值区域，同时根据当前的熵动态调整冷却速率，实现成本导向的收敛。
 
 **3.2.4.2. 数学形式化**
 
-**1. 自适应温度 (Adaptive Temperature)**
-$$ T = T_{max} \times \left( \frac{H_{spatial}}{H_{target}} \right)^\gamma $$
+**1. 自适应温度 (Adaptive Temperature)**  
+借鉴玻尔兹曼分布中 $T$ 与 $S$ 的单调关系，我们采用如下实用公式：
+$$
+T = T_{\max} \cdot \left( \min\left(1, \frac{S}{S_{\max}}\right) \right)^{\gamma}
+$$
+其中：
 
-* $T$: 系统当前的探索率。
-* $H_{target}$: 预期的最大多样性（归一化基准）。
-* $\gamma$: 敏感度系数（通常 $\ge 1$），用于控制收敛速度。
+* $T_{\max}$ 是预设的最高温度，控制全局探索强度；
+* $S_{\max}$ 为系统可能达到的最大熵（可通过均匀分布估计）；
+* $\gamma \ge 1$ 为敏感系数，控制温度随熵下降的速度。
+当熵 $S$ 较大时，温度保持高位以鼓励探索；当熵减小时，温度降低以加速收敛。
 
-**2. 动态归一化 UCB (Dynamic Normalized UCB)**
-为了解决价值分与探索项的量纲失衡风险，我们引入**动态 Min-Max 归一化**：
+**2. 动态归一化 UCB 式评分 (Dynamic Normalized UCB‑like Score)**  
+受多臂老虎机中上置信界（UCB）的启发，并结合上述我们可以推导出，将每个候选个体 $x$ 的评分设计为利用项与探索项的加权和：
+$$
+\text{Score}(x) = \frac{V(x) - V_{\min}}{V_{\max} - V_{\min} + \epsilon} + c \cdot T \cdot \frac{1}{\sqrt{\hat{p}(v(x))}}
+$$
+其中：
 
-$$ Score(x) = \frac{V(x) - V_{min}}{V_{max} - V_{min} + \epsilon} + c \cdot T \cdot \sigma_{local}(x) $$
+* $V(x)$ 为由 Judge Agent 给出的原始价值分；
+* $V_{\min}$、$V_{\max}$ 分别为当前候选池中的最小、最大价值分；
+* $\epsilon$ 为很小的正数（例如 $10^{-8}$），防止分母为零；
+* $c$ 是一个常数超参数，用于调节探索项的相对权重；
+* $\frac{1}{\sqrt{\hat{p}(v(x))}}$ 即为基于伪计数推导出的探索奖励项。
 
-* **利用项 (Exploitation)**: $V(x)$ 为原始价值分。通过当前候选池的 $V_{max}$ 和 $V_{min}$ 将其动态映射到 $[0, 1]$ 区间，确保其始终与探索项处于同一数量级。
-* **探索项 (Exploration)**:
-  * $T$: 全局温度（由 $H_{spatial}$ 决定）。
-  * $\sigma_{local}(x)$: 局部唯一性，定义为 $x$ 与种群中最近邻居的余弦距离。
-    $$ \sigma_{local}(x) = \min_{y \in Population, y \neq x} (1 - \text{sim}(v(x), v(y))) $$
+该公式确保了利用项被归一化到 $[0,1]$ 区间，而探索项与概率密度的平方根成反比，更符合统计学原理。
 
 **3.2.4.3. 机制优势**
 
-* **自动止损**: 一旦出现统治级策略导致多样性下降，系统会自动“关火”，停止无效的广度搜索，转为深度优化。
-* **动态平衡**: 在 $T$ 的调节下，系统在初期表现为“随机游走”，在后期表现为“梯度下降”，无需人工设定冷却时间表。
+* **信息论基础**：使用微分熵和信息量作为多样性及探索奖励的度量，具有坚实的数学物理基础。
+* **自适应收敛**：当种群多样性高 ($S$ 大) 时温度高，鼓励探索新区域；当种群趋同 ($S$ 减小) 时温度自动降低，加速收敛，节省计算资源。
+* **自动平衡**：通过归一化利用项和基于概率密度的探索项，避免了量纲不匹配问题，且不需要手动设定复杂的冷却计划。
 
 3.2.5. 全局协调 (Global Coordination)  
 系统协调器监控所有并行线程，并可进行资源重新分配或共享关键发现。
