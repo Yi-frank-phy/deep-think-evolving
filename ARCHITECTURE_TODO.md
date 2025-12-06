@@ -42,8 +42,10 @@
   - [ ] Define `EvaluationSchema` (Score, Reasoning, Feasibility).
 - [ ] **Selection & Pruning (The "Evolver")**
   - [ ] Implement `SemanticEmbedding`: Vectorize strategies using Google Embeddings.
-  - [ ] Implement `SpatialEntropy` calculation.
-  - [ ] Implement `DynamicNormalizedUCB` scoring logic.
+  - [ ] Implement `KDE` (Kernel Density Estimation) for probability density field construction.
+  - [ ] Implement `PopulationEntropy` calculation using Monte Carlo integration on KDE.
+  - [ ] Implement `PseudoCount` estimation from density ($N \propto p$).
+  - [ ] Implement `DynamicNormalizedUCB` scoring logic with Exploration Bonus $\propto 1/\sqrt{p}$.
   - [ ] Implement `AdaptiveTemperature` control based on entropy.
 
 ## Phase 4: Outer Loop - Offline Strategy Evolution
