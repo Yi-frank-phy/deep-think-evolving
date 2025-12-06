@@ -31,6 +31,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Available Gemini models with their thinking budget constraints
+AVAILABLE_MODELS = [
+    {"id": "gemini-2.5-pro-preview-06-05", "name": "Gemini 2.5 Pro", "thinking_min": 128, "thinking_max": 32768},
+    {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "thinking_min": 0, "thinking_max": 24576},
+    {"id": "gemini-2.5-flash-lite", "name": "Gemini 2.5 Flash Lite", "thinking_min": 512, "thinking_max": 24576}
+]
+
 
 def _collect_reflection_payload(path: Path) -> Dict[str, str]:
     try:
@@ -61,6 +68,12 @@ def _list_reflection_files() -> List[Path]:
 @app.get("/health", tags=["meta"])
 async def health_check() -> Dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/models", tags=["config"])
+async def get_available_models():
+    """Returns available models with their thinking budget constraints."""
+    return {"models": AVAILABLE_MODELS}
 
 
 @app.websocket("/ws/knowledge_base")
@@ -103,18 +116,30 @@ async def knowledge_base_updates(websocket: WebSocket) -> None:
 
 # --- Simulation Control & Telemetry ---
 
+import base64
+import os
 from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
+from google import genai
+from google.genai import types
 from src.core.graph_builder import build_deep_think_graph
 from src.core.state import DeepThinkState
 from src.strategy_architect import expand_strategy_node
 
+class ChatRequest(BaseModel):
+    message: str
+    instruction: str | None = None
+    audio_base64: str | None = None  # Optional audio input
+    model_name: str = "gemini-2.5-flash"
+
 class ExpandNodeRequest(BaseModel):
     rationale: str
     context: str | None = None
-    model_name: str = "gemini-1.5-flash"  # Default
+    model_name: str = "gemini-2.5-flash"  # Default
 
 
 class SimulationConfig(BaseModel):
+    model_name: str = "gemini-2.5-flash"  # Default model
     t_max: float = 2.0
     c_explore: float = 1.0
     beam_width: int = 3
@@ -241,6 +266,72 @@ async def simulation_websocket(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WS error: {e}")
         sim_manager.disconnect(websocket)
+
+
+@app.post("/api/chat/stream")
+async def chat_stream_endpoint(req: ChatRequest):
+    """
+    Streaming chat endpoint that supports text and audio input.
+    Returns Server-Sent Events (SSE) for real-time streaming.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        async def error_gen():
+            yield f"data: {json.dumps({'error': 'GEMINI_API_KEY not set'})}\n\n"
+        return StreamingResponse(error_gen(), media_type="text/event-stream")
+    
+    async def generate():
+        try:
+            client = genai.Client(api_key=api_key)
+            
+            # Build content parts
+            contents = []
+            
+            # Add instruction as system context if provided
+            if req.instruction:
+                contents.append(f"[System Instruction]: {req.instruction}\n\n")
+            
+            # Add audio part if provided
+            if req.audio_base64:
+                try:
+                    audio_bytes = base64.b64decode(req.audio_base64)
+                    audio_part = types.Part.from_bytes(
+                        data=audio_bytes,
+                        mime_type="audio/webm"
+                    )
+                    contents.append(audio_part)
+                except Exception as audio_err:
+                    yield f"data: {json.dumps({'error': f'Audio decode error: {str(audio_err)}'})}\n\n"
+                    return
+            
+            # Add message text
+            contents.append(req.message)
+            
+            # Configure generation
+            config = types.GenerateContentConfig(
+                temperature=0.7,
+            )
+            
+            # Stream response
+            response = client.models.generate_content_stream(
+                model=req.model_name,
+                contents=contents,
+                config=config,
+            )
+            
+            for chunk in response:
+                if chunk.text:
+                    yield f"data: {json.dumps({'text': chunk.text})}\n\n"
+            
+            yield f"data: {json.dumps({'done': True})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Chat stream error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

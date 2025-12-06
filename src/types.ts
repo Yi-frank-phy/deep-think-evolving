@@ -42,3 +42,10 @@ export type SimulationMessage =
     | { type: "status"; data: "started" | "completed" | "stopped" }
     | { type: "state_update"; data: DeepThinkState }
     | { type: "error"; data: string };
+
+export interface ModelInfo {
+    id: string;
+    name: string;
+    thinking_min: number;
+    thinking_max: number;
+}
