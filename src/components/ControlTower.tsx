@@ -17,7 +17,7 @@ export const ControlTower: React.FC = () => {
     const { isRecording, audioBlob, startRecording, stopRecording, getBase64, clearAudio } = useAudioRecorder();
     const [problemInput, setProblemInput] = useState("How to build a dyson sphere?");
     const [config, setConfig] = useState({
-        model_name: 'gemini-1.5-flash',
+        model_name: 'gemini-2.5-flash-lite',  // Default to cheapest for testing
         t_max: 2.0,
         c_explore: 1.0,
         thinking_budget: 1024,

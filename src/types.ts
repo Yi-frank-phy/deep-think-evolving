@@ -69,4 +69,5 @@ export interface ModelInfo {
     name: string;
     thinking_min: number;
     thinking_max: number;
+    tier?: 'free' | 'standard' | 'premium' | 'experimental';
 }

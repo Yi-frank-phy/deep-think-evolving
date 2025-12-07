@@ -32,10 +32,18 @@ app.add_middleware(
 )
 
 # Available Gemini models with their thinking budget constraints
+# Model IDs verified from https://ai.google.dev/gemini-api/docs/models
+# Ordered by cost: cheapest first (default), premium models later for testing
 AVAILABLE_MODELS = [
-    {"id": "gemini-2.5-pro-preview-06-05", "name": "Gemini 2.5 Pro", "thinking_min": 128, "thinking_max": 32768},
-    {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "thinking_min": 0, "thinking_max": 24576},
-    {"id": "gemini-2.5-flash-lite", "name": "Gemini 2.5 Flash Lite", "thinking_min": 512, "thinking_max": 24576}
+    # Free/Cheap tier - good for daily development & testing
+    {"id": "gemini-2.5-flash-lite", "name": "⚡ 2.5 Flash-Lite (Default)", "thinking_min": 512, "thinking_max": 24576, "tier": "free"},
+    # Standard tier - balanced performance
+    {"id": "gemini-2.5-flash", "name": "🔥 2.5 Flash", "thinking_min": 0, "thinking_max": 24576, "tier": "standard"},
+    {"id": "gemini-2.0-flash", "name": "🔷 2.0 Flash", "thinking_min": 0, "thinking_max": 8192, "tier": "standard"},
+    # Premium tier - best performance for production testing
+    {"id": "gemini-2.5-pro", "name": "💎 2.5 Pro", "thinking_min": 128, "thinking_max": 65536, "tier": "premium"},
+    # Latest & Greatest - Gemini 3.0
+    {"id": "gemini-3-pro-preview", "name": "🚀 3.0 Pro Preview", "thinking_min": 0, "thinking_max": 65536, "tier": "experimental"},
 ]
 
 
