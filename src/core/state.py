@@ -25,10 +25,13 @@ class StrategyNode(TypedDict):
     score: Optional[float] # UCB Score
     
     # Status
-    status: str # 'active', 'pruned', 'completed'
+    status: str # 'active', 'pruned', 'completed', 'expanded'
     
     # Execution
     trajectory: List[str] # Detailed execution steps/observations
+    
+    # Parent tracking for tree visualization
+    parent_id: Optional[str]
 
 class DeepThinkState(TypedDict):
     """
@@ -57,3 +60,7 @@ class DeepThinkState(TypedDict):
     
     # History of operations for transparency
     history: Annotated[List[str], operator.add]
+    
+    # Iteration tracking for convergence
+    iteration_count: int
+

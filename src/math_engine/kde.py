@@ -1,6 +1,45 @@
 
 import numpy as np
 
+def estimate_bandwidth(embeddings: np.ndarray) -> float:
+    """
+    Estimate optimal bandwidth using Silverman's rule of thumb.
+    
+    Silverman's rule (for Gaussian kernel):
+    h = (4 * sigma^5 / (3 * N))^(1/5)
+    
+    For multivariate data, we use the average standard deviation across dimensions.
+    
+    Args:
+        embeddings: (N, D) array of embedding vectors.
+        
+    Returns:
+        Estimated bandwidth h.
+    """
+    embeddings = np.array(embeddings, dtype=float)
+    if embeddings.ndim == 1:
+        embeddings = embeddings[np.newaxis, :]
+    
+    N, D = embeddings.shape
+    
+    # Handle edge cases
+    if N <= 1:
+        return 1.0  # Default fallback
+    
+    # Calculate average standard deviation across dimensions
+    stds = np.std(embeddings, axis=0)
+    sigma = np.mean(stds)
+    
+    # Handle zero variance (identical points)
+    if sigma < 1e-10:
+        return 1e-3  # Small positive value
+    
+    # Silverman's rule: h = (4 * sigma^5 / (3 * N))^(1/5)
+    h = (4 * sigma**5 / (3 * N)) ** 0.2
+    
+    return float(h)
+
+
 def gaussian_kernel_log_density(
     embeddings: np.ndarray, 
     bandwidth: float = 1.0, 
@@ -66,3 +105,4 @@ def estimate_density(embeddings: np.ndarray, bandwidth: float = 1.0) -> np.ndarr
     """
     log_p = gaussian_kernel_log_density(embeddings, bandwidth)
     return np.exp(log_p)
+

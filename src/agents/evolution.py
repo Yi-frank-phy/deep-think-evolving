@@ -1,33 +1,129 @@
 
+import math
 import numpy as np
 import os
+from typing import List, Dict
+
 from src.core.state import DeepThinkState, StrategyNode
-from src.math_engine.kde import gaussian_kernel_log_density, estimate_density
+from src.math_engine.kde import gaussian_kernel_log_density, estimate_density, estimate_bandwidth
 from src.math_engine.temperature import calculate_effective_temperature, calculate_normalized_temperature
 from src.math_engine.ucb import batch_calculate_ucb
 from src.embedding_client import embed_text
 
+
+def calculate_boltzmann_allocation(
+    values: np.ndarray,
+    t_eff: float,
+    total_budget: int,
+    min_allocation: int = 0
+) -> np.ndarray:
+    """
+    Calculate child node allocation using Boltzmann distribution (soft pruning).
+    
+    Formula: n_s = round(C * exp(V_s / T) / Z)
+    where Z = sum(exp(V_j / T)) is the partition function.
+    
+    This implements the Ising model principle: higher value strategies get more
+    resources, but low-value strategies still get non-zero allocation at high T.
+    
+    Args:
+        values: Array of value scores V for each strategy (typically 0-1 from Judge)
+        t_eff: Effective temperature. Higher T -> more uniform allocation.
+        total_budget: Total number of children to allocate across all strategies.
+        min_allocation: Minimum children per strategy (default 0 for true soft pruning)
+        
+    Returns:
+        Array of integer child counts for each strategy.
+    """
+    n = len(values)
+    if n == 0:
+        return np.array([], dtype=int)
+    
+    if n == 1:
+        return np.array([total_budget], dtype=int)
+    
+    # Handle edge cases for temperature
+    if t_eff <= 1e-10:
+        # Near-zero T: all resources to the best strategy
+        allocation = np.zeros(n, dtype=int)
+        allocation[np.argmax(values)] = total_budget
+        return allocation
+    
+    if t_eff > 1e6:
+        # Very high T: uniform allocation
+        base = total_budget // n
+        allocation = np.full(n, base, dtype=int)
+        # Distribute remainder to highest-value strategies
+        remainder = total_budget - base * n
+        sorted_indices = np.argsort(values)[::-1]
+        for i in range(remainder):
+            allocation[sorted_indices[i]] += 1
+        return allocation
+    
+    # Boltzmann distribution: p_s = exp(V_s / T) / Z
+    # Use log-sum-exp for numerical stability
+    log_weights = values / t_eff
+    log_weights_max = np.max(log_weights)
+    log_Z = log_weights_max + np.log(np.sum(np.exp(log_weights - log_weights_max)))
+    
+    # Probabilities
+    probs = np.exp(log_weights - log_Z)
+    
+    # Allocate proportionally
+    raw_allocation = probs * total_budget
+    
+    # Round while preserving total budget
+    allocation = np.floor(raw_allocation).astype(int)
+    remainder = total_budget - np.sum(allocation)
+    
+    # Distribute remainder by fractional parts (largest remainder method)
+    fractional_parts = raw_allocation - allocation
+    sorted_indices = np.argsort(fractional_parts)[::-1]
+    for i in range(int(remainder)):
+        allocation[sorted_indices[i]] += 1
+    
+    # Apply minimum allocation if specified
+    if min_allocation > 0:
+        allocation = np.maximum(allocation, min_allocation)
+    
+    return allocation
+
+
 def evolution_node(state: DeepThinkState) -> DeepThinkState:
     """
-    Core Evolutionary Engine Node.
+    Core Evolutionary Engine Node with Soft Pruning.
+    
     1. Embeds new strategies.
-    2. Calculates Spatial Entropy (via KDE).
+    2. Calculates Spatial Entropy (via KDE with auto bandwidth).
     3. Calculates Effective Temperature.
-    4. Calculates UCB Scores.
-    5. Prunes strategies to maintain Beam Width.
+    4. Calculates UCB Scores (for ranking/display).
+    5. Calculates Boltzmann child allocation (soft pruning - no strategies deleted).
+    6. Increments iteration count.
+    
+    The key change from hard pruning: ALL strategies remain active, but each
+    receives a child quota proportional to exp(V/T)/Z. Low-value strategies
+    get fewer (possibly zero) children, not deletion.
     """
     print("\n[Evolution] Starting evolutionary selection process...")
     
+    # Increment iteration count
+    iteration_count = state.get("iteration_count", 0) + 1
+    print(f"  [Iteration] {iteration_count}")
+    
     strategies = state["strategies"]
+    config = state.get("config", {})
     
     # 1. Embedding
     # Only embed strategies that don't have embeddings yet
-    active_strategies = [s for s in strategies if s["status"] == "active"]
+    active_strategies = [s for s in strategies if s.get("status") == "active"]
     
     # If no active strategies, return early
     if not active_strategies:
         print("[Evolution] No active strategies to process.")
-        return state
+        return {
+            **state,
+            "iteration_count": iteration_count,
+        }
 
     for strategy in active_strategies:
         if not strategy.get("embedding"):
@@ -45,43 +141,46 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
                 strategy["status"] = "pruned_error"
 
     # Filter out any that failed embedding
-    valid_active = [s for s in active_strategies if s.get("embedding") and s["status"] == "active"]
+    valid_active = [s for s in active_strategies if s.get("embedding") and s.get("status") == "active"]
     
     if not valid_active:
-        return state
+        return {
+            **state,
+            "iteration_count": iteration_count,
+        }
 
     embeddings = np.array([s["embedding"] for s in valid_active])
     
-    # 2. Density Estimation (KDE)
-    # Bandwidth: heuristic or fixed. Let's use 1.0 default for now.
-    log_densities = gaussian_kernel_log_density(embeddings, bandwidth=1.0)
+    # 2. Density Estimation (KDE) with AUTO BANDWIDTH (Silverman rule)
+    bandwidth = estimate_bandwidth(embeddings)
+    print(f"  [KDE] Auto bandwidth: {bandwidth:.6f}")
+    
+    log_densities = gaussian_kernel_log_density(embeddings, bandwidth=bandwidth)
     densities = np.exp(log_densities)
     
     # Update strategies with density info
     for i, s in enumerate(valid_active):
         s["density"] = float(densities[i])
         s["log_density"] = float(log_densities[i])
+    
+    # Calculate Spatial Entropy: S = -mean(log p)
+    spatial_entropy = float(-np.mean(log_densities))
+    print(f"  [Entropy] Spatial entropy: {spatial_entropy:.4f}")
         
     # 3. Temperature Calculation
-    # We use "Value" V. Here we use the feasibility score from Judge (0.0-1.0).
-    # If score is None (skipped judge?), default to 0.5
+    # Use feasibility score from Judge (0.0-1.0) as Value V
     values = np.array([s.get("score", 0.5) for s in valid_active])
     
     t_eff = calculate_effective_temperature(values, log_densities)
     
-    # T_max parameter from config or default. 
-    # Readme: "System maximum allowed temperature". 
-    # Let's assume T_max = 2.0 (heuristic).
-    t_max = state.get("config", {}).get("t_max", 2.0)
-    
+    # T_max parameter from config (default 2.0 to match LLM temp range)
+    t_max = config.get("t_max", 2.0)
     tau = calculate_normalized_temperature(t_eff, t_max)
     
-    print(f"  [Metrics] T_eff: {t_eff:.4f}, Tau: {tau:.4f}")
+    print(f"  [Temperature] T_eff: {t_eff:.4f}, Tau: {tau:.4f}")
     
-    # 4. UCB Calculation
-    # c: Exploration constant, default 1.0 (or 1.414)
-    c_explore = state.get("config", {}).get("c_explore", 1.0)
-    
+    # 4. UCB Calculation (for ranking and display, not for pruning)
+    c_explore = config.get("c_explore", 1.0)
     v_min = np.min(values)
     v_max = np.max(values)
     
@@ -94,33 +193,44 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
         c=c_explore
     )
     
-    # Update scores
+    # Update UCB scores (for display/ranking)
     for i, s in enumerate(valid_active):
-        s["score"] = float(ucb_scores[i])
-        print(f"  > '{s['name']}' UCB: {ucb_scores[i]:.4f} (Val: {values[i]:.2f}, Dens: {densities[i]:.4f})")
-        
-    # 5. Pruning (Beam Width)
-    k_beam = state.get("config", {}).get("beam_width", 3)
+        s["ucb_score"] = float(ucb_scores[i])
     
-    # Sort by UCB descending
-    # valid_active is a list of references, so modifying them updates 'strategies'
-    # We need to sort valid_active and identify who to prune
+    # 5. SOFT PRUNING: Boltzmann child allocation
+    # Total budget = children_per_parent * num_strategies (from old model)
+    # Or use explicit total_child_budget config
+    total_budget = config.get("total_child_budget", len(valid_active) * 2)
     
-    sorted_strategies = sorted(valid_active, key=lambda x: x["score"], reverse=True)
+    child_allocation = calculate_boltzmann_allocation(
+        values=values,
+        t_eff=t_eff,
+        total_budget=total_budget,
+        min_allocation=config.get("min_children_per_strategy", 0)
+    )
     
-    kept = sorted_strategies[:k_beam]
-    pruned = sorted_strategies[k_beam:]
+    # Store allocation in each strategy (propagation node will use this)
+    for i, s in enumerate(valid_active):
+        s["child_quota"] = int(child_allocation[i])
+        s["score"] = float(values[i])  # Keep original value score
+        print(f"  > '{s['name']}' Value: {values[i]:.3f}, UCB: {ucb_scores[i]:.4f}, Children: {child_allocation[i]}")
     
-    for s in pruned:
-        s["status"] = "pruned_beam"
-        s["trajectory"] = s.get("trajectory", []) + ["Pruned by Evolution (Low UCB)"]
-        
-    print(f"[Evolution] Kept top {len(kept)} strategies. Pruned {len(pruned)}.")
+    # Count stats
+    strategies_with_children = np.sum(child_allocation > 0)
+    strategies_without_children = len(valid_active) - strategies_with_children
+    
+    print(f"[Evolution] Allocated {total_budget} children across {len(valid_active)} strategies "
+          f"({strategies_with_children} with children, {strategies_without_children} with 0)")
     
     return {
         **state,
-        "spatial_entropy": float(-np.mean(log_densities)), # Approximation of entropy
+        "spatial_entropy": spatial_entropy,
         "effective_temperature": float(t_eff),
         "normalized_temperature": float(tau),
-        # 'strategies' is modified in-place since we modified the objects in the list
+        "iteration_count": iteration_count,
+        "history": state.get("history", []) + [
+            f"Evolution iter {iteration_count}: entropy={spatial_entropy:.3f}, tau={tau:.3f}, "
+            f"allocated {total_budget} children to {strategies_with_children}/{len(valid_active)} strategies"
+        ]
     }
+
