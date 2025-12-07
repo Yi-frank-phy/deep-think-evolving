@@ -16,11 +16,15 @@ export const ControlTower: React.FC = () => {
     const { isRecording, audioBlob, startRecording, stopRecording, getBase64, clearAudio } = useAudioRecorder();
     const [problemInput, setProblemInput] = useState("How to build a dyson sphere?");
     const [config, setConfig] = useState({
-        model_name: 'gemini-2.5-flash',
+        model_name: 'gemini-1.5-flash',
         t_max: 2.0,
         c_explore: 1.0,
-        beam_width: 3,
-        thinking_budget: 1024
+        thinking_budget: 1024,
+        max_iterations: 10,
+        entropy_threshold: 0.1,
+        total_child_budget: 6,
+        temperature_coupling: 'auto', // 'auto' | 'manual'
+        manual_llm_temperature: 1.0
     });
     const [showConfig, setShowConfig] = useState(false);
     const [selectedNode, setSelectedNode] = useState<StrategyNode | null>(null);
@@ -117,30 +121,6 @@ export const ControlTower: React.FC = () => {
                         >
                             {isRecording ? '⏹' : '🎤'}
                         </button>
-                        {audioBlob && (
-                            <span style={{
-                                background: '#2e7d32',
-                                padding: '0.25rem 0.5rem',
-                                borderRadius: '4px',
-                                fontSize: '0.8rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.25rem'
-                            }}>
-                                🎙️ Ready
-                                <button
-                                    type="button"
-                                    onClick={clearAudio}
-                                    style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        color: '#fff',
-                                        cursor: 'pointer',
-                                        padding: '0 0.25rem'
-                                    }}
-                                >✕</button>
-                            </span>
-                        )}
                     </div>
                     <button onClick={() => setShowConfig(!showConfig)} style={{ background: '#444' }}>
                         {showConfig ? 'Hide Config' : 'Config'}
@@ -153,57 +133,95 @@ export const ControlTower: React.FC = () => {
                     <div className="config-panel" style={{
                         marginTop: '1rem', padding: '1rem', background: '#2a2a2a',
                         borderRadius: '8px', border: '1px solid #444',
-                        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem'
+                        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem'
                     }}>
-                        <div className="config-item" style={{ gridColumn: 'span 2' }}>
-                            <label>Model</label>
-                            <select
-                                value={config.model_name}
-                                onChange={e => handleModelChange(e.target.value)}
-                                style={{
-                                    width: '100%', padding: '0.5rem', background: '#333',
-                                    border: '1px solid #555', color: '#fff', borderRadius: '4px'
-                                }}
-                            >
-                                {models.map(m => (
-                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                ))}
-                            </select>
+                        {/* 1. Model Selection */}
+                        <div className="config-section">
+                            <h4 style={{ marginBottom: '0.5rem', borderBottom: '1px solid #444', paddingBottom: '0.25rem' }}>Model & Compute</h4>
+                            <div className="config-item">
+                                <label>Core Model</label>
+                                <select
+                                    value={config.model_name}
+                                    onChange={e => handleModelChange(e.target.value)}
+                                    style={{ width: '100%', padding: '0.5rem', background: '#333', border: '1px solid #555', color: '#fff', borderRadius: '4px' }}
+                                >
+                                    {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="config-item" style={{ marginTop: '0.5rem' }}>
+                                <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Thinking Budget</span>
+                                    <span style={{ color: '#888', fontSize: '0.85rem' }}>{config.thinking_budget} tokens</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min={currentModel.thinking_min}
+                                    max={currentModel.thinking_max}
+                                    step={128}
+                                    value={config.thinking_budget}
+                                    onChange={e => setConfig({ ...config, thinking_budget: parseInt(e.target.value) })}
+                                    style={{ width: '100%', marginTop: '0.5rem' }}
+                                />
+                            </div>
                         </div>
-                        <div className="config-item" style={{ gridColumn: 'span 2' }}>
-                            <label style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Thinking Budget</span>
-                                <span style={{ color: '#888', fontSize: '0.85rem' }}>
-                                    {config.thinking_budget} tokens ({currentModel.thinking_min} - {currentModel.thinking_max})
-                                </span>
-                            </label>
-                            <input
-                                type="range"
-                                min={currentModel.thinking_min}
-                                max={currentModel.thinking_max}
-                                step={128}
-                                value={config.thinking_budget}
-                                onChange={e => setConfig({ ...config, thinking_budget: parseInt(e.target.value) })}
-                                style={{ width: '100%', marginTop: '0.5rem' }}
-                            />
+
+                        {/* 2. Evolution Engine */}
+                        <div className="config-section">
+                            <h4 style={{ marginBottom: '0.5rem', borderBottom: '1px solid #444', paddingBottom: '0.25rem' }}>Evolution Engine</h4>
+                            <div className="config-item">
+                                <label>Max Iterations: {config.max_iterations}</label>
+                                <input type="range" min="1" max="50" value={config.max_iterations}
+                                    onChange={e => setConfig({ ...config, max_iterations: parseInt(e.target.value) })}
+                                    style={{ width: '100%' }} />
+                            </div>
+                            <div className="config-item">
+                                <label>Entropy Threshold: {config.entropy_threshold}</label>
+                                <input type="number" step="0.01" value={config.entropy_threshold}
+                                    onChange={e => setConfig({ ...config, entropy_threshold: parseFloat(e.target.value) })}
+                                    style={{ width: '100%', background: '#333', border: '1px solid #555', color: '#fff' }} />
+                            </div>
+                            <div className="config-item">
+                                <label>Child Budget: {config.total_child_budget}</label>
+                                <input type="number" min="2" max="20" value={config.total_child_budget}
+                                    onChange={e => setConfig({ ...config, total_child_budget: parseInt(e.target.value) })}
+                                    style={{ width: '100%', background: '#333', border: '1px solid #555', color: '#fff' }} />
+                            </div>
                         </div>
-                        <div className="config-item">
-                            <label>Max Temperature (T_max)</label>
-                            <input type="number" step="0.1" value={config.t_max}
-                                onChange={e => setConfig({ ...config, t_max: parseFloat(e.target.value) })}
-                                style={{ width: '100%', padding: '0.25rem', background: '#333', border: '1px solid #555', color: '#fff' }} />
-                        </div>
-                        <div className="config-item">
-                            <label>Exploration Constant (C)</label>
-                            <input type="number" step="0.1" value={config.c_explore}
-                                onChange={e => setConfig({ ...config, c_explore: parseFloat(e.target.value) })}
-                                style={{ width: '100%', padding: '0.25rem', background: '#333', border: '1px solid #555', color: '#fff' }} />
-                        </div>
-                        <div className="config-item">
-                            <label>Beam Width (k)</label>
-                            <input type="number" step="1" value={config.beam_width}
-                                onChange={e => setConfig({ ...config, beam_width: parseInt(e.target.value) })}
-                                style={{ width: '100%', padding: '0.25rem', background: '#333', border: '1px solid #555', color: '#fff' }} />
+
+                        {/* 3. Physics & Temperature */}
+                        <div className="config-section">
+                            <h4 style={{ marginBottom: '0.5rem', borderBottom: '1px solid #444', paddingBottom: '0.25rem' }}>Physics & Temp</h4>
+                            <div className="config-item">
+                                <label>Temp Coupling</label>
+                                <select
+                                    value={config.temperature_coupling}
+                                    onChange={e => setConfig({ ...config, temperature_coupling: e.target.value })}
+                                    style={{ width: '100%', padding: '0.25rem', background: '#333', border: '1px solid #555', color: '#fff' }}
+                                >
+                                    <option value="auto">Auto (Dynamic)</option>
+                                    <option value="manual">Manual (Fixed)</option>
+                                </select>
+                            </div>
+                            {config.temperature_coupling === 'manual' && (
+                                <div className="config-item">
+                                    <label>Fixed Temp: {config.manual_llm_temperature}</label>
+                                    <input type="range" min="0" max="2" step="0.1" value={config.manual_llm_temperature}
+                                        onChange={e => setConfig({ ...config, manual_llm_temperature: parseFloat(e.target.value) })}
+                                        style={{ width: '100%' }} />
+                                </div>
+                            )}
+                            <div className="config-item">
+                                <label>Max Temp (T_max)</label>
+                                <input type="number" step="0.1" value={config.t_max}
+                                    onChange={e => setConfig({ ...config, t_max: parseFloat(e.target.value) })}
+                                    style={{ width: '100%', background: '#333', border: '1px solid #555', color: '#fff' }} />
+                            </div>
+                            <div className="config-item">
+                                <label>Exploration (C)</label>
+                                <input type="number" step="0.1" value={config.c_explore}
+                                    onChange={e => setConfig({ ...config, c_explore: parseFloat(e.target.value) })}
+                                    style={{ width: '100%', background: '#333', border: '1px solid #555', color: '#fff' }} />
+                            </div>
                         </div>
                     </div>
                 )}

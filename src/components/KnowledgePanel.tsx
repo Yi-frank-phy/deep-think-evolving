@@ -4,6 +4,8 @@ import { KnowledgeEntry, KnowledgeMessage } from '../types';
 export const KnowledgePanel: React.FC = () => {
     const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
     const [status, setStatus] = useState<"connecting" | "connected" | "error" | "closed">("closed");
+    const [filter, setFilter] = useState<'all' | 'lesson_learned' | 'success_pattern' | 'insight'>('all');
+
     const socketRef = useRef<WebSocket | null>(null);
     const reconnectTimerRef = useRef<number | undefined>(undefined);
 
@@ -110,38 +112,79 @@ export const KnowledgePanel: React.FC = () => {
         return `[${formatted.join(", ")}]`;
     };
 
+    const filteredEntries = entries.filter(e => {
+        if (filter === 'all') return true;
+        if (filter === 'insight') return e.outcome === 'insight';
+        if (filter === 'lesson_learned') return e.outcome === 'lesson_learned' || e.outcome === 'failure_pattern';
+        if (filter === 'success_pattern') return e.outcome === 'success_pattern';
+        return true;
+    });
+
     return (
         <aside id="knowledge-panel">
             <div className="knowledge-header">
-                <h2>Reflection Knowledge Base</h2>
-                <span id="knowledge-status" className={`status status--${status}`}>
-                    {status === "connecting" ? "Connecting..." :
-                        status === "connected" ? "Connected" :
-                            status === "error" ? "Error" : "Disconnected"}
-                </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h2>Knowledge Base</h2>
+                    <span id="knowledge-status" className={`status status--${status}`}>
+                        {status === "connected" ? "● Online" : "○ Offline"}
+                    </span>
+                </div>
+
+                <div className="knowledge-filters" style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', borderBottom: '1px solid #333' }}>
+                    <button
+                        className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
+                        onClick={() => setFilter('all')}
+                        style={{ background: 'none', border: 'none', color: filter === 'all' ? '#fff' : '#666', borderBottom: filter === 'all' ? '2px solid #2196F3' : '2px solid transparent', padding: '0.5rem', cursor: 'pointer' }}
+                    >
+                        All
+                    </button>
+                    <button
+                        className={`filter-tab ${filter === 'lesson_learned' ? 'active' : ''}`}
+                        onClick={() => setFilter('lesson_learned')}
+                        style={{ background: 'none', border: 'none', color: filter === 'lesson_learned' ? '#fff' : '#666', borderBottom: filter === 'lesson_learned' ? '2px solid #e53935' : '2px solid transparent', padding: '0.5rem', cursor: 'pointer' }}
+                    >
+                        Lessons
+                    </button>
+                    <button
+                        className={`filter-tab ${filter === 'success_pattern' ? 'active' : ''}`}
+                        onClick={() => setFilter('success_pattern')}
+                        style={{ background: 'none', border: 'none', color: filter === 'success_pattern' ? '#fff' : '#666', borderBottom: filter === 'success_pattern' ? '2px solid #4CAF50' : '2px solid transparent', padding: '0.5rem', cursor: 'pointer' }}
+                    >
+                        Patterns
+                    </button>
+                    <button
+                        className={`filter-tab ${filter === 'insight' ? 'active' : ''}`}
+                        onClick={() => setFilter('insight')}
+                        style={{ background: 'none', border: 'none', color: filter === 'insight' ? '#fff' : '#666', borderBottom: filter === 'insight' ? '2px solid #FFC107' : '2px solid transparent', padding: '0.5rem', cursor: 'pointer' }}
+                    >
+                        Insights
+                    </button>
+                </div>
             </div>
-            <div id="knowledge-feed" className={`knowledge-feed ${entries.length === 0 ? 'empty' : ''}`}>
-                {entries.length === 0 ? (
-                    <p className="placeholder">Waiting for reflections...</p>
+
+            <div id="knowledge-feed" className={`knowledge-feed ${filteredEntries.length === 0 ? 'empty' : ''}`} style={{ marginTop: '1rem' }}>
+                {filteredEntries.length === 0 ? (
+                    <p className="placeholder">No entries found for this filter.</p>
                 ) : (
-                    entries.map(entry => (
-                        <article key={entry.id} className="knowledge-entry">
+                    filteredEntries.map(entry => (
+                        <article key={entry.id} className="knowledge-entry" style={{
+                            borderLeft: `4px solid ${entry.outcome === 'success_pattern' ? '#4CAF50' :
+                                    entry.outcome === 'lesson_learned' || entry.outcome === 'failure_pattern' ? '#e53935' :
+                                        entry.outcome === 'insight' ? '#FFC107' : '#666'
+                                }`
+                        }}>
                             <div className="knowledge-entry__header">
-                                <h3>{entry.thread_id}</h3>
-                                <span className={`tag tag--${entry.outcome}`}>{entry.outcome.toUpperCase()}</span>
-                                <time dateTime={entry.created_at}>
-                                    {new Date(entry.created_at).toLocaleString()}
+                                <span className="tag" style={{ fontSize: '0.75rem', opacity: 0.8 }}>{entry.outcome.toUpperCase().replace('_', ' ')}</span>
+                                <time dateTime={entry.created_at} style={{ fontSize: '0.75rem', color: '#888' }}>
+                                    {new Date(entry.created_at).toLocaleTimeString()}
                                 </time>
                             </div>
-                            <div className="knowledge-entry__body">
-                                <p>{entry.reflection || "(empty reflection)"}</p>
-                                <dl className="knowledge-entry__meta">
-                                    <dt>Embedding dims</dt>
-                                    <dd>{entry.embedding_dimensions}</dd>
-                                    <dt>Preview</dt>
-                                    <dd>{formatEmbeddingPreview(entry.embedding_preview)}</dd>
-                                </dl>
-                            </div>
+                            <h4 style={{ margin: '0.5rem 0', fontSize: '0.9rem', color: '#eee' }}>{entry.thread_id}</h4>
+                            <p style={{ fontSize: '0.85rem', color: '#ccc', lineHeight: '1.4' }}>{entry.reflection}</p>
+                            <dl className="knowledge-entry__meta">
+                                <dt>Preview</dt>
+                                <dd>{formatEmbeddingPreview(entry.embedding_preview)}</dd>
+                            </dl>
                         </article>
                     ))
                 )}

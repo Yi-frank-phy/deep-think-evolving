@@ -17,11 +17,12 @@ export type KnowledgeMessage =
 
 export interface StrategyNode {
     id: string;
+    parent_id: string | null; // Added for tree visualization
     name: string;
     rationale: string;
     assumption: string;
     milestones: any;
-    status: "active" | "pruned" | "pruned_beam" | "pruned_error" | "completed";
+    status: "active" | "pruned" | "pruned_beam" | "pruned_error" | "completed" | "expanded";
     score: number;
     density: number;
     embedding_preview: number[];
@@ -32,9 +33,11 @@ export interface DeepThinkState {
     problem_state: string;
     strategies: StrategyNode[];
     research_context: string | null;
+    judge_context: string | null; // Added for context awareness
     spatial_entropy: number;
     effective_temperature: number;
     normalized_temperature: number;
+    iteration_count: number; // Added for dashboard
     history: string[];
 }
 

@@ -24,54 +24,102 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick }) => {
     useEffect(() => {
         if (!state || !state.strategies) return;
 
-        // Transform Strategies to Nodes
-        // Layout Logic: Grid based on index/status
-        // Active on top row, Pruned below.
+        // --- Tree Layout Logic ---
+        // 1. Build Adjacency List & Find Roots
+        const stratMap = new Map<string, StrategyNode>();
+        const childrenMap = new Map<string, string[]>();
+        const roots: string[] = [];
 
-        const newNodes: Node[] = state.strategies.map((strat, index) => {
+        state.strategies.forEach(s => {
+            stratMap.set(s.id, s);
+            const pid = s.parent_id;
+            if (pid) {
+                if (!childrenMap.has(pid)) childrenMap.set(pid, []);
+                childrenMap.get(pid)?.push(s.id);
+            } else {
+                roots.push(s.id);
+            }
+        });
+
+        // 2. BFS for Level Assignment
+        const levels = new Map<string, number>();
+        const queue: { id: string, level: number }[] = roots.map(r => ({ id: r, level: 0 }));
+        const maxLevelWidth: number[] = []; // Count nodes per level to assign X
+
+        while (queue.length > 0) {
+            const { id, level } = queue.shift()!;
+            levels.set(id, level);
+
+            // Track width
+            maxLevelWidth[level] = (maxLevelWidth[level] || 0) + 1;
+
+            const children = childrenMap.get(id) || [];
+            children.forEach(childId => queue.push({ id: childId, level: level + 1 }));
+        }
+
+        // 3. Assign Positions
+        const levelCurrentX: number[] = []; // Track current X index for each level
+        const newNodes: Node[] = state.strategies.map((strat) => {
+            const level = levels.get(strat.id) || 0;
+            const levelIdx = levelCurrentX[level] || 0;
+            levelCurrentX[level] = levelIdx + 1;
+
+            const width = maxLevelWidth[level] || 1;
+            // Center buttons: total width ~ width * 250
+            // x = (levelIdx - width/2) * 220
+            const x = (levelIdx - width / 2) * 240;
+            const y = level * 180;
+
             const isActive = strat.status === 'active';
-            const row = isActive ? 0 : 1;
-            const col = index % 5; // 5 per row for naive grid
-            const x = col * 250;
-            const y = row * 150 + (isActive ? 0 : Math.floor(index / 5) * 150 + 200);
+            const isPruned = strat.status === 'pruned' || strat.status === 'pruned_beam';
+            const isExpanded = strat.status === 'expanded';
+
+            let borderColor = '#666';
+            if (isActive) borderColor = '#4CAF50';
+            else if (isPruned) borderColor = '#f44336';
+            else if (isExpanded) borderColor = '#2196F3';
 
             return {
-                id: strat.id || `strat-${index}`,
+                id: strat.id,
                 position: { x, y },
                 data: {
-                    label: strat.name + `\n(${strat.score?.toFixed(2)})`
+                    label: `${strat.name}\n(S:${strat.score?.toFixed(2) ?? '?'})`
                 },
                 style: {
-                    background: isActive ? '#1a1a1a' : '#2a1a1a',
+                    background: '#1a1a1a',
                     color: '#fff',
-                    border: isActive ? '1px solid #4CAF50' : '1px solid #f44336',
+                    border: `1px solid ${borderColor}`,
+                    borderLeft: `4px solid ${borderColor}`,
                     width: 200,
                     borderRadius: '8px',
-                    fontSize: '12px',
-                    padding: '10px',
+                    fontSize: '11px',
+                    padding: '8px',
                     cursor: 'pointer',
                     boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
-                    transition: 'transform 0.2s',
-                    zIndex: 10
+                    opacity: isPruned ? 0.6 : 1,
+                    textAlign: 'left',
+                    whiteSpace: 'pre-wrap'
                 },
-                type: 'default',
-                // ReactFlow passes the specific node object to event handlers, 
-                // but we need the StrategyNode data. We can pass it via data or handle generic lookup.
-                // Simpler: Use the StrategyNode directly if possible, or mapping.
-                // We'll attach the handler to the node properties in a way ReactFlow supports 
-                // but ReactFlow 'onNodeClick' is a prop on the Flow component, not individual nodes.
             };
         });
 
-        // Edges: Since we don't have parent_id yet, we can't draw real edges.
-        // We can draw implicit edges if 'trajectory' implies it, or just leave disconnected for now.
-        // Let's connect index i to i+1 just for visual structure if we assume sequential generation? 
-        // No, that's misleading. 
-        // Better: Connect "Architect" (Virtual Root) to all Gen 0.
-        // For now, no edges, just cards.
+        // 4. Create Edges
+        const newEdges: Edge[] = [];
+        state.strategies.forEach(s => {
+            if (s.parent_id) {
+                newEdges.push({
+                    id: `e-${s.parent_id}-${s.id}`,
+                    source: s.parent_id,
+                    target: s.id,
+                    type: 'smoothstep',
+                    animated: s.status === 'active',
+                    style: { stroke: '#555' }
+                });
+            }
+        });
 
         setNodes(newNodes);
-        setEdges([]);
+        setEdges(newEdges);
 
     }, [state, setNodes, setEdges]);
 

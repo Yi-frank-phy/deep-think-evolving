@@ -20,6 +20,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({ state }) => {
             gap: '1rem',
             marginBottom: '1rem'
         }}>
+            <KPICard title="Iteration" value={state?.iteration_count || 0} />
             <KPICard title="Active Strategies" value={activeCount} subValue={`/ ${totalCount} Total`} />
             <KPICard title="Spatial Entropy" value={state?.spatial_entropy.toFixed(4) || "0.0000"} />
             <KPICard title="Effective Temp (T_eff)" value={state?.effective_temperature.toFixed(2) || "0.00"}
