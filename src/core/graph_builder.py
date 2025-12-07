@@ -8,7 +8,7 @@ from src.agents.evolution import evolution_node
 from src.agents.propagation import propagation_node
 
 from src.agents.researcher import research_node
-from src.agents.distiller import distiller_node
+from src.agents.distiller import distiller_node, distiller_for_judge_node
 
 
 def should_continue(state: DeepThinkState) -> Literal["continue", "end"]:
@@ -57,9 +57,13 @@ def build_deep_think_graph():
     
     Flow:
     1. Researcher -> Distiller -> Architect (initial strategy generation)
-    2. Judge -> Evolution (first evaluation)
-    3. Loop: Evolution -> (should_continue?) -> Propagation -> Judge -> Evolution
+    2. DistillerForJudge -> Judge -> Evolution (first evaluation with clean context)
+    3. Loop: Evolution -> (should_continue?) -> Propagation -> DistillerForJudge -> Judge -> Evolution
     4. When converged: Evolution -> END
+    
+    Key architectural feature:
+    - distiller_for_judge runs BEFORE every Judge call to prepare a clean,
+      summarized context, preventing context rot.
     """
     workflow = StateGraph(DeepThinkState)
     
@@ -67,17 +71,19 @@ def build_deep_think_graph():
     workflow.add_node("researcher", research_node)
     workflow.add_node("distiller", distiller_node)
     workflow.add_node("architect", strategy_architect_node)
+    workflow.add_node("distiller_for_judge", distiller_for_judge_node)  # NEW: Clean context prep
     workflow.add_node("judge", judge_node)
     workflow.add_node("evolution", evolution_node)
     workflow.add_node("propagation", propagation_node)
     
     # 2. Define Edges
-    # Initial flow: Researcher -> Distiller -> Architect -> Judge -> Evolution
+    # Initial flow: Researcher -> Distiller -> Architect -> DistillerForJudge -> Judge -> Evolution
     workflow.set_entry_point("researcher")
     
     workflow.add_edge("researcher", "distiller")
     workflow.add_edge("distiller", "architect")
-    workflow.add_edge("architect", "judge")
+    workflow.add_edge("architect", "distiller_for_judge")  # Prep context before first Judge
+    workflow.add_edge("distiller_for_judge", "judge")
     workflow.add_edge("judge", "evolution")
     
     # 3. Conditional edge from evolution: loop or end
@@ -90,8 +96,8 @@ def build_deep_think_graph():
         }
     )
     
-    # 4. Propagation feeds back into Judge
-    workflow.add_edge("propagation", "judge")
+    # 4. Propagation feeds back into DistillerForJudge -> Judge
+    workflow.add_edge("propagation", "distiller_for_judge")
     
     # 5. Compile
     app = workflow.compile()

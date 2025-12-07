@@ -1,17 +1,53 @@
 
 import os
-from typing import List
+from typing import List, Optional
 
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from src.core.state import DeepThinkState, StrategyNode
+from src.tools.knowledge_base import write_experience, search_experiences
+
+
+# System prompt for Judge with knowledge base awareness
+JUDGE_SYSTEM_PROMPT = """\
+你是一位经验丰富的 "战略审查官" (Judge Agent)，负责：
+1. 评估战略方案的可行性与逻辑自洽性
+2. 观察策略演化过程中的规律和教训
+3. 在发现值得记录的经验时，主动写入知识库
+
+## 你的知识库写入指南
+
+当你观察到以下情况时，应该调用 write_experience 工具记录：
+
+🔴 **教训 (lesson_learned)**:
+- 某个策略因为逻辑漏洞被剪枝，该漏洞模式可能在未来重复出现
+- 发现一类假设总是过于乐观或悲观
+- 某种推理链条在实践中反复失败
+
+🟢 **成功模式 (success_pattern)**:
+- 某个策略的推理方式特别清晰有效
+- 某种假设设计在多个场景下都表现良好
+- 发现了问题分解的有效方法
+
+💡 **洞见 (insight)**:
+- 在评估过程中发现了问题的新视角
+- 总结出某类问题的共同特征
+- 识别出策略之间的隐含关联
+
+你不需要为每个策略都写入知识库，只在真正有价值的洞见出现时才记录。
+"""
+
 
 def judge_node(state: DeepThinkState) -> DeepThinkState:
     """
     Evaluates the feasibility of active strategies.
-    Prunes strategies that are deemed logically incoherent or violated constraints.
+    
+    Enhanced with knowledge base capabilities:
+    - Uses distilled judge_context from Distiller (prevents context rot)
+    - Can write lessons learned and success patterns
+    - Has full context of strategy evolution for reflection
     """
     print("\n[Judge] Evaluating strategy feasibility...")
     
@@ -23,7 +59,7 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
         return state
 
     strategies = state["strategies"]
-    active_indices = [i for i, s in enumerate(strategies) if s["status"] == "active"]
+    active_indices = [i for i, s in enumerate(strategies) if s.get("status") == "active"]
     
     if not active_indices:
         print("[Judge] No active strategies to evaluate.")
@@ -31,31 +67,51 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
 
     model_name = os.environ.get("GEMINI_MODEL_JUDGE", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
     print(f"[Judge] Using model: {model_name}")
+    
+    # Create LLM with tool binding for knowledge base
     llm = ChatGoogleGenerativeAI(
         model=model_name,
         google_api_key=api_key,
-        temperature=0.1, # Low temperature for objective evaluation
+        temperature=0.1,  # Low temperature for objective evaluation
     )
+    
+    # Bind knowledge base tools
+    llm_with_tools = llm.bind_tools([write_experience])
 
     parser = JsonOutputParser()
 
-    prompt_template = """\
-你是一位严格的 "战略审查官" (Judge Agent)。
-你的任务是评估以下战略方案的可行性与逻辑自洽性。
+    # Get distilled context from Distiller (prevents context rot)
+    judge_context = state.get("judge_context", "")
+    if not judge_context:
+        # Fallback if distiller didn't run
+        judge_context = f"问题: {state.get('problem_state', '')[:200]}..."
+        print("[Judge] Warning: No distilled judge_context found, using fallback.")
 
-问题背景:
-{problem_state}
+    # Enhanced prompt using DISTILLED context
+    evaluation_prompt = ChatPromptTemplate.from_messages([
+        ("system", JUDGE_SYSTEM_PROMPT),
+        ("human", """\
+{judge_context}
 
-战略方案 "{strategy_name}":
+---
+
+## 待评估策略 "{strategy_name}"
 理由: {rationale}
 关键假设: {initial_assumption}
+历史轨迹:
+{trajectory}
+
+---
+
+## 评估任务
 
 请基于以下标准进行打分 (0-10) 并给出简短评语:
 1. 逻辑自洽性: 理由是否支持结论？
 2. 假设合理性: 关键假设是否过于牵强？
 3. 约束符合性: 是否违背了基本的物理或逻辑约束？
 
-注意: 你不需要验证外部事实的真伪 (Hallucination is accepted limitation)，仅关注逻辑层面的可行性。
+在评估过程中，请结合上述"策略概览"和"最近事件"，判断是否存在值得记录的教训或成功模式。
+如果发现值得记录的经验，请调用 write_experience 工具。
 
 输出格式 JSON:
 {{
@@ -63,39 +119,57 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
     "reasoning": "简短评语",
     "is_pruned": boolean // 如果分数 < 4.0 或存在致命逻辑漏洞，设为 true
 }}
-"""
-
-    prompt = PromptTemplate(
-        template=prompt_template,
-        input_variables=["problem_state", "strategy_name", "rationale", "initial_assumption"]
-    )
-    
-    chain = prompt | llm | parser
+""")])
 
     evaluated_count = 0
     pruned_count = 0
+    kb_writes = 0
     
-    use_mock = os.environ.get("USE_MOCK_AGENTS", "false").lower() == "true" or not api_key
     if use_mock:
         print("[Judge] Running in MOCK MODE.")
         import random
 
-    new_strategies = list(strategies) # Shallow copy to modify
+    new_strategies = list(strategies)  # Shallow copy to modify
+    
+    # Build trajectory string for context
+    def format_trajectory(traj: List[str]) -> str:
+        if not traj:
+            return "(无历史记录)"
+        return "\n".join([f"  - {step}" for step in traj[-5:]])  # Last 5 steps
 
     for idx in active_indices:
         strategy = strategies[idx]
         
-        # Skip if already scored (optional optimization)
-        # For now, we assume Judge runs once per generation
-        
         try:
             if not use_mock:
-                result = chain.invoke({
-                    "problem_state": state["problem_state"],
-                    "strategy_name": strategy["name"],
-                    "rationale": strategy["rationale"],
-                    "initial_assumption": strategy["assumption"]
-                })
+                # Invoke with tool support
+                messages = evaluation_prompt.format_messages(
+                    judge_context=judge_context,
+                    strategy_name=strategy["name"],
+                    rationale=strategy["rationale"],
+                    initial_assumption=strategy["assumption"],
+                    trajectory=format_trajectory(strategy.get("trajectory", []))
+                )
+                
+                response = llm_with_tools.invoke(messages)
+                
+                # Check for tool calls
+                if hasattr(response, 'tool_calls') and response.tool_calls:
+                    for tool_call in response.tool_calls:
+                        if tool_call['name'] == 'write_experience':
+                            try:
+                                result = write_experience.invoke(tool_call['args'])
+                                print(f"  [KB] {result}")
+                                kb_writes += 1
+                            except Exception as e:
+                                print(f"  [KB Error] {e}")
+                
+                # Parse the JSON content
+                try:
+                    result = parser.parse(response.content)
+                except:
+                    # Fallback if JSON parsing fails
+                    result = {"feasibility_score": 5.0, "reasoning": "Evaluation completed", "is_pruned": False}
                 
                 score = float(result.get("feasibility_score", 5.0))
                 is_pruned = result.get("is_pruned", False)
@@ -106,15 +180,13 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
                 is_pruned = score < 5.0
                 reasoning = "Mock evaluation: Logic seems okay." if not is_pruned else "Mock evaluation: Too risky."
             
-            # Simple logic: Update history/trajectory
+            # Update trajectory
             new_strategies[idx]["trajectory"] = strategy.get("trajectory", []) + [
                 f"[Judge] Score: {score:.2f}, Pruned: {is_pruned}, Reasoning: {reasoning}"
             ]
             
-            # Store base score (normalized to 0-1 for UCB later?) 
-            # UCB usually expects 0-1. Let's normalize 0-10 -> 0-1.
-            # But we serve this as 'value' V.
-            new_strategies[idx]["score"] = score / 10.0 
+            # Normalize score to 0-1 for UCB
+            new_strategies[idx]["score"] = score / 10.0
             
             if is_pruned:
                 new_strategies[idx]["status"] = "pruned"
@@ -125,11 +197,15 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
             
         except Exception as e:
             print(f"[Judge] Error evaluating strategy {strategy['name']}: {e}")
+            import traceback
+            traceback.print_exc()
             
-    print(f"[Judge] Evaluated {evaluated_count} strategies. Pruned {pruned_count}.")
+    print(f"[Judge] Evaluated {evaluated_count} strategies. Pruned {pruned_count}. KB writes: {kb_writes}.")
     
     return {
         **state,
         "strategies": new_strategies,
-        "history": state.get("history", []) + [f"Judge evaluated {evaluated_count}, pruned {pruned_count}"]
+        "history": state.get("history", []) + [
+            f"Judge evaluated {evaluated_count}, pruned {pruned_count}, KB writes: {kb_writes}"
+        ]
     }

@@ -63,4 +63,8 @@ class DeepThinkState(TypedDict):
     
     # Iteration tracking for convergence
     iteration_count: int
+    
+    # Distilled context for Judge (prevents context rot)
+    judge_context: Optional[str]
+
 
