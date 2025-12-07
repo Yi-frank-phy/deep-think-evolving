@@ -5,13 +5,14 @@ import { KnowledgePanel } from './KnowledgePanel';
 import { TaskGraph } from './TaskGraph';
 import { KPIDashboard } from './KPIDashboard';
 import { NodeDetailModal } from './NodeDetailModal';
+import { ActivityPanel } from './ActivityPanel';
 import { useSimulation } from '../hooks/useSimulation';
 import { useModels } from '../hooks/useModels';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { StrategyNode } from '../types';
 
 export const ControlTower: React.FC = () => {
-    const { isConnected, state, startSimulation, stopSimulation } = useSimulation();
+    const { isConnected, state, activityLog, currentAgent, simulationStatus, startSimulation, stopSimulation } = useSimulation();
     const { models } = useModels();
     const { isRecording, audioBlob, startRecording, stopRecording, getBase64, clearAudio } = useAudioRecorder();
     const [problemInput, setProblemInput] = useState("How to build a dyson sphere?");
@@ -229,7 +230,16 @@ export const ControlTower: React.FC = () => {
 
             <main className="dashboard-main">
                 <div className="left-panel">
-                    <KPIDashboard state={state} />
+                    <KPIDashboard
+                        state={state}
+                        currentAgent={currentAgent}
+                        simulationStatus={simulationStatus}
+                    />
+                    <ActivityPanel
+                        activityLog={activityLog}
+                        currentAgent={currentAgent}
+                        simulationStatus={simulationStatus}
+                    />
                     <TaskGraph state={state} onNodeClick={setSelectedNode} />
                     <ChatPanel />
                 </div>

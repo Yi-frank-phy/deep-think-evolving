@@ -41,10 +41,28 @@ export interface DeepThinkState {
     history: string[];
 }
 
+// Agent phase types for activity tracking
+export type AgentPhase = "researcher" | "distiller" | "architect" | "distiller_for_judge" | "judge" | "evolution" | "propagation";
+
+// Agent activity message types
+export interface AgentActivity {
+    id: string;
+    agent: AgentPhase;
+    message: string;
+    detail?: string;
+    timestamp: string;
+    type: 'start' | 'progress' | 'complete';
+    duration_ms?: number;
+}
+
 export type SimulationMessage =
     | { type: "status"; data: "started" | "completed" | "stopped" }
     | { type: "state_update"; data: DeepThinkState }
-    | { type: "error"; data: string };
+    | { type: "error"; data: string }
+    // Agent activity messages for real-time visualization
+    | { type: "agent_start"; data: { agent: AgentPhase; message: string } }
+    | { type: "agent_progress"; data: { agent: AgentPhase; message: string; detail?: string } }
+    | { type: "agent_complete"; data: { agent: AgentPhase; message: string; duration_ms?: number } };
 
 export interface ModelInfo {
     id: string;

@@ -186,26 +186,85 @@ class SimulationManager:
                 "spatial_entropy": 0.0,
                 "effective_temperature": 0.0,
                 "normalized_temperature": 0.0,
-                "config": config.dict(),
+                "config": config.model_dump(),  # Use model_dump instead of dict()
                 "virtual_filesystem": {},
                 "history": ["Graph initialized via Server"]
             }
 
-            # Use astream (stream_mode="updates" gives diffs, "values" gives full state)
-            # "updates" is better for bandwidth if supported, but "values" is easier to debug.
-            # Let's use "values" for now to ensure we have full context.
-            async for event in graph_app.astream(initial_state, stream_mode="values"):
-                # Clean up event for JSON serialization (remove unserializable objects if any)
-                # StrategyNode is dict, so should be fine.
-                
-                # Emit state update
+            # Agent display names for UI
+            agent_names = {
+                "researcher": "🔍 Researcher",
+                "distiller": "📝 Distiller",
+                "architect": "🏗️ Architect", 
+                "distiller_for_judge": "📋 Context Prep",
+                "judge": "⚖️ Judge",
+                "evolution": "🧬 Evolution",
+                "propagation": "🌱 Propagation"
+            }
+            
+            last_history_len = 0
+            current_agent = None
+
+            # Use astream with stream_mode="updates" - returns dict {node_name: output}
+            async for chunk in graph_app.astream(initial_state, stream_mode="updates"):
+                # chunk is a dict like {"node_name": node_output}
+                for node_name, node_output in chunk.items():
+                    print(f"[Stream] Node: {node_name}")
+                    
+                    # Determine the agent from node name
+                    agent_key = node_name if node_name in agent_names else None
+                    
+                    if agent_key and agent_key != current_agent:
+                        # Send agent start notification
+                        current_agent = agent_key
+                        await self.broadcast({
+                            "type": "agent_start",
+                            "data": {
+                                "agent": agent_key,
+                                "message": f"{agent_names[agent_key]} 开始处理..."
+                            }
+                        })
+                        await asyncio.sleep(0.05)
+                    
+                    # Broadcast state update if we have valid state
+                    if isinstance(node_output, dict):
+                        # Check for new history entries  
+                        history = node_output.get("history", [])
+                        new_entries = history[last_history_len:] if len(history) > last_history_len else []
+                        last_history_len = len(history)
+                        
+                        # Get latest progress detail
+                        detail = new_entries[-1][:200] if new_entries else None
+                        
+                        # Send state update
+                        await self.broadcast({
+                            "type": "state_update",
+                            "data": node_output
+                        })
+                        
+                        if agent_key:
+                            # Send progress update with summary
+                            await self.broadcast({
+                                "type": "agent_progress",
+                                "data": {
+                                    "agent": agent_key,
+                                    "message": f"{agent_names[agent_key]} 处理中",
+                                    "detail": detail
+                                }
+                            })
+                    
+                    # Small delay for UI rendering
+                    await asyncio.sleep(0.05)
+            
+            # Send final complete for last agent
+            if current_agent:
                 await self.broadcast({
-                    "type": "state_update",
-                    "data": event # 'event' IS the DeepThinkState dict
+                    "type": "agent_complete",
+                    "data": {
+                        "agent": current_agent,
+                        "message": f"{agent_names.get(current_agent, current_agent)} 已完成"
+                    }
                 })
-                
-                # Sleep a tiny bit to allow UI to render if loop is tight
-                await asyncio.sleep(0.1)
                 
             await self.broadcast({"type": "status", "data": "completed"})
             
