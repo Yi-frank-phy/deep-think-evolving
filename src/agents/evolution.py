@@ -18,13 +18,15 @@ def calculate_boltzmann_allocation(
     min_allocation: int = 0
 ) -> np.ndarray:
     """
-    Calculate child node allocation using Boltzmann distribution (soft pruning).
+    Calculate child node allocation using pure Boltzmann distribution (Ising model soft pruning).
     
     Formula: n_s = round(C * exp(V_s / T) / Z)
     where Z = sum(exp(V_j / T)) is the partition function.
     
-    This implements the Ising model principle: higher value strategies get more
-    resources, but low-value strategies still get non-zero allocation at high T.
+    This implements pure Ising model principle without boundary hardcoding:
+    - At low T: allocation naturally concentrates on high-value strategies
+    - At high T: allocation naturally approaches uniform
+    - No artificial cutoffs - let the physics decide
     
     Args:
         values: Array of value scores V for each strategy (typically 0-1 from Judge)
@@ -42,41 +44,26 @@ def calculate_boltzmann_allocation(
     if n == 1:
         return np.array([total_budget], dtype=int)
     
-    # Handle edge cases for temperature
-    if t_eff <= 1e-10:
-        # Near-zero T: all resources to the best strategy
-        allocation = np.zeros(n, dtype=int)
-        allocation[np.argmax(values)] = total_budget
-        return allocation
+    # Pure Boltzmann distribution: p_s = exp(V_s / T) / Z
+    # Use log-sum-exp for numerical stability at ALL temperature ranges
+    # Only guard against division by zero, not against extreme temperatures
+    safe_t = max(t_eff, 1e-10)  # Only prevent division by zero
     
-    if t_eff > 1e6:
-        # Very high T: uniform allocation
-        base = total_budget // n
-        allocation = np.full(n, base, dtype=int)
-        # Distribute remainder to highest-value strategies
-        remainder = total_budget - base * n
-        sorted_indices = np.argsort(values)[::-1]
-        for i in range(remainder):
-            allocation[sorted_indices[i]] += 1
-        return allocation
-    
-    # Boltzmann distribution: p_s = exp(V_s / T) / Z
-    # Use log-sum-exp for numerical stability
-    log_weights = values / t_eff
+    log_weights = values / safe_t
     log_weights_max = np.max(log_weights)
     log_Z = log_weights_max + np.log(np.sum(np.exp(log_weights - log_weights_max)))
     
-    # Probabilities
+    # Probabilities (log-sum-exp ensures numerical stability)
     probs = np.exp(log_weights - log_Z)
     
     # Allocate proportionally
     raw_allocation = probs * total_budget
     
-    # Round while preserving total budget
+    # Round while preserving total budget (largest remainder method)
     allocation = np.floor(raw_allocation).astype(int)
     remainder = total_budget - np.sum(allocation)
     
-    # Distribute remainder by fractional parts (largest remainder method)
+    # Distribute remainder by fractional parts
     fractional_parts = raw_allocation - allocation
     sorted_indices = np.argsort(fractional_parts)[::-1]
     for i in range(int(remainder)):

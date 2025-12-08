@@ -40,11 +40,16 @@ class DeepThinkState(TypedDict):
     # Input
     problem_state: str
     
+    # Task Decomposition (from TaskDecomposer)
+    subtasks: Optional[List[str]]
+    information_needs: Optional[List[Dict[str, Any]]]  # [{topic, type, priority}]
+    
     # Evolution State
     strategies: List[StrategyNode]
     
     # Research Context
     research_context: Optional[str]
+    research_status: Optional[str]  # "sufficient" | "insufficient"
     
     # Global Metrics
     spatial_entropy: float
@@ -66,5 +71,8 @@ class DeepThinkState(TypedDict):
     
     # Distilled context for Judge (prevents context rot)
     judge_context: Optional[str]
+    
+    # Architect decisions for Executor
+    architect_decisions: Optional[List[Dict[str, Any]]]  # [{strategy_id, executor_instruction, context_injection}]
 
 

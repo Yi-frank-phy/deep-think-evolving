@@ -1,10 +1,74 @@
+"""
+Distiller Agent - 信息蒸馏器
+
+负责压缩上下文，防止 Context Rot（上下文腐烂）。
+支持动态触发：当上下文超过阈值时自动调用。
+"""
 
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
 from src.core.state import DeepThinkState, StrategyNode
+
+
+def estimate_token_count(state: DeepThinkState) -> int:
+    """
+    Estimate the token count of current state context.
+    
+    Uses a rough estimate of 4 characters per token for Chinese/mixed content.
+    """
+    total_chars = 0
+    
+    # Problem state
+    total_chars += len(state.get("problem_state", ""))
+    
+    # Research context
+    total_chars += len(state.get("research_context", "") or "")
+    
+    # Judge context
+    total_chars += len(state.get("judge_context", "") or "")
+    
+    # Strategies (trajectories can get long)
+    for s in state.get("strategies", []):
+        total_chars += len(s.get("rationale", ""))
+        total_chars += len(s.get("assumption", ""))
+        for t in s.get("trajectory", []):
+            total_chars += len(t)
+    
+    # History
+    for h in state.get("history", []):
+        total_chars += len(h)
+    
+    # Rough estimate: 4 chars per token for mixed Chinese/English
+    return total_chars // 4
+
+
+def should_distill(state: DeepThinkState) -> bool:
+    """
+    Dynamic trigger: determine if Distiller should run.
+    
+    Returns True if context exceeds the configured threshold.
+    """
+    config = state.get("config", {})
+    threshold = config.get("distill_threshold", 4000)  # tokens
+    
+    current_tokens = estimate_token_count(state)
+    
+    return current_tokens > threshold
+
+
+def conditional_distill(state: DeepThinkState) -> DeepThinkState:
+    """
+    Conditionally run distillation if context exceeds threshold.
+    
+    This can be called before any Agent to prevent context rot.
+    """
+    if should_distill(state):
+        print(f"[Distiller] Context exceeds threshold, triggering distillation...")
+        return distiller_for_judge_node(state)  # Use the lighter distiller
+    return state
 
 
 def _get_llm():

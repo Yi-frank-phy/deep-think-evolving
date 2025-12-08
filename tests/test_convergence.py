@@ -222,15 +222,16 @@ class TestGraphLoopStructure:
         destinations = [e.target for e in evolution_edges]
         assert "propagation" in destinations or any("end" in d.lower() for d in destinations)
 
-    def test_graph_has_propagation_to_judge_edge(self):
-        """Graph should have edge from propagation back to judge."""
+    def test_graph_has_propagation_to_distiller_for_judge_edge(self):
+        """Graph should have edge from propagation to distiller_for_judge (context rot prevention)."""
         from src.core.graph_builder import build_deep_think_graph
         
         app = build_deep_think_graph()
         graph = app.get_graph()
         
-        # Check propagation -> judge edge exists
+        # Check propagation -> distiller_for_judge edge exists
+        # (propagation connects to distiller_for_judge, not directly to judge, to prevent context rot)
         prop_edges = [e for e in graph.edges if e.source == "propagation"]
         destinations = [e.target for e in prop_edges]
         
-        assert "judge" in destinations
+        assert "distiller_for_judge" in destinations

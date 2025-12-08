@@ -113,16 +113,16 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
 在评估过程中，请结合上述"策略概览"和"最近事件"，判断是否存在值得记录的教训或成功模式。
 如果发现值得记录的经验，请调用 write_experience 工具。
 
+注意：你只负责评分，不负责决定策略的去留。资源分配由系统的 Boltzmann 软剪枝机制自动决定。
+
 输出格式 JSON:
 {{
     "feasibility_score": float, // 0.0 到 10.0
-    "reasoning": "简短评语",
-    "is_pruned": boolean // 如果分数 < 4.0 或存在致命逻辑漏洞，设为 true
+    "reasoning": "简短评语"
 }}
 """)])
 
     evaluated_count = 0
-    pruned_count = 0
     kb_writes = 0
     
     if use_mock:
@@ -169,38 +169,33 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
                     result = parser.parse(response.content)
                 except:
                     # Fallback if JSON parsing fails
-                    result = {"feasibility_score": 5.0, "reasoning": "Evaluation completed", "is_pruned": False}
+                    result = {"feasibility_score": 5.0, "reasoning": "Evaluation completed"}
                 
                 score = float(result.get("feasibility_score", 5.0))
-                is_pruned = result.get("is_pruned", False)
                 reasoning = result.get("reasoning", "")
             else:
                 # Mock Logic
                 score = random.uniform(4.0, 9.5)
-                is_pruned = score < 5.0
-                reasoning = "Mock evaluation: Logic seems okay." if not is_pruned else "Mock evaluation: Too risky."
+                reasoning = "Mock evaluation: Assessment completed."
             
-            # Update trajectory
+            # Update trajectory (no pruning decision - only scoring)
             new_strategies[idx]["trajectory"] = strategy.get("trajectory", []) + [
-                f"[Judge] Score: {score:.2f}, Pruned: {is_pruned}, Reasoning: {reasoning}"
+                f"[Judge] Score: {score:.2f}, Reasoning: {reasoning}"
             ]
             
             # Normalize score to 0-1 for UCB
             new_strategies[idx]["score"] = score / 10.0
-            
-            if is_pruned:
-                new_strategies[idx]["status"] = "pruned"
-                pruned_count += 1
+            # No hard pruning - Boltzmann allocation decides resource distribution
             
             evaluated_count += 1
-            print(f"  > '{strategy['name']}' Score: {score:.2f}, Pruned: {is_pruned}")
+            print(f"  > '{strategy['name']}' Score: {score:.2f}")
             
         except Exception as e:
             print(f"[Judge] Error evaluating strategy {strategy['name']}: {e}")
             import traceback
             traceback.print_exc()
             
-    print(f"[Judge] Evaluated {evaluated_count} strategies. Pruned {pruned_count}. KB writes: {kb_writes}.")
+    print(f"[Judge] Evaluated {evaluated_count} strategies. KB writes: {kb_writes}.")
     
     return {
         **state,
