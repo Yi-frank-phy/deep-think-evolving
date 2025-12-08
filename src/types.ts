@@ -62,7 +62,19 @@ export type SimulationMessage =
     // Agent activity messages for real-time visualization
     | { type: "agent_start"; data: { agent: AgentPhase; message: string } }
     | { type: "agent_progress"; data: { agent: AgentPhase; message: string; detail?: string } }
-    | { type: "agent_complete"; data: { agent: AgentPhase; message: string; duration_ms?: number } };
+    | { type: "agent_complete"; data: { agent: AgentPhase; message: string; duration_ms?: number } }
+    // Human-in-the-Loop messages
+    | { type: "hil_required"; data: HilRequest };
+
+// Human-in-the-Loop request type
+export interface HilRequest {
+    request_id: string;
+    agent: AgentPhase;
+    question: string;
+    context?: string;
+    timeout_seconds: number;
+    created_at: string;
+}
 
 export interface ModelInfo {
     id: string;
@@ -71,3 +83,4 @@ export interface ModelInfo {
     thinking_max: number;
     tier?: 'free' | 'standard' | 'premium' | 'experimental';
 }
+

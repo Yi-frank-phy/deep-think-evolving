@@ -6,13 +6,14 @@ import { TaskGraph } from './TaskGraph';
 import { KPIDashboard } from './KPIDashboard';
 import { NodeDetailModal } from './NodeDetailModal';
 import { ActivityPanel } from './ActivityPanel';
+import { InterventionPanel } from './InterventionPanel';
 import { useSimulation } from '../hooks/useSimulation';
 import { useModels } from '../hooks/useModels';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { StrategyNode } from '../types';
 
 export const ControlTower: React.FC = () => {
-    const { isConnected, state, activityLog, currentAgent, simulationStatus, startSimulation, stopSimulation } = useSimulation();
+    const { isConnected, state, activityLog, currentAgent, simulationStatus, hilRequest, startSimulation, stopSimulation, respondToHil } = useSimulation();
     const { models } = useModels();
     const { isRecording, audioBlob, startRecording, stopRecording, getBase64, clearAudio } = useAudioRecorder();
     const [problemInput, setProblemInput] = useState("How to build a dyson sphere?");
@@ -251,6 +252,22 @@ export const ControlTower: React.FC = () => {
                 node={selectedNode}
                 isOpen={!!selectedNode}
                 onClose={() => setSelectedNode(null)}
+            />
+
+            {/* Human-in-the-Loop Intervention Panel */}
+            <InterventionPanel
+                isOpen={hilRequest !== null}
+                request={hilRequest}
+                onSubmit={(response) => {
+                    if (hilRequest) {
+                        respondToHil(hilRequest.request_id, response);
+                    }
+                }}
+                onSkip={() => {
+                    if (hilRequest) {
+                        respondToHil(hilRequest.request_id, "[Skipped by user - continue autonomously]");
+                    }
+                }}
             />
         </div>
     );

@@ -4,7 +4,7 @@ import { AgentActivity, AgentPhase } from '../types';
 interface ActivityPanelProps {
     activityLog: AgentActivity[];
     currentAgent: AgentPhase | null;
-    simulationStatus: 'idle' | 'running' | 'completed' | 'error';
+    simulationStatus: 'idle' | 'running' | 'completed' | 'error' | 'awaiting_human';
 }
 
 const AGENT_COLORS: Record<AgentPhase, string> = {
@@ -104,6 +104,11 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({
                     )}
                     {simulationStatus === 'idle' && (
                         <span style={{ color: 'var(--text-muted)' }}>⏸️ 待命</span>
+                    )}
+                    {simulationStatus === 'awaiting_human' && (
+                        <span style={{ color: '#FFA500', animation: 'pulse 1s ease-in-out infinite' }}>
+                            🙋 等待人类输入...
+                        </span>
                     )}
                 </div>
             </div>

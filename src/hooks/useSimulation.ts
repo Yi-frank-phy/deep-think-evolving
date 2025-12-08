@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { DeepThinkState, SimulationMessage, AgentActivity, AgentPhase } from '../types';
+import { DeepThinkState, SimulationMessage, AgentActivity, AgentPhase, HilRequest } from '../types';
 
 const WS_URL = 'ws://localhost:8000/ws/simulation';
 
@@ -9,7 +9,8 @@ export const useSimulation = () => {
     const [state, setState] = useState<DeepThinkState | null>(null);
     const [activityLog, setActivityLog] = useState<AgentActivity[]>([]);
     const [currentAgent, setCurrentAgent] = useState<AgentPhase | null>(null);
-    const [simulationStatus, setSimulationStatus] = useState<'idle' | 'running' | 'completed' | 'error'>('idle');
+    const [simulationStatus, setSimulationStatus] = useState<'idle' | 'running' | 'completed' | 'error' | 'awaiting_human'>('idle');
+    const [hilRequest, setHilRequest] = useState<HilRequest | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
 
     const addActivity = useCallback((activity: Omit<AgentActivity, 'id' | 'timestamp'>) => {
@@ -96,6 +97,18 @@ export const useSimulation = () => {
                                 type: 'complete'
                             });
                             break;
+
+                        case 'hil_required':
+                            console.log('[Simulation] HIL request received:', msg.data);
+                            setHilRequest(msg.data);
+                            setSimulationStatus('awaiting_human');
+                            addActivity({
+                                agent: msg.data.agent,
+                                message: `⚠️ ${msg.data.agent} 需要人类输入`,
+                                detail: msg.data.question,
+                                type: 'progress'
+                            });
+                            break;
                     }
                 } catch (e) {
                     console.error('[Simulation] Failed to parse message', e);
@@ -139,13 +152,35 @@ export const useSimulation = () => {
         }
     }, []);
 
+    const respondToHil = useCallback(async (requestId: string, response: string) => {
+        try {
+            console.log('[Simulation] Submitting HIL response:', requestId, response);
+            await fetch('http://localhost:8000/api/hil/response', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ request_id: requestId, response })
+            });
+            setHilRequest(null);
+            setSimulationStatus('running');
+            addActivity({
+                agent: hilRequest?.agent || 'researcher',
+                message: '✅ 人类输入已提交',
+                type: 'progress'
+            });
+        } catch (e) {
+            console.error('Failed to submit HIL response', e);
+        }
+    }, [hilRequest, addActivity]);
+
     return {
         isConnected,
         state,
         activityLog,
         currentAgent,
         simulationStatus,
+        hilRequest,
         startSimulation,
-        stopSimulation
+        stopSimulation,
+        respondToHil
     };
 };

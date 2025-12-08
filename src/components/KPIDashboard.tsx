@@ -4,7 +4,7 @@ import { DeepThinkState, AgentPhase } from '../types';
 interface KPIDashboardProps {
     state: DeepThinkState | null;
     currentAgent?: AgentPhase | null;
-    simulationStatus?: 'idle' | 'running' | 'completed' | 'error';
+    simulationStatus?: 'idle' | 'running' | 'completed' | 'error' | 'awaiting_human';
 }
 
 const AGENT_DISPLAY: Record<AgentPhase, { icon: string; name: string; color: string }> = {

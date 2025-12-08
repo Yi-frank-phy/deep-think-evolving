@@ -133,6 +133,7 @@ from google.genai import types
 from src.core.graph_builder import build_deep_think_graph
 from src.core.state import DeepThinkState
 from src.strategy_architect import expand_strategy_node
+from src.tools.ask_human import hil_manager
 
 class ChatRequest(BaseModel):
     message: str
@@ -157,6 +158,10 @@ class SimulationRequest(BaseModel):
     problem: str
     config: SimulationConfig = SimulationConfig()
 
+class HilResponse(BaseModel):
+    request_id: str
+    response: str
+
 class SimulationManager:
     def __init__(self):
         self.active_websockets: List[WebSocket] = []
@@ -166,6 +171,8 @@ class SimulationManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_websockets.append(websocket)
+        # Set up HIL manager to use our broadcast function
+        hil_manager.set_broadcast_func(self.broadcast)
         logger.info(f"Client connected to simulation stream. Total: {len(self.active_websockets)}")
 
     def disconnect(self, websocket: WebSocket):
@@ -397,6 +404,26 @@ async def chat_stream_endpoint(req: ChatRequest):
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
     
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# --- Human-in-the-Loop API ---
+
+@app.post("/api/hil/response", tags=["hil"])
+async def submit_hil_response(response: HilResponse):
+    """Submit a human response to a pending HIL request."""
+    success = hil_manager.submit_response(response.request_id, response.response)
+    if success:
+        return {"status": "ok", "message": "Response submitted"}
+    else:
+        return {"status": "error", "message": "Request not found or already expired"}
+
+
+@app.get("/api/hil/pending", tags=["hil"])
+async def get_pending_hil_requests():
+    """Get all pending HIL requests."""
+    return {
+        "pending": [req.to_dict() for req in hil_manager.pending_requests.values()]
+    }
 
 
 if __name__ == "__main__":
