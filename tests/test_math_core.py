@@ -23,7 +23,7 @@ class TestKDE:
         # log p(0) should be around log(1/2 * (K(0) + K(10))) ~ log(0.5 * K(0))
         # log p(10) same by symmetry
         assert np.isclose(log_densities[0], log_densities[1])
-        assert log_densities[0] < 0 # Should be negative prob
+        # Note: log density can be positive if density > 1 (e.g. small bandwidth)
 
 class TestTemperature:
     def test_high_temperature(self):

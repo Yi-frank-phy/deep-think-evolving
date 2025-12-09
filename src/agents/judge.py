@@ -65,20 +65,25 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
         print("[Judge] No active strategies to evaluate.")
         return state
 
-    model_name = os.environ.get("GEMINI_MODEL_JUDGE", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
-    print(f"[Judge] Using model: {model_name}")
+    # Initialize LLM only if not in mock mode
+    llm = None
+    llm_with_tools = None
+    parser = None
     
-    # Create LLM with tool binding for knowledge base
-    llm = ChatGoogleGenerativeAI(
-        model=model_name,
-        google_api_key=api_key,
-        temperature=0.1,  # Low temperature for objective evaluation
-    )
-    
-    # Bind knowledge base tools
-    llm_with_tools = llm.bind_tools([write_experience])
-
-    parser = JsonOutputParser()
+    if not use_mock:
+        model_name = os.environ.get("GEMINI_MODEL_JUDGE", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
+        print(f"[Judge] Using model: {model_name}")
+        
+        # Create LLM with tool binding for knowledge base
+        llm = ChatGoogleGenerativeAI(
+            model=model_name,
+            google_api_key=api_key,
+            temperature=0.1,  # Low temperature for objective evaluation
+        )
+        
+        # Bind knowledge base tools
+        llm_with_tools = llm.bind_tools([write_experience])
+        parser = JsonOutputParser()
 
     # Get distilled context from Distiller (prevents context rot)
     judge_context = state.get("judge_context", "")
@@ -201,6 +206,6 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
         **state,
         "strategies": new_strategies,
         "history": state.get("history", []) + [
-            f"Judge evaluated {evaluated_count}, pruned {pruned_count}, KB writes: {kb_writes}"
+            f"Judge evaluated {evaluated_count} strategies, KB writes: {kb_writes}"
         ]
     }

@@ -196,15 +196,28 @@ class SimulationManager:
             
             initial_state: DeepThinkState = {
                 "problem_state": problem,
+                "subtasks": [],
+                "information_needs": [],
                 "strategies": [],
                 "research_context": None,
+                "research_status": "insufficient",
                 "spatial_entropy": 0.0,
                 "effective_temperature": 0.0,
                 "normalized_temperature": 0.0,
                 "config": config.model_dump(),  # Use model_dump instead of dict()
                 "virtual_filesystem": {},
-                "history": ["Graph initialized via Server"]
+                "history": ["Graph initialized via Server"],
+                "iteration_count": 0,
+                "research_iteration": 0,
+                "judge_context": None,
+                "architect_decisions": []
             }
+
+            # Broadcast initial state so frontend has a baseline
+            await self.broadcast({
+                "type": "state_update",
+                "data": initial_state
+            })
 
             # Agent display names for UI
             agent_names = {
@@ -243,13 +256,10 @@ class SimulationManager:
                     
                     # Broadcast state update if we have valid state
                     if isinstance(node_output, dict):
-                        # Check for new history entries  
-                        history = node_output.get("history", [])
-                        new_entries = history[last_history_len:] if len(history) > last_history_len else []
-                        last_history_len = len(history)
-                        
-                        # Get latest progress detail
-                        detail = new_entries[-1][:200] if new_entries else None
+                        # Get latest progress detail from the delta
+                        # Since we use stream_mode="updates", node_output["history"] is just the new items
+                        history_update = node_output.get("history", [])
+                        detail = history_update[-1] if history_update else None
                         
                         # Send state update
                         await self.broadcast({

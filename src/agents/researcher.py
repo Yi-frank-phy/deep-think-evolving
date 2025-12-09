@@ -57,12 +57,15 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
     print("\n[Researcher] Starting information-needs-driven research...")
     
     api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("[Researcher] Error: GEMINI_API_KEY not set. Skipping research.")
+    use_mock = os.environ.get("USE_MOCK_AGENTS", "false").lower() == "true"
+    
+    if not api_key and not use_mock:
+        print("[Researcher] Error: GEMINI_API_KEY not set. Returning sufficient to proceed.")
         return {
             **state,
-            "research_context": "",
-            "research_status": "insufficient"
+            "research_context": "No API key available - proceeding without research.",
+            "research_status": "sufficient",  # Avoid infinite loop
+            "research_iteration": state.get("research_iteration", 0) + 1
         }
 
     problem = state["problem_state"]

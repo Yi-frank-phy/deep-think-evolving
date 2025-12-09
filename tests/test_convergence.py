@@ -215,23 +215,23 @@ class TestGraphLoopStructure:
         # Check that evolution has outgoing edges
         evolution_edges = [e for e in graph.edges if e.source == "evolution"]
         
-        # Should have at least 2 edges: one to propagation, one to END
+        # Should have at least 2 edges: one to architect_scheduler (continue), one to END
         assert len(evolution_edges) >= 1
         
-        # At least one edge should go to propagation for the loop
+        # At least one edge should go to architect_scheduler for the loop (new architecture)
         destinations = [e.target for e in evolution_edges]
-        assert "propagation" in destinations or any("end" in d.lower() for d in destinations)
+        assert "architect_scheduler" in destinations or any("end" in d.lower() for d in destinations)
 
-    def test_graph_has_propagation_to_distiller_for_judge_edge(self):
-        """Graph should have edge from propagation to distiller_for_judge (context rot prevention)."""
+    def test_graph_has_executor_to_distiller_for_judge_edge(self):
+        """Graph should have edge from executor to distiller_for_judge (context rot prevention)."""
         from src.core.graph_builder import build_deep_think_graph
         
         app = build_deep_think_graph()
         graph = app.get_graph()
         
-        # Check propagation -> distiller_for_judge edge exists
-        # (propagation connects to distiller_for_judge, not directly to judge, to prevent context rot)
-        prop_edges = [e for e in graph.edges if e.source == "propagation"]
-        destinations = [e.target for e in prop_edges]
+        # Check executor -> distiller_for_judge edge exists
+        # (executor connects to distiller_for_judge, not directly to judge, to prevent context rot)
+        executor_edges = [e for e in graph.edges if e.source == "executor"]
+        destinations = [e.target for e in executor_edges]
         
         assert "distiller_for_judge" in destinations

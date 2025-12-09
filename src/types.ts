@@ -31,14 +31,37 @@ export interface StrategyNode {
 
 export interface DeepThinkState {
     problem_state: string;
+
+    // Task Decomposition
+    subtasks?: string[];
+    information_needs?: { topic: string; type: string; priority: string }[];
+
+    // Evolution State
     strategies: StrategyNode[];
+
+    // Research Context
     research_context: string | null;
-    judge_context: string | null; // Added for context awareness
+    research_status?: string;
+    research_iteration?: number;
+
+    // Global Metrics
     spatial_entropy: number;
     effective_temperature: number;
     normalized_temperature: number;
-    iteration_count: number; // Added for dashboard
+
+    // Config
+    config?: any;
+
+    // Memory
+    virtual_filesystem?: { [key: string]: string };
+
+    // Tracking
+    iteration_count: number;
     history: string[];
+
+    // Contexts
+    judge_context: string | null;
+    architect_decisions?: { strategy_id: string; executor_instruction: string; context_injection: string }[];
 }
 
 // Agent phase types for activity tracking

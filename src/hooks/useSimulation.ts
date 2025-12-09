@@ -44,7 +44,18 @@ export const useSimulation = () => {
 
                     switch (msg.type) {
                         case 'state_update':
-                            setState(msg.data);
+                            setState(prev => {
+                                if (!prev) return msg.data as DeepThinkState;
+                                const update = msg.data;
+                                return {
+                                    ...prev,
+                                    ...update,
+                                    // Append history instead of replacing, as backend sends deltas
+                                    history: update.history
+                                        ? [...(prev.history || []), ...update.history]
+                                        : prev.history
+                                };
+                            });
                             break;
 
                         case 'status':
