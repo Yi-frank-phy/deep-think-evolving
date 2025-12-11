@@ -125,7 +125,7 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
                 strategy["embedding"] = vec
             else:
                 print(f"  [Warning] Failed to embed '{strategy['name']}'. Marked for pruning.")
-                strategy["status"] = "pruned_error"
+                strategy["status"] = "pruned"  # Use standard status value
 
     # Filter out any that failed embedding
     valid_active = [s for s in active_strategies if s.get("embedding") and s.get("status") == "active"]
