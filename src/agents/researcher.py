@@ -121,10 +121,9 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
         print(f"[Researcher] Using model: {model_name}")
         print(f"[Researcher] Iteration: {current_iteration + 1}/{max_iterations}")
         
-        # NOTE: Do NOT set response_mime_type="application/json" with Google Search Grounding
-        # as they are incompatible (400 INVALID_ARGUMENT error)
         grounding_config = types.GenerateContentConfig(
-            tools=[grounding_tool]
+            tools=[grounding_tool],
+            response_mime_type="application/json"
         )
         
         prompt = RESEARCHER_PROMPT_TEMPLATE.format(
@@ -139,31 +138,16 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
                 config=grounding_config,
             )
             
-            # Parse JSON response - may need to extract from markdown code blocks
-            response_text = response.text or ""
+            # Parse JSON response
             try:
-                # First try direct JSON parse
-                result = json.loads(response_text)
+                result = json.loads(response.text)
             except json.JSONDecodeError:
-                # Try to extract JSON from markdown code block
-                import re
-                json_match = re.search(r'```(?:json)?\s*([\s\S]*?)```', response_text)
-                if json_match:
-                    try:
-                        result = json.loads(json_match.group(1).strip())
-                    except json.JSONDecodeError:
-                        result = {
-                            "research_context": response_text,
-                            "information_status": "sufficient",
-                            "missing_items": []
-                        }
-                else:
-                    # Fallback: treat entire response as context
-                    result = {
-                        "research_context": response_text,
-                        "information_status": "sufficient",
-                        "missing_items": []
-                    }
+                # Fallback: treat entire response as context
+                result = {
+                    "research_context": response.text,
+                    "information_status": "sufficient",
+                    "missing_items": []
+                }
                 
         except Exception as e:
             print(f"[Researcher] Error during search: {e}")
@@ -173,9 +157,9 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
                 "missing_items": ["搜索过程出错，需要重试"]
             }
     
-    research_context = result.get("research_context") or ""
-    information_status = result.get("information_status") or "sufficient"
-    missing_items = result.get("missing_items") or []
+    research_context = result.get("research_context", "")
+    information_status = result.get("information_status", "sufficient")
+    missing_items = result.get("missing_items", [])
     
     print(f"[Researcher] Research complete. Status: {information_status}")
     print(f"[Researcher] Context length: {len(research_context)} chars")

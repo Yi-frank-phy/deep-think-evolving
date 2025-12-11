@@ -143,15 +143,7 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
     print(f"  [KDE] Auto bandwidth: {bandwidth:.6f}")
     
     log_densities = gaussian_kernel_log_density(embeddings, bandwidth=bandwidth)
-    
-    # Clamp log_densities to avoid overflow when computing exp
-    # IEEE 754 double precision: exp(709) ≈ 8.2e307, exp(710) = inf
-    log_densities = np.clip(log_densities, -700, 700)
     densities = np.exp(log_densities)
-    
-    # Ensure finite values for JSON serialization
-    densities = np.where(np.isfinite(densities), densities, 1e-10)
-    log_densities = np.where(np.isfinite(log_densities), log_densities, -23)  # log(1e-10)
     
     # Update strategies with density info
     for i, s in enumerate(valid_active):
@@ -160,9 +152,6 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
     
     # Calculate Spatial Entropy: S = -mean(log p)
     spatial_entropy = float(-np.mean(log_densities))
-    # Ensure spatial_entropy is finite
-    if not np.isfinite(spatial_entropy):
-        spatial_entropy = 0.0
     print(f"  [Entropy] Spatial entropy: {spatial_entropy:.4f}")
         
     # 3. Temperature Calculation
@@ -171,17 +160,9 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
     
     t_eff = calculate_effective_temperature(values, log_densities)
     
-    # Ensure t_eff is finite for JSON serialization
-    if not np.isfinite(t_eff):
-        t_eff = 1.0  # Default temperature
-    
     # T_max parameter from config (default 2.0 to match LLM temp range)
     t_max = config.get("t_max", 2.0)
     tau = calculate_normalized_temperature(t_eff, t_max)
-    
-    # Ensure tau is finite
-    if not np.isfinite(tau):
-        tau = 0.5  # Default normalized temperature
     
     print(f"  [Temperature] T_eff: {t_eff:.4f}, Tau: {tau:.4f}")
     
@@ -198,9 +179,6 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
         tau=tau,
         c=c_explore
     )
-    
-    # Ensure UCB scores are finite for JSON serialization
-    ucb_scores = np.where(np.isfinite(ucb_scores), ucb_scores, 0.5)
     
     # Update UCB scores (for display/ranking)
     for i, s in enumerate(valid_active):

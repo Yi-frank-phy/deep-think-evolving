@@ -304,20 +304,9 @@ sim_manager = SimulationManager()
 
 @app.post("/api/simulation/start")
 async def start_simulation(req: SimulationRequest):
-    # If already running, cancel the old task first
     if sim_manager.is_running:
-        logger.info("Stopping previous simulation before starting new one")
-        if sim_manager.current_task:
-            sim_manager.current_task.cancel()
-            try:
-                await sim_manager.current_task
-            except asyncio.CancelledError:
-                pass
-        sim_manager.is_running = False
-        sim_manager.current_task = None
-        await sim_manager.broadcast({"type": "status", "data": "stopped"})
+        return {"status": "error", "message": "Simulation already running"}
     
-    logger.info(f"Starting new simulation: {req.problem[:50]}...")
     sim_manager.current_task = asyncio.create_task(sim_manager.run_graph(req.problem, req.config))
     return {"status": "started", "problem": req.problem}
 
