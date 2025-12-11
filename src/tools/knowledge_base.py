@@ -182,6 +182,7 @@ def search_experiences(
                         "score": float(similarity_score)
                     })
         except Exception as e:
+            print(f"[KB] Warning: Error loading {file_path.name}: {e}")
             continue
     
     # Sort by similarity score (descending)
@@ -217,7 +218,8 @@ def get_all_experiences_for_embedding() -> List[Dict[str, Any]]:
             with open(file_path, "r", encoding="utf-8") as f:
                 exp = json.load(f)
                 experiences.append(exp)
-        except Exception:
+        except Exception as e:
+            print(f"[KB] Warning: Error loading experience {file_path.name}: {e}")
             continue
     
     return experiences

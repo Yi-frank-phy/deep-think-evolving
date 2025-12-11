@@ -1,4 +1,5 @@
 
+import json
 import os
 from typing import List, Optional
 
@@ -172,8 +173,9 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
                 # Parse the JSON content
                 try:
                     result = parser.parse(response.content)
-                except:
+                except (json.JSONDecodeError, ValueError) as parse_err:
                     # Fallback if JSON parsing fails
+                    print(f"  [Judge] Warning: JSON parse failed for {strategy['name']}: {parse_err}")
                     result = {"feasibility_score": 5.0, "reasoning": "Evaluation completed"}
                 
                 score = float(result.get("feasibility_score", 5.0))

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from typing import Any, Iterable, List, TypedDict, Union
 
 from langchain_core.output_parsers import JsonOutputParser
@@ -188,26 +187,3 @@ def expand_strategy_node(
         return response.content
     except Exception as e:
         return f"Error expanding node: {str(e)}"
-
-    print("Running a direct test of strategy_architect.py (LangChain)...")
-
-    if not os.environ.get("GEMINI_API_KEY"):
-        print("\nSkipping test: GEMINI_API_KEY is not set.")
-        print("Please export your API key to run the test:")
-        print("export GEMINI_API_KEY='your_api_key_here'")
-    else:
-        sample_problem = (
-            "我们正在开发一个大型语言模型驱动的自主研究代理。"
-            "当前进展：代理可以分解问题、执行网络搜索并阅读文档。"
-            "遇到的困境：当面对需要综合来自多个来源的矛盾信息才能得出结论的复杂问题时，"
-            "代理的性能会急剧下降。它经常会陷入其中一个信源的观点，或者无法形成一个连贯的最终答案。"
-        )
-
-        strategies = generate_strategic_blueprint(sample_problem)
-
-        if strategies:
-            import json
-            print("\nSuccessfully generated strategic blueprint:")
-            print(json.dumps(strategies, indent=2, ensure_ascii=False))
-        else:
-            print("\nFailed to generate strategic blueprint.")

@@ -20,6 +20,9 @@ class DummyResponse:
 
 
 def test_embed_text_success(monkeypatch):
+    # Set required env var for non-mock mode
+    monkeypatch.setenv("MODELSCOPE_API_KEY", "test-key")
+    
     def fake_post(url, headers=None, data=None, json=None, **kwargs):
         if json:
             body = json
@@ -28,9 +31,11 @@ def test_embed_text_success(monkeypatch):
             body = j.loads(data)
         else:
             body = {}
-            
-        assert body["prompt"] == "hello"
-        return DummyResponse({"embedding": [0.1, 0.2, 0.3]})
+        
+        # New ModelScope API uses 'input' field (OpenAI-compatible)
+        assert body["input"] == "hello"
+        # Return OpenAI-compatible response format
+        return DummyResponse({"data": [{"embedding": [0.1, 0.2, 0.3]}]})
 
     monkeypatch.setattr(ec.requests, "post", fake_post)
 

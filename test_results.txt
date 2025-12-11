@@ -1,0 +1,49 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-8.4.1, pluggy-1.6.0
+rootdir: D:\deep think\deep-think-evolving
+configfile: pytest.ini
+plugins: anyio-4.9.0, langsmith-0.4.4, asyncio-1.3.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 97 items
+
+tests\test_acceptance_report.py ....                                     [  4%]
+tests\test_agent_flow.py ................                                [ 20%]
+tests\test_bandwidth.py ........                                         [ 28%]
+tests\test_codex_task_launcher.py ..                                     [ 30%]
+tests\test_context_manager.py ....                                       [ 35%]
+tests\test_convergence.py ...........                                    [ 46%]
+tests\test_diversity_calculator.py ....                                  [ 50%]
+tests\test_embedding_client.py F..                                       [ 53%]
+tests\test_generate_acceptance_report.py ...                             [ 56%]
+tests\test_google_grounding.py ...                                       [ 59%]
+tests\test_graph_structure.py .                                          [ 60%]
+tests\test_knowledge_base_vector_search.py ..............                [ 75%]
+tests\test_logging_helper.py ....                                        [ 79%]
+tests\test_math_core.py ......                                           [ 85%]
+tests\test_server.py .                                                   [ 86%]
+tests\test_server_sim_config.py .                                        [ 87%]
+tests\test_soft_pruning.py ............                                  [100%]
+
+================================== FAILURES ===================================
+___________________________ test_embed_text_success ___________________________
+tests\test_embedding_client.py:38: in test_embed_text_success
+    assert vector == [0.1, 0.2, 0.3]
+E   assert [] == [0.1, 0.2, 0.3]
+E     
+E     Right contains 3 more items, first extra item: 0.1
+E     Use -v to get more diff
+---------------------------- Captured stdout call -----------------------------
+[ERROR] Failed to embed text: 'prompt'
+============================== warnings summary ===============================
+tests/test_agent_flow.py::test_full_pipeline_mock_mode
+  D:\deep think\deep-think-evolving\src\math_engine\kde.py:71: UserWarning: KDE in 4096 dimensions with only 3 samples may be unreliable. Consider dimensionality reduction or alternative density estimation.
+    warnings.warn(
+
+tests/test_agent_flow.py::test_full_pipeline_mock_mode
+  D:\deep think\deep-think-evolving\src\agents\evolution.py:146: RuntimeWarning: overflow encountered in exp
+    densities = np.exp(log_densities)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_embedding_client.py::test_embed_text_success - assert [] ==...
+================== 1 failed, 96 passed, 2 warnings in 11.74s ==================

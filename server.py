@@ -240,7 +240,6 @@ class SimulationManager:
                 "propagation": "🌱 Propagation"
             }
             
-            last_history_len = 0
             current_agent = None
 
             # Use astream with stream_mode="updates" - returns dict {node_name: output}
@@ -352,8 +351,8 @@ async def simulation_websocket(websocket: WebSocket):
     await sim_manager.connect(websocket)
     try:
         while True:
-            # Keep connection alive, maybe listen for client commands (breakpoints?)
-            data = await websocket.receive_text()
+            # Keep connection alive, listen for client commands (breakpoints?)
+            _ = await websocket.receive_text()
             # Echo or process
     except WebSocketDisconnect:
         sim_manager.disconnect(websocket)
