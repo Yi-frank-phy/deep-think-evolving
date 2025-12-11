@@ -46,10 +46,37 @@ export const useSimulation = () => {
                         case 'state_update':
                             setState(prev => {
                                 if (!prev) return msg.data as DeepThinkState;
-                                const update = msg.data;
+                                const update = msg.data as Partial<DeepThinkState>;
+
+                                // Debug logging for key metrics
+                                if (update.iteration_count !== undefined) {
+                                    console.log(`[State] iteration_count: ${prev.iteration_count} -> ${update.iteration_count}`);
+                                }
+                                if (update.spatial_entropy !== undefined) {
+                                    console.log(`[State] spatial_entropy: ${prev.spatial_entropy} -> ${update.spatial_entropy}`);
+                                }
+                                if (update.strategies) {
+                                    console.log(`[State] strategies: ${prev.strategies.length} -> ${update.strategies.length}`);
+                                }
+
+                                // Merge strategies intelligently: prefer the update if provided
+                                const mergedStrategies = update.strategies || prev.strategies;
+
+                                // Merge numeric fields: only update if new value is defined
+                                const mergedIterationCount = update.iteration_count ?? prev.iteration_count;
+                                const mergedSpatialEntropy = update.spatial_entropy ?? prev.spatial_entropy;
+                                const mergedEffectiveTemp = update.effective_temperature ?? prev.effective_temperature;
+                                const mergedNormalizedTemp = update.normalized_temperature ?? prev.normalized_temperature;
+
                                 return {
                                     ...prev,
                                     ...update,
+                                    // Explicit handling of key fields
+                                    strategies: mergedStrategies,
+                                    iteration_count: mergedIterationCount,
+                                    spatial_entropy: mergedSpatialEntropy,
+                                    effective_temperature: mergedEffectiveTemp,
+                                    normalized_temperature: mergedNormalizedTemp,
                                     // Append history instead of replacing, as backend sends deltas
                                     history: update.history
                                         ? [...(prev.history || []), ...update.history]
