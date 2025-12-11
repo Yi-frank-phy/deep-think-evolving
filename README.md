@@ -1,6 +1,6 @@
 # Deep Think · Evolving
 
-> 「普罗米修斯计划」—— 一个基于自适应进化压力的多智能体研究助理系统
+一个基于自适应进化压力的多智能体研究助理系统
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com/)
