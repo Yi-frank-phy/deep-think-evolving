@@ -65,6 +65,15 @@ def gaussian_kernel_log_density(
     if N == 0:
         return np.array([])
     
+    # Warn about unreliable KDE in high dimensions with few samples
+    if D > 100 and N < D:
+        import warnings
+        warnings.warn(
+            f"KDE in {D} dimensions with only {N} samples may be unreliable. "
+            f"Consider dimensionality reduction or alternative density estimation.",
+            UserWarning
+        )
+    
     # Calculate squared Euclidean distances between all pairs
     # dist_sq[i, j] = ||x_i - x_j||^2
     # Expanding ||x - y||^2 = ||x||^2 + ||y||^2 - 2<x, y>

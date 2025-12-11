@@ -39,7 +39,7 @@ def should_continue(state: DeepThinkState) -> Literal["continue", "end"]:
     """
     config = state.get("config", {})
     max_iterations = config.get("max_iterations", 10)
-    entropy_threshold = config.get("entropy_threshold", 0.1)
+    entropy_threshold = config.get("entropy_threshold", 0.01)  # Lowered for high-dim embeddings
     
     iteration_count = state.get("iteration_count", 0)
     spatial_entropy = state.get("spatial_entropy", float("inf"))

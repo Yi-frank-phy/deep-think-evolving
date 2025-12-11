@@ -109,13 +109,13 @@ class TestShouldContinueFunction:
         assert result == "end"
 
     def test_uses_default_entropy_threshold_when_missing(self):
-        """Should use default entropy_threshold=0.1 when not in config."""
+        """Should use default entropy_threshold=0.01 when not in config."""
         from src.core.graph_builder import should_continue
         
         state = {
             "problem_state": "Test",
             "strategies": [{"id": "s1", "status": "active"}],
-            "spatial_entropy": 0.05,  # Below default threshold
+            "spatial_entropy": 0.005,  # Below default threshold (0.01)
             "config": {},  # No entropy_threshold specified
             "iteration_count": 2,
         }

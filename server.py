@@ -153,6 +153,12 @@ class SimulationConfig(BaseModel):
     c_explore: float = 1.0
     beam_width: int = 3
     thinking_budget: int = 1024  # Default token budget for thinking
+    # --- Added to sync with frontend ---
+    max_iterations: int = 10  # Maximum evolution iterations before forced termination
+    entropy_threshold: float = 0.01  # Lower threshold for high-dim embeddings (was 0.1)
+    total_child_budget: int = 6  # Total children to allocate across strategies
+    temperature_coupling: str = "auto"  # "auto" or "manual"
+    manual_llm_temperature: float = 1.0  # Used when temperature_coupling="manual"
 
 class SimulationRequest(BaseModel):
     problem: str
@@ -219,12 +225,16 @@ class SimulationManager:
                 "data": initial_state
             })
 
-            # Agent display names for UI
+            # Agent display names for UI - synced with types.ts AgentPhase
             agent_names = {
+                "task_decomposer": "📋 Task Decomposer",
                 "researcher": "🔍 Researcher",
+                "strategy_generator": "💡 Strategy Generator",
                 "distiller": "📝 Distiller",
-                "architect": "🏗️ Architect", 
+                "architect": "🏗️ Architect",
+                "architect_scheduler": "📅 Scheduler",
                 "distiller_for_judge": "📋 Context Prep",
+                "executor": "⚙️ Executor",
                 "judge": "⚖️ Judge",
                 "evolution": "🧬 Evolution",
                 "propagation": "🌱 Propagation"

@@ -64,8 +64,19 @@ export interface DeepThinkState {
     architect_decisions?: { strategy_id: string; executor_instruction: string; context_injection: string }[];
 }
 
-// Agent phase types for activity tracking
-export type AgentPhase = "researcher" | "distiller" | "architect" | "distiller_for_judge" | "judge" | "evolution" | "propagation";
+// Agent phase types for activity tracking - synced with backend graph_builder.py nodes
+export type AgentPhase =
+    | "task_decomposer"
+    | "researcher"
+    | "strategy_generator"
+    | "distiller"
+    | "architect"
+    | "architect_scheduler"
+    | "distiller_for_judge"
+    | "executor"
+    | "judge"
+    | "evolution"
+    | "propagation";
 
 // Agent activity message types
 export interface AgentActivity {

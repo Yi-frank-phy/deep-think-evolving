@@ -6,11 +6,15 @@ from typing import Optional
 import numpy as np
 import requests
 
-DEFAULT_OLLAMA_API_ENDPOINT = "http://localhost:11434/api/embeddings"
-DEFAULT_OLLAMA_MODEL = "dengcao/Qwen3-Embedding-8B:Q4_K_M"
+# ModelScope Qwen3-Embedding-8B configuration
+DEFAULT_MODELSCOPE_API_ENDPOINT = "https://api-inference.modelscope.cn/v1/embeddings"
+DEFAULT_MODELSCOPE_MODEL = "Qwen/Qwen3-Embedding-8B"
+MODELSCOPE_API_KEY_ENV = "MODELSCOPE_API_KEY"
+EMBEDDING_DIMENSION = 4096  # Qwen3-Embedding-8B max dimension
+
 USE_MOCK_ENV_VAR = "USE_MOCK_EMBEDDING"
 MOCK_DIM_ENV_VAR = "MOCK_EMBEDDING_DIM"
-DEFAULT_MOCK_DIM = 768
+DEFAULT_MOCK_DIM = 4096  # Updated to match Qwen3-Embedding-8B
 _TRUTHY_VALUES = {"1", "true", "yes", "on"}
 
 
@@ -58,8 +62,36 @@ def _apply_mock_embeddings(strategies: list[dict]) -> list[dict]:
     return strategies
 
 
+def _get_modelscope_embedding(text: str, api_key: str, endpoint: str, model: str, dimensions: int = None) -> list[float]:
+    """Call ModelScope embedding API (OpenAI-compatible format)."""
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": model,
+        "input": text,
+        "encoding_format": "float"  # Required by ModelScope API
+    }
+    
+    # Some APIs support dimensions parameter, but it's optional
+    if dimensions:
+        payload["dimensions"] = dimensions
+    
+    response = requests.post(endpoint, json=payload, headers=headers, timeout=120)
+    response.raise_for_status()
+    
+    result = response.json()
+    # OpenAI-compatible format: {"data": [{"embedding": [...]}], ...}
+    if "data" in result and len(result["data"]) > 0:
+        return result["data"][0].get("embedding", [])
+    return []
+
+
 def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) -> list[dict]:
-    """Embed strategies using Ollama or generated mock vectors.
+    """Embed strategies using ModelScope Qwen3-Embedding-8B or generated mock vectors.
 
     Args:
         strategies: Strategy dictionaries produced by ``generate_strategic_blueprint``.
@@ -78,8 +110,14 @@ def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) ->
         print("  (Using mock embedding data)...")
         return _apply_mock_embeddings(strategies)
 
-    endpoint = os.environ.get("OLLAMA_API_ENDPOINT", DEFAULT_OLLAMA_API_ENDPOINT)
-    model = os.environ.get("OLLAMA_EMBEDDING_MODEL", DEFAULT_OLLAMA_MODEL)
+    api_key = os.environ.get(MODELSCOPE_API_KEY_ENV)
+    if not api_key:
+        print(f"\n[ERROR] {MODELSCOPE_API_KEY_ENV} environment variable is not set.")
+        print("Please set MODELSCOPE_API_KEY to use ModelScope Qwen3-Embedding-8B.")
+        return []
+
+    endpoint = os.environ.get("MODELSCOPE_API_ENDPOINT", DEFAULT_MODELSCOPE_API_ENDPOINT)
+    model = os.environ.get("MODELSCOPE_EMBEDDING_MODEL", DEFAULT_MODELSCOPE_MODEL)
 
     for i, strategy in enumerate(strategies):
         document_to_embed = (
@@ -88,72 +126,44 @@ def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) ->
             f"Assumption: {strategy.get('initial_assumption', '')}"
         )
 
-        payload = {
-            "model": model,
-            "prompt": document_to_embed,
-        }
-
         try:
             print(
-                "  Embedding strategy "
-                f"{i + 1}/{len(strategies)} using Ollama: "
+                f"  Embedding strategy {i + 1}/{len(strategies)} using ModelScope: "
                 f"'{strategy.get('strategy_name', 'N/A')}'..."
             )
-            response = requests.post(endpoint, json=payload, timeout=120)
-            response.raise_for_status()
-
-            try:
-                response_json = response.json()
-            except ValueError as error:
-                print(
-                    "\n[ERROR] Ollama response did not contain valid JSON: "
-                    f"{error}"
-                )
-                return []
-
-            embedding = response_json.get("embedding")
+            
+            embedding = _get_modelscope_embedding(document_to_embed, api_key, endpoint, model)
+            
             if not embedding:
-                print(
-                    "\n[ERROR] Ollama response is missing the 'embedding' field."
-                )
-                return []
+                print("\n[ERROR] ModelScope response is missing the 'embedding' field.")
+                strategy["embedding"] = []
+                continue
 
             strategy["embedding"] = embedding
-            print("  ...Success.")
+            print(f"  ...Success ({len(embedding)} dimensions).")
 
         except requests.exceptions.ConnectionError as error:
-            print(
-                f"\n[ERROR] Could not connect to Ollama server at {endpoint}."
-            )
-            print("Please ensure the Ollama service is running and the model has been pulled.")
-            print(f"  (e.g., 'ollama pull {model}')")
+            print(f"\n[ERROR] Could not connect to ModelScope server at {endpoint}.")
             print(f"Underlying error: {error}")
             return []
         except requests.exceptions.Timeout as error:
-            print(
-                f"\n[ERROR] Ollama request timed out when embedding strategy {i + 1}: {error}"
-            )
+            print(f"\n[ERROR] ModelScope request timed out when embedding strategy {i + 1}: {error}")
             strategy["embedding"] = []
             continue
         except requests.exceptions.HTTPError as error:
             print(f"\n[ERROR] HTTP error during embedding: {error}")
-            print(f"Response from server: {response.text}")
-            if "model not found" in response.text.lower():
-                print(
-                    f"Model '{model}' not found. Please ensure the model is available via 'ollama list'."
-                )
+            try:
+                print(f"Response from server: {response.text}")
+            except:
+                pass
             strategy["embedding"] = []
             continue
         except requests.exceptions.RequestException as error:
-            print(
-                f"\n[ERROR] Unexpected network error during embedding strategy {i + 1}: {error}"
-            )
+            print(f"\n[ERROR] Unexpected network error during embedding strategy {i + 1}: {error}")
             strategy["embedding"] = []
             continue
         except Exception as error:  # pragma: no cover - defensive guard
-            print(
-                f"\n[ERROR] An unexpected error occurred during embedding strategy {i + 1}: {error}"
-            )
+            print(f"\n[ERROR] An unexpected error occurred during embedding strategy {i + 1}: {error}")
             strategy["embedding"] = []
             continue
 
@@ -171,20 +181,18 @@ def embed_text(document: str) -> list[float]:
         dim = _mock_embedding_dimension()
         return np.random.rand(dim).tolist()
 
-    endpoint = os.environ.get("OLLAMA_API_ENDPOINT", DEFAULT_OLLAMA_API_ENDPOINT)
-    model = os.environ.get("OLLAMA_EMBEDDING_MODEL", DEFAULT_OLLAMA_MODEL)
+    api_key = os.environ.get(MODELSCOPE_API_KEY_ENV)
+    if not api_key:
+        print(f"[ERROR] {MODELSCOPE_API_KEY_ENV} not set. Cannot embed text.")
+        return []
 
-    payload = {
-        "model": model,
-        "prompt": document,
-    }
+    endpoint = os.environ.get("MODELSCOPE_API_ENDPOINT", DEFAULT_MODELSCOPE_API_ENDPOINT)
+    model = os.environ.get("MODELSCOPE_EMBEDDING_MODEL", DEFAULT_MODELSCOPE_MODEL)
 
     try:
-        response = requests.post(endpoint, json=payload, timeout=120)
-        response.raise_for_status()
-        response_json = response.json()
-        return response_json.get("embedding", [])
+        return _get_modelscope_embedding(document, api_key, endpoint, model)
     except Exception as error:
         print(f"[ERROR] Failed to embed text: {error}")
         return []
+
 

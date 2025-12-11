@@ -24,8 +24,9 @@ def calculate_effective_temperature(
     if len(values) != len(log_densities):
         raise ValueError("Values and log_densities must have the same length.")
     
-    if len(values) < 2:
-        return float('inf') # Cannot estimate variance with < 2 samples
+    if len(values) < 5:
+        # Need more samples for reliable regression - return neutral temperature
+        return 1.0
         
     # Covariance matrix between V and ln p
     # cov_matrix = [[Var(V), Cov(V, ln p)], [Cov(ln p, V), Var(ln p)]]

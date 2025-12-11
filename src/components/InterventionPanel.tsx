@@ -7,12 +7,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { HilRequest, AgentPhase } from '../types';
 
-// Agent 显示信息
+// Agent 显示信息 - synced with types.ts AgentPhase
 const AGENT_INFO: Record<AgentPhase, { icon: string; name: string; color: string }> = {
+    task_decomposer: { icon: '📋', name: 'Task Decomposer', color: '#FF6B6B' },
     researcher: { icon: '🔍', name: 'Researcher', color: '#4ECDC4' },
+    strategy_generator: { icon: '💡', name: 'Strategy Generator', color: '#FFE66D' },
     distiller: { icon: '🧪', name: 'Distiller', color: '#45B7D1' },
     architect: { icon: '🏗️', name: 'Architect', color: '#96CEB4' },
+    architect_scheduler: { icon: '📅', name: 'Scheduler', color: '#88D8B0' },
     distiller_for_judge: { icon: '📋', name: 'Context Prep', color: '#FFEAA7' },
+    executor: { icon: '⚙️', name: 'Executor', color: '#74B9FF' },
     judge: { icon: '⚖️', name: 'Judge', color: '#DDA0DD' },
     evolution: { icon: '🧬', name: 'Evolution', color: '#98D8C8' },
     propagation: { icon: '🌱', name: 'Propagation', color: '#F7DC6F' }
@@ -53,6 +57,8 @@ export const InterventionPanel: React.FC<InterventionPanelProps> = ({
             setTimeRemaining(prev => {
                 if (prev <= 1) {
                     clearInterval(timer);
+                    // Auto-skip when timeout reaches zero
+                    onSkip();
                     return 0;
                 }
                 return prev - 1;
@@ -60,7 +66,7 @@ export const InterventionPanel: React.FC<InterventionPanelProps> = ({
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [isOpen, request?.request_id]);
+    }, [isOpen, request?.request_id, onSkip]);
 
     // 自动聚焦文本框
     useEffect(() => {
