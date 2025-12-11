@@ -1,4 +1,3 @@
-import os
 import asyncio
 from argparse import ArgumentParser, Namespace
 from pathlib import Path

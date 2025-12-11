@@ -152,10 +152,6 @@ def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) ->
             continue
         except requests.exceptions.HTTPError as error:
             print(f"\n[ERROR] HTTP error during embedding: {error}")
-            try:
-                print(f"Response from server: {response.text}")
-            except:
-                pass
             strategy["embedding"] = []
             continue
         except requests.exceptions.RequestException as error:
