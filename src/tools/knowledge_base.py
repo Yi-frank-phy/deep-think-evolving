@@ -15,7 +15,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
+import numpy as np
 from langchain_core.tools import tool
+
+from src.embedding_client import embed_text
 
 
 # Default knowledge base directory
@@ -78,6 +81,12 @@ def write_experience(
             "version": "1.0"
         }
     }
+
+    # Generate embedding
+    embedding_text = f"{title}\n{content}\nTags: {', '.join(tags or [])}"
+    embedding = embed_text(embedding_text)
+    if embedding:
+        experience["embedding"] = embedding
     
     # Write to file
     file_path = kb_path / filename
@@ -114,6 +123,10 @@ def search_experiences(
     
     experiences = []
     
+    # Generate query embedding
+    query_embedding = embed_text(query)
+    use_vector_search = bool(query_embedding)
+
     # Load all experience files
     for file_path in kb_path.glob("*.json"):
         try:
@@ -123,31 +136,66 @@ def search_experiences(
                 # Filter by type if specified
                 if experience_type and exp.get("type") != experience_type:
                     continue
-                
-                # Simple text matching (TODO: replace with vector search)
-                query_lower = query.lower()
-                title_match = query_lower in exp.get("title", "").lower()
-                content_match = query_lower in exp.get("content", "").lower()
-                tag_match = any(query_lower in tag.lower() for tag in exp.get("tags", []))
-                
-                if title_match or content_match or tag_match:
+
+                similarity_score = 0.0
+                match_found = False
+
+                if use_vector_search:
+                    # Check for existing embedding or generate one (lazy migration)
+                    if "embedding" not in exp or not exp["embedding"]:
+                        embedding_text = f"{exp.get('title', '')}\n{exp.get('content', '')}\nTags: {', '.join(exp.get('tags', []))}"
+                        exp_embedding = embed_text(embedding_text)
+                        if exp_embedding:
+                            exp["embedding"] = exp_embedding
+                            # Save back to file
+                            with open(file_path, "w", encoding="utf-8") as f_out:
+                                json.dump(exp, f_out, ensure_ascii=False, indent=2)
+
+                    if "embedding" in exp and exp["embedding"]:
+                        # Calculate cosine similarity
+                        vec_a = np.array(query_embedding)
+                        vec_b = np.array(exp["embedding"])
+                        norm_a = np.linalg.norm(vec_a)
+                        norm_b = np.linalg.norm(vec_b)
+
+                        if norm_a > 0 and norm_b > 0:
+                            similarity_score = np.dot(vec_a, vec_b) / (norm_a * norm_b)
+                            if similarity_score > 0.3:  # Threshold for relevance
+                                match_found = True
+                else:
+                    # Fallback to simple text matching
+                    query_lower = query.lower()
+                    title_match = query_lower in exp.get("title", "").lower()
+                    content_match = query_lower in exp.get("content", "").lower()
+                    tag_match = any(query_lower in tag.lower() for tag in exp.get("tags", []))
+                    if title_match or content_match or tag_match:
+                        match_found = True
+                        similarity_score = 1.0 # arbitrary score for exact matches
+
+                if match_found:
                     experiences.append({
                         "title": exp.get("title"),
                         "type": exp.get("type"),
                         "content": exp.get("content")[:200] + "..." if len(exp.get("content", "")) > 200 else exp.get("content"),
                         "tags": exp.get("tags"),
                         "created_at": exp.get("created_at"),
+                        "score": float(similarity_score)
                     })
         except Exception as e:
             continue
     
-    # Sort by recency and limit
-    experiences.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    # Sort by similarity score (descending)
+    experiences.sort(key=lambda x: x.get("score", 0), reverse=True)
     experiences = experiences[:limit]
     
     if not experiences:
         return "No matching experiences found."
     
+    # Remove score before returning to keep output clean, or keep it?
+    # The original implementation didn't return metadata, but returning score might be useful.
+    # I'll keep it simple and match the return format mostly, maybe adding score is fine.
+    # The type definition says it returns JSON string.
+
     return json.dumps(experiences, ensure_ascii=False, indent=2)
 
 
