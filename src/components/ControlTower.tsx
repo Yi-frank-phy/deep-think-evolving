@@ -213,10 +213,19 @@ export const ControlTower: React.FC = () => {
                                 </div>
                             )}
                             <div className="config-item">
-                                <label>Max Temp (T_max)</label>
-                                <input type="number" step="0.1" value={config.t_max}
+                                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} title="Controls initial exploration intensity. Higher values (1.5-2.0) encourage innovation; lower values (0.5-1.0) favor stability.">
+                                    <span style={{ borderBottom: '1px dotted #888', cursor: 'help' }}>Max Temp (T_max)</span>
+                                    <span style={{ color: '#888', fontSize: '0.85rem' }}>{config.t_max.toFixed(1)}</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min="0.0"
+                                    max="2.0"
+                                    step="0.1"
+                                    value={config.t_max}
                                     onChange={e => setConfig({ ...config, t_max: parseFloat(e.target.value) })}
-                                    style={{ width: '100%', background: '#333', border: '1px solid #555', color: '#fff' }} />
+                                    style={{ width: '100%', marginTop: '0.5rem' }}
+                                />
                             </div>
                             <div className="config-item">
                                 <label>Exploration (C)</label>
