@@ -1,12 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Sender } from '../types';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
-
-type Message = {
-    sender: Sender;
-    text: string;
-    isStreaming?: boolean;
-};
+import { MessageItem, Message } from './MessageItem';
 
 const API_URL = 'http://localhost:8000';
 
@@ -153,12 +148,7 @@ export const ChatPanel: React.FC = () => {
         <section id="chat-container">
             <div id="chat-log" ref={chatLogRef}>
                 {messages.map((msg, idx) => (
-                    <div key={idx} className={`message ${msg.sender}`}>
-                        <p>
-                            {msg.text}
-                            {msg.isStreaming && <span className="streaming-cursor">▌</span>}
-                        </p>
-                    </div>
+                    <MessageItem key={idx} message={msg} />
                 ))}
             </div>
             <form id="chat-form" onSubmit={handleSubmit}>
