@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
 
+import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
@@ -23,9 +24,18 @@ logger = logging.getLogger(__name__)
 
 
 app = FastAPI(title="Prometheus Control Tower Backend", version="0.1.0")
+# Security: Restrict CORS to allowed origins
+# When allow_credentials=True, allow_origins cannot be ["*"]
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS")
+if allowed_origins_env:
+    allow_origins = allowed_origins_env.split(",")
+else:
+    # Default to local development ports
+    allow_origins = ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -125,7 +135,6 @@ async def knowledge_base_updates(websocket: WebSocket) -> None:
 # --- Simulation Control & Telemetry ---
 
 import base64
-import os
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
 from google import genai
