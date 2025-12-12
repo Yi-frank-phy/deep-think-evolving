@@ -1,49 +1,527 @@
-# Deep Think Evolving - 系统规范
+# Deep Think Evolving - 系统规范 v2.0
 
 ## 1. 背景与目标
-Deep Think Evolving 是一个多代理研究助理原型，通过 Gemini 生成策略、Ollama 嵌入向量，并将知识沉淀至本地知识库。该规范总结当前能力与预期范围，为后续迭代提供基线。
 
-## 2. 需求概述
-- **策略生成**：调用 `src/strategy_architect.py` 的 `generate_strategic_blueprint`，基于输入问题生成多条研究策略，返回 JSON 结构（名称、假设、行动步骤等）。
-- **上下文管理**：`src/context_manager.py` 负责线程化管理推理日志，支持创建上下文、写入步骤、生成总结与长期反思。
-- **向量化与多样性分析**：`src/embedding_client.py` 通过本地 Ollama 接口计算策略向量；`src/diversity_calculator.py` 使用余弦相似度矩阵衡量策略差异度；`src/google_grounding.py` 负责对策略执行 Google Grounding 搜索并整理引用。
-- **流水线执行**：`main.py` 组织上述模块完成端到端流程，输出策略列表、相似度矩阵与总结结果。
-- **知识库推送**：`server.py` 暴露 FastAPI WebSocket，实时将 `knowledge_base/` 中的反思 JSON 推送到前端。
+Deep Think Evolving 是一个基于 **LangGraph** 的多代理进化研究助理系统。系统通过多个专职代理协作，采用进化算法（KDE 密度估计、Ising 温度模型、UCB 多臂老虎机、Boltzmann 软剪枝）对策略空间进行探索和优化。
 
-## 3. 功能性需求
-1. **策略生成接口**
-   - 输入：自然语言描述的“问题状态”。
-   - 输出：至少一条策略对象，每条包含 `strategy_name`、`rationale`、`initial_assumption`、`milestones` 等字段。
-   - 失败处理：若 Gemini API 不可用，需记录错误并终止流水线。
-2. **上下文记录**
-   - 能够为每个策略创建独立目录，存储 `prompt.md`、`history.log`、总结与反思文件。
-   - `append_step` 需保证写入 JSONL 格式，历史默认最多保留 50 条，可通过环境变量 `CONTEXT_HISTORY_LIMIT` 配置为正整数。
-   - `generate_summary` 在缺少 API Key 时应提供本地回退摘要。
-3. **嵌入与相似度**
-   - `embed_strategies` 使用 `embedding_client.py` 调用本地服务，返回含 `embedding` 数组的策略。
-   - `calculate_similarity_matrix` 使用 NumPy 计算余弦矩阵，支持空列表与维度不一致的防御性处理。
-   - `search_google_grounding` 提供 Google 搜索 Grounding 能力：
-     - 通过 Google GenAI SDK 的 `googleSearch` 工具检索来源，函数接受可注入的客户端工厂，便于在测试环境提供模拟对象。
-     - 解析 `groundingMetadata.groundingChunks`，返回包含 `uri`、`title`、`snippet` 的引用列表，并在 `main.py` 中写回策略字典的 `references` 字段。
-     - 当 `use_mock`/`test_mode` 为真或外部依赖不可用时记录 `[Grounding]` 警告并返回空列表，流水线保持可离线运行。
-4. **流水线输出、离线模式与验收支持**
-   - `main.py` 需打印关键状态，确保开发者可观察执行进度；在关键节点调用 `append_step` 记录元数据。
-   - 流水线结束时，根据相似度结果决定是否触发 `record_reflection`，并将文件写入 `knowledge_base/`。
-   - 提供 `use_mock`/`test_mode` 配置以跳过 `validate_api_key`，使用内置假实现生成最小可验证输出，保证 `pytest -m smoke` 在缺乏外部服务时可复现。
-   - 日志助手：核心模块通过 `logging_helper.SpecLogger`（或等效封装）输出 `[Spec-OK]` 前缀的关键事件，可注入自定义记录器同时保持统一前缀，并确保不会破坏既有日志级别配置，便于验收脚本解析终端输出。
-   - 验收报告脚本：`scripts/generate_acceptance_report.py` 读取流水线日志生成 JSON/Markdown 摘要，默认读取 `logs/pipeline.log`，在缺少日志时需返回带提示信息的降级输出，同时保持与历史日志结构兼容。
-   - 规范检查脚本：`scripts/check_specs.py` 用于静态扫描 `tasks.md` 与代码库的关联性，确保所有任务均有文档支撑且代码变更符合规范。
-5. **WebSocket 服务**
-   - WebSocket 端点 `/ws/knowledge_base` 首次连接时发送全量快照，后续按文件系统变更推送 `update/delete` 事件。
-   - 提供 `/health` GET 接口用于探活。
+### 1.1 核心设计理念
 
-## 4. 非功能性要求
-- **可执行性**：`requirements.txt` 覆盖 FastAPI、NumPy 等依赖，需在 README 中提供运行指令。
-- **可观测性**：关键模块记录日志或打印信息，方便排障；WebSocket 服务需捕获异常并关闭连接。
-- **可扩展性**：策略与知识库结构采用 JSON，便于后续集成数据库或前端。
-- **本地隐私**：知识库文件保存在仓库 `knowledge_base/` 目录，避免上传敏感数据。
+- **进化驱动**：策略通过多轮迭代进化，基于空间熵收敛判断何时停止
+- **软剪枝**：使用 Boltzmann 分布进行资源分配，而非硬性淘汰
+- **上下文防腐**：通过 Distiller 代理定期蒸馏上下文，防止 Context Rot
+- **知识沉淀**：Judge 代理在评估过程中主动将经验写入知识库
 
-## 5. 开放问题
-- Gemini 与 Ollama API Key/模型版本如何在部署环境中安全注入。
-- 需定义正式的测试套件，覆盖上下文管理与 WebSocket 推送逻辑。
-- 知识库的版本管理策略与清理机制尚未确定。
+## 2. 系统架构
+
+### 2.1 工作流概览
+
+```
+Phase 1 (问题理解): TaskDecomposer → Researcher → StrategyGenerator
+Phase 2 (初评): DistillerForJudge → Judge → Evolution
+Phase 3 (执行循环): ArchitectScheduler → Executor → DistillerForJudge → Judge → Evolution → (收敛?)
+```
+
+### 2.2 收敛条件
+
+系统在以下任一条件满足时终止进化循环：
+
+1. `iteration_count >= max_iterations` (默认: 10)
+2. `spatial_entropy < entropy_threshold` (默认: 0.01) - 策略已收敛
+3. 无活跃策略剩余
+
+## 3. 核心代理规范
+
+### 3.1 TaskDecomposer（任务拆解专家）
+
+**文件**: `src/agents/task_decomposer.py`
+
+**职责**:
+
+- 将复杂问题分解为可处理的子任务
+- 生成信息需求清单，指导后续搜索
+
+**输入**: `problem_state` (问题描述字符串)
+
+**输出**:
+
+- `subtasks`: 子任务列表 `List[str]`
+- `information_needs`: 信息需求清单 `List[{topic, type, priority}]`
+
+**信息需求类型**:
+
+- `factual`: 事实性知识（定义、数据、现状）
+- `procedural`: 程序性知识（方法、步骤、最佳实践）
+- `conceptual`: 概念性知识（原理、理论、关系）
+
+---
+
+### 3.2 Researcher（深度研究专家）
+
+**文件**: `src/agents/researcher.py`
+
+**职责**:
+
+- 基于信息需求清单进行 Google Search Grounding
+- 在单次调用中自我反思信息充足性（成本优化设计）
+
+**输入**:
+
+- `problem_state`: 原始问题
+- `information_needs`: 来自 TaskDecomposer 的需求清单
+
+**输出**:
+
+- `research_context`: 汇总的研究背景文本
+- `research_status`: `"sufficient"` 或 `"insufficient"`
+- `research_iteration`: 当前研究迭代计数
+
+**配置**:
+
+- `max_research_iterations`: 最大研究循环次数 (默认: 3)
+
+---
+
+### 3.3 StrategyGenerator（策略生成器）
+
+**文件**: `src/agents/strategy_generator.py`
+
+**职责**:
+
+- 基于研究上下文生成所有可能的初始策略
+- 仅负责生成，不负责评分或调度
+
+**输入**:
+
+- `problem_state`: 问题描述
+- `research_context`: 研究背景
+- `subtasks`: 子任务列表
+
+**输出**:
+
+- `strategies`: 策略节点列表 `List[StrategyNode]`
+
+**策略节点结构** (`StrategyNode`):
+
+```typescript
+{
+  id: string;                    // UUID
+  name: string;                  // 策略名称
+  rationale: string;             // 策略理由
+  assumption: string;            // 核心假设
+  milestones: Array<{title, summary}>;
+  
+  // 进化指标 (由 Evolution 计算)
+  embedding: float[] | null;     // 嵌入向量
+  density: float | null;         // KDE 密度
+  log_density: float | null;     // 对数密度
+  score: float;                  // 归一化评分 (0-1)
+  
+  status: "active" | "pruned" | "completed" | "expanded";
+  trajectory: string[];          // 执行轨迹记录
+  parent_id: string | null;      // 父策略 ID (用于树结构)
+}
+```
+
+---
+
+### 3.4 Judge（战略审查官）
+
+**文件**: `src/agents/judge.py`
+
+**职责**:
+
+- 评估策略的可行性与逻辑自洽性
+- 观察演化规律，主动将经验写入知识库
+- 仅负责评分，不负责剪枝决策
+
+**输入**:
+
+- `strategies`: 待评估的策略列表
+- `judge_context`: 来自 Distiller 的蒸馏上下文
+
+**输出**:
+
+- 更新后的 `strategies` (带评分)
+- 知识库写入记录 (可选)
+
+**评分标准** (0-10):
+
+1. 逻辑自洽性: 理由是否支持结论
+2. 假设合理性: 关键假设是否过于牵强
+3. 约束符合性: 是否违背基本约束
+
+**知识库写入类型**:
+
+- 🔴 `lesson_learned`: 教训（失败模式、逻辑漏洞）
+- 🟢 `success_pattern`: 成功模式（有效推理方式）
+- 💡 `insight`: 洞见（新视角、隐含关联）
+
+---
+
+### 3.5 Evolution（进化引擎）
+
+**文件**: `src/agents/evolution.py`
+
+**职责**:
+
+- 计算策略嵌入向量
+- 计算空间熵（KDE 密度估计）
+- 计算有效温度（Ising 模型）
+- 使用 Boltzmann 分配决定子节点配额
+
+**输入**:
+
+- `strategies`: 评分后的策略列表
+- `config`: 进化配置参数
+
+**输出**:
+
+- 更新后的 `strategies` (带嵌入、密度、UCB、子节点配额)
+- `spatial_entropy`: 当前空间熵
+- `effective_temperature`: 当前有效温度
+- `iteration_count`: 迭代计数 +1
+
+**数学引擎**:
+
+- **KDE 密度估计**: `src/math_engine/kde.py`
+  - `gaussian_kernel_log_density()`: 高斯核对数密度
+  - `estimate_bandwidth()`: 带宽估计
+- **温度模型**: `src/math_engine/temperature.py`
+  - `calculate_effective_temperature()`: 基于熵值计算
+  - `calculate_normalized_temperature()`: 归一化到 [0, T_max]
+- **UCB 评分**: `src/math_engine/ucb.py`
+  - `batch_calculate_ucb()`: 批量 UCB 计算
+
+**Boltzmann 分配公式**:
+
+```
+n_s = round(C * exp(V_s / T) / Z)
+其中 Z = sum(exp(V_j / T)) 是配分函数
+```
+
+---
+
+### 3.6 ArchitectScheduler（战略调度官）
+
+**文件**: `src/agents/architect.py`
+
+**职责**:
+
+- 基于 UCB 评分和 Boltzmann 配额为策略编写执行指令
+- 决定每个策略的执行方向（探索、变体、深化、验证）
+
+**输入**:
+
+- `strategies`: 带配额的活跃策略列表
+- `problem_state`: 原始问题
+
+**输出**:
+
+- `architect_decisions`: 执行决策列表
+
+  ```typescript
+  [{
+    strategy_id: string;
+    executor_instruction: string;  // 自然语言指令
+    context_injection: string;     // 可选上下文注入
+  }]
+  ```
+
+---
+
+### 3.7 Executor（策略执行器）
+
+**文件**: `src/agents/executor.py`
+
+**职责**:
+
+- 执行 Architect 分配的具体任务
+- 可生成策略变体（添加到策略池）
+
+**输入**:
+
+- `architect_decisions`: 来自 Architect 的决策列表
+- `strategies`: 当前策略列表
+- `problem_state`: 原始问题
+
+**输出**:
+
+- 更新后的 `strategies` (含轨迹更新和新变体)
+- 清空 `architect_decisions`
+
+---
+
+### 3.8 Distiller（信息蒸馏器）
+
+**文件**: `src/agents/distiller.py`
+
+**职责**:
+
+- 压缩上下文，防止 Context Rot
+- 为 Judge 生成清洁的评估上下文
+
+**函数**:
+
+- `distiller_node()`: 通用蒸馏节点
+- `distiller_for_judge_node()`: 专为 Judge 准备上下文
+- `should_distill()`: 动态触发检查
+- `estimate_token_count()`: token 估计
+
+**输出**:
+
+- `judge_context`: 蒸馏后的上下文字符串
+
+## 4. 状态管理
+
+### 4.1 全局状态 (`DeepThinkState`)
+
+**文件**: `src/core/state.py`
+
+```typescript
+interface DeepThinkState {
+  // 输入
+  problem_state: string;
+  
+  // 任务分解结果
+  subtasks: string[] | null;
+  information_needs: Array<{topic, type, priority}> | null;
+  
+  // 进化状态
+  strategies: StrategyNode[];
+  
+  // 研究上下文
+  research_context: string | null;
+  research_status: "sufficient" | "insufficient" | null;
+  research_iteration: number | null;
+  
+  // 全局指标
+  spatial_entropy: float;
+  effective_temperature: float;
+  normalized_temperature: float;
+  
+  // 配置
+  config: {
+    model_name?: string;
+    t_max?: float;           // 默认: 2.0
+    c_explore?: float;       // UCB 探索系数，默认: 1.0
+    beam_width?: int;        // 默认: 3
+    thinking_budget?: int;   // 默认: 1024
+    max_iterations?: int;    // 默认: 10
+    entropy_threshold?: float; // 默认: 0.01
+    total_child_budget?: int;  // Boltzmann 总预算，默认: 6
+    max_research_iterations?: int; // 默认: 3
+  };
+  
+  // 内存
+  virtual_filesystem: Dict<string, string>;
+  history: string[];  // 使用 operator.add reducer
+  
+  // 迭代跟踪
+  iteration_count: int;
+  
+  // Distiller 输出
+  judge_context: string | null;
+  
+  // Architect 输出
+  architect_decisions: Array<{strategy_id, executor_instruction, context_injection}> | null;
+}
+```
+
+## 5. API 端点规范
+
+### 5.1 REST 端点
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| GET | `/health` | 健康检查 |
+| GET | `/api/models` | 获取可用模型列表 |
+| POST | `/api/simulation/start` | 启动进化模拟 |
+| POST | `/api/simulation/stop` | 停止当前模拟 |
+| POST | `/api/expand_node` | 展开节点（扩展策略描述） |
+| POST | `/api/chat/stream` | 流式聊天 (SSE) |
+| POST | `/api/hil/response` | 提交人机交互响应 |
+| GET | `/api/hil/pending` | 获取待处理的 HIL 请求 |
+
+### 5.2 WebSocket 端点
+
+| 路径 | 描述 |
+|------|------|
+| `/ws/knowledge_base` | 知识库实时更新推送 |
+| `/ws/simulation` | 模拟进度实时遥测 |
+
+### 5.3 模拟请求格式
+
+```typescript
+interface SimulationRequest {
+  problem: string;
+  config: {
+    model_name?: string;       // 默认: "gemini-2.5-flash"
+    t_max?: float;             // 默认: 2.0
+    c_explore?: float;         // 默认: 1.0
+    beam_width?: int;          // 默认: 3
+    thinking_budget?: int;     // 默认: 1024
+    max_iterations?: int;      // 默认: 10
+    entropy_threshold?: float; // 默认: 0.01
+    total_child_budget?: int;  // 默认: 6
+    temperature_coupling?: "auto" | "manual"; // 默认: "auto"
+    manual_llm_temperature?: float; // 默认: 1.0
+  };
+}
+```
+
+### 5.4 WebSocket 消息类型
+
+**模拟遥测** (`/ws/simulation`):
+
+- `INIT`: 初始状态
+- `EVOLUTION_UPDATE`: 每次迭代后的策略和指标更新
+- `AGENT_LOG`: 代理执行日志
+- `CONVERGENCE`: 收敛通知
+- `ERROR`: 错误通知
+- `HIL_REQUIRED`: 需要人类干预
+
+**知识库** (`/ws/knowledge_base`):
+
+- 首次连接: 全量快照
+- 后续: `update` / `delete` 事件
+
+## 6. 知识库工具
+
+**文件**: `src/tools/knowledge_base.py`
+
+### 6.1 write_experience
+
+写入经验到向量知识库。由 Judge 在评估过程中调用。
+
+```python
+@tool
+def write_experience(
+    category: Literal["lesson_learned", "success_pattern", "insight"],
+    context: str,
+    content: str,
+    tags: List[str] = []
+) -> str
+```
+
+### 6.2 search_experiences
+
+向量搜索知识库中的相关经验。
+
+```python
+@tool
+def search_experiences(
+    query: str,
+    category: Optional[str] = None,
+    top_k: int = 5
+) -> List[Dict]
+```
+
+## 7. 人机交互 (HIL)
+
+**文件**: `src/tools/ask_human.py`
+
+### 7.1 ask_human 工具
+
+允许任意代理在执行过程中请求人类输入。
+
+```python
+@tool
+def ask_human(
+    question: str,
+    context: str = ""
+) -> str
+```
+
+### 7.2 HILManager
+
+管理待处理的人类交互请求，通过 WebSocket 通知前端。
+
+## 8. 嵌入服务
+
+**文件**: `src/embedding_client.py`
+
+### 8.1 配置
+
+支持多个嵌入服务提供商：
+
+| 环境变量 | 描述 |
+|----------|------|
+| `EMBEDDING_PROVIDER` | 提供商选择: `ollama`, `modelscope`, `openai` |
+| `EMBEDDING_MODEL` | 模型名称 |
+| `EMBEDDING_BASE_URL` | API 端点 |
+| `MODELSCOPE_API_KEY` | ModelScope API Key |
+
+### 8.2 Mock 模式
+
+当 `USE_MOCK_EMBEDDING=true` 时，使用随机嵌入向量用于测试。
+
+## 9. 离线 / Mock 模式
+
+### 9.1 环境变量
+
+| 变量 | 描述 |
+|------|------|
+| `USE_MOCK_AGENTS` | 所有代理使用 Mock 响应 |
+| `USE_MOCK_EMBEDDING` | 嵌入服务使用随机向量 |
+| `GEMINI_API_KEY` | Gemini API 密钥（缺失时自动启用 Mock） |
+
+### 9.2 冒烟测试
+
+```bash
+pytest -m smoke
+```
+
+在无 API 密钥环境下可运行，验证流水线结构正确。
+
+## 10. SpecKit 合规要求
+
+### 10.1 必需文档
+
+| 文件 | 描述 |
+|------|------|
+| `docs/spec-kit/spec.md` | 本规范文档 |
+| `docs/spec-kit/plan.md` | 实施计划 |
+| `docs/spec-kit/tasks.md` | 任务跟踪 |
+| `docs/spec-kit/constitution.md` | 项目宪章 |
+
+### 10.2 CI 合规检查
+
+所有 PR 必须通过 `scripts/check_specs.py` 检查：
+
+```bash
+python scripts/check_specs.py
+```
+
+### 10.3 PR 要求
+
+每个 PR 必须：
+
+1. 引用相关规范章节 (`spec.md §X.X`)
+2. 引用相关任务条目 (`tasks.md T-XXX`)
+3. 同步更新规范文档（如涉及架构变更）
+
+## 11. 非功能性要求
+
+### 11.1 可观测性
+
+- 所有代理通过 `print(f"[{AgentName}] ...")` 记录关键事件
+- WebSocket 实时推送执行状态
+- `history` 字段记录完整执行轨迹
+
+### 11.2 可扩展性
+
+- TypedDict 状态定义支持类型检查
+- 模块化代理设计，易于添加新代理
+- LangGraph 支持动态修改工作流
+
+### 11.3 安全性
+
+- CORS 限制为允许的来源列表（通过 `ALLOWED_ORIGINS` 环境变量配置）
+- 知识库文件保存在 `knowledge_base/` 目录
+
+## 12. 版本历史
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| 1.0 | 2025-10 | 初始版本（线性流水线） |
+| 2.0 | 2025-12 | 重写为 LangGraph 多代理进化架构 |
