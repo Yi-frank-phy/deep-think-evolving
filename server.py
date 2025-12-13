@@ -10,7 +10,8 @@ from typing import Dict, List
 
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import JSONResponse
 
 load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,8 +23,20 @@ POLL_INTERVAL_SECONDS = 1.0
 
 logger = logging.getLogger(__name__)
 
+# Standard generic error message to prevent information leakage
+GENERIC_ERROR_MESSAGE = "An internal error occurred. Please check the server logs."
 
 app = FastAPI(title="Prometheus Control Tower Backend", version="0.1.0")
+
+# Security: Add security headers
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    return response
+
 # Security: Restrict CORS to allowed origins
 # When allow_credentials=True, allow_origins cannot be ["*"]
 allowed_origins_env = os.environ.get("ALLOWED_ORIGINS")
@@ -313,7 +326,7 @@ class SimulationManager:
             
         except Exception as e:
             logger.exception("Simulation failed")
-            await self.broadcast({"type": "error", "data": str(e)})
+            await self.broadcast({"type": "error", "data": GENERIC_ERROR_MESSAGE})
         finally:
             self.is_running = False
             self.current_task = None
@@ -352,7 +365,7 @@ async def expand_node_endpoint(req: ExpandNodeRequest):
         return {"expanded_content": content}
     except Exception as e:
         logger.error(f"Error in expand_node_endpoint: {e}")
-        return {"expanded_content": f"Error: {str(e)}"}
+        return {"expanded_content": GENERIC_ERROR_MESSAGE}
 
 
 @app.websocket("/ws/simulation")
@@ -429,7 +442,7 @@ async def chat_stream_endpoint(req: ChatRequest):
             
         except Exception as e:
             logger.error(f"Chat stream error: {e}")
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'error': GENERIC_ERROR_MESSAGE})}\n\n"
     
     return StreamingResponse(generate(), media_type="text/event-stream")
 
