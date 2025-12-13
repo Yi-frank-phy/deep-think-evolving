@@ -7,6 +7,11 @@ Tests the child allocation based on Boltzmann distribution: n_s ∝ exp(V_s/T)/Z
 import pytest
 import numpy as np
 import math
+import os
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 
 class TestBoltzmannAllocation:
@@ -165,19 +170,24 @@ class TestSoftPruningInEvolution:
     """Tests for soft pruning integration in evolution node."""
 
     def test_evolution_sets_child_quota(self):
-        """Evolution node should set child_quota on each strategy."""
+        """Evolution node should set child_quota on each strategy.
+        
+        使用真实API调用。
+        """
         from src.agents.evolution import evolution_node
-        from unittest.mock import patch
+        
+        if not os.environ.get("MODELSCOPE_API_KEY"):
+            pytest.skip("MODELSCOPE_API_KEY not set")
         
         state = {
             "problem_state": "Test",
             "strategies": [
                 {"id": "s1", "name": "S1", "rationale": "R", "assumption": "A",
-                 "milestones": [], "embedding": [0.1, 0.2], "density": None, "log_density": None,
-                 "score": 0.8, "status": "active", "trajectory": []},
+                 "milestones": [], "embedding": None, "density": None, "log_density": None,
+                 "score": 0.8, "status": "active", "trajectory": [], "parent_id": None},
                 {"id": "s2", "name": "S2", "rationale": "R", "assumption": "A",
-                 "milestones": [], "embedding": [0.3, 0.4], "density": None, "log_density": None,
-                 "score": 0.4, "status": "active", "trajectory": []},
+                 "milestones": [], "embedding": None, "density": None, "log_density": None,
+                 "score": 0.4, "status": "active", "trajectory": [], "parent_id": None},
             ],
             "research_context": None,
             "spatial_entropy": 0.0,
@@ -189,10 +199,7 @@ class TestSoftPruningInEvolution:
             "iteration_count": 0,
         }
         
-        with patch("src.agents.evolution.embed_text") as mock_embed:
-            mock_embed.return_value = [0.1, 0.2]
-            
-            new_state = evolution_node(state)
+        new_state = evolution_node(state)
         
         # Both strategies should have child_quota set
         for s in new_state["strategies"]:
@@ -205,19 +212,24 @@ class TestSoftPruningInEvolution:
         assert total_quota == 10
 
     def test_no_strategies_marked_pruned(self):
-        """Soft pruning should NOT mark any strategies as 'pruned_beam'."""
+        """Soft pruning should NOT mark any strategies as 'pruned_beam'.
+        
+        使用真实API调用。
+        """
         from src.agents.evolution import evolution_node
-        from unittest.mock import patch
+        
+        if not os.environ.get("MODELSCOPE_API_KEY"):
+            pytest.skip("MODELSCOPE_API_KEY not set")
         
         state = {
             "problem_state": "Test",
             "strategies": [
                 {"id": "s1", "name": "S1", "rationale": "R", "assumption": "A",
-                 "milestones": [], "embedding": [0.1, 0.2], "density": None, "log_density": None,
-                 "score": 0.9, "status": "active", "trajectory": []},
+                 "milestones": [], "embedding": None, "density": None, "log_density": None,
+                 "score": 0.9, "status": "active", "trajectory": [], "parent_id": None},
                 {"id": "s2", "name": "S2", "rationale": "R", "assumption": "A",
-                 "milestones": [], "embedding": [0.3, 0.4], "density": None, "log_density": None,
-                 "score": 0.1, "status": "active", "trajectory": []},
+                 "milestones": [], "embedding": None, "density": None, "log_density": None,
+                 "score": 0.1, "status": "active", "trajectory": [], "parent_id": None},
             ],
             "research_context": None,
             "spatial_entropy": 0.0,
@@ -229,10 +241,7 @@ class TestSoftPruningInEvolution:
             "iteration_count": 0,
         }
         
-        with patch("src.agents.evolution.embed_text") as mock_embed:
-            mock_embed.return_value = [0.1, 0.2]
-            
-            new_state = evolution_node(state)
+        new_state = evolution_node(state)
         
         # No strategy should have status 'pruned_beam'
         for s in new_state["strategies"]:

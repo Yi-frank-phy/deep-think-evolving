@@ -7,6 +7,10 @@ Expected to FAIL until should_continue function is implemented.
 
 import pytest
 from typing import Literal
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 
 class TestShouldContinueFunction:
@@ -147,17 +151,24 @@ class TestIterationCountIncrement:
     """Tests for iteration counter behavior in evolution node."""
 
     def test_evolution_increments_iteration_count(self):
-        """Evolution node should increment iteration_count each time it runs."""
+        """Evolution node should increment iteration_count each time it runs.
+        
+        使用真实API调用（需要配置MODELSCOPE_API_KEY）。
+        """
+        import os
         from src.agents.evolution import evolution_node
-        from unittest.mock import patch
         import numpy as np
+        
+        # 如果没有API密钥,跳过测试
+        if not os.environ.get("MODELSCOPE_API_KEY"):
+            pytest.skip("MODELSCOPE_API_KEY not set")
         
         state = {
             "problem_state": "Test",
             "strategies": [
                 {"id": "s1", "name": "S1", "rationale": "R", "assumption": "A",
-                 "milestones": [], "embedding": [0.1, 0.2], "density": None, "log_density": None,
-                 "score": 0.5, "status": "active", "trajectory": []},
+                 "milestones": [], "embedding": None, "density": None, "log_density": None,
+                 "score": 0.5, "status": "active", "trajectory": [], "parent_id": None},
             ],
             "research_context": None,
             "spatial_entropy": 0.0,
@@ -169,24 +180,30 @@ class TestIterationCountIncrement:
             "iteration_count": 5,  # Current count
         }
         
-        with patch("src.agents.evolution.embed_text") as mock_embed:
-            mock_embed.return_value = [0.1, 0.2]
-            
-            new_state = evolution_node(state)
-            
-            assert new_state.get("iteration_count") == 6  # Incremented
+        new_state = evolution_node(state)
+        
+        assert new_state.get("iteration_count") == 6  # Incremented
+        # 验证嵌入已生成
+        assert new_state["strategies"][0].get("embedding") is not None
 
     def test_iteration_count_starts_at_zero_if_missing(self):
-        """If iteration_count is missing, it should start at 0 and become 1."""
+        """If iteration_count is missing, it should start at 0 and become 1.
+        
+        使用真实API调用。
+        """
+        import os
         from src.agents.evolution import evolution_node
-        from unittest.mock import patch
+        
+        # 如果没有API密钥,跳过测试
+        if not os.environ.get("MODELSCOPE_API_KEY"):
+            pytest.skip("MODELSCOPE_API_KEY not set")
         
         state = {
             "problem_state": "Test",
             "strategies": [
                 {"id": "s1", "name": "S1", "rationale": "R", "assumption": "A",
-                 "milestones": [], "embedding": [0.1, 0.2], "density": None, "log_density": None,
-                 "score": 0.5, "status": "active", "trajectory": []},
+                 "milestones": [], "embedding": None, "density": None, "log_density": None,
+                 "score": 0.5, "status": "active", "trajectory": [], "parent_id": None},
             ],
             "research_context": None,
             "spatial_entropy": 0.0,
@@ -198,12 +215,11 @@ class TestIterationCountIncrement:
             # Note: no iteration_count key
         }
         
-        with patch("src.agents.evolution.embed_text") as mock_embed:
-            mock_embed.return_value = [0.1, 0.2]
-            
-            new_state = evolution_node(state)
-            
-            assert new_state.get("iteration_count") == 1
+        new_state = evolution_node(state)
+        
+        assert new_state.get("iteration_count") == 1
+        # 验证嵌入已生成
+        assert new_state["strategies"][0].get("embedding") is not None
 
 
 class TestGraphLoopStructure:
