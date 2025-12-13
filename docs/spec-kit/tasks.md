@@ -18,7 +18,7 @@
 | 编号 | 任务 | 负责人 | 状态 | 关联文档 |
 | ---- | ---- | ------ | ---- | -------- |
 | T-001 | 维护 Spec Kit 文档：每次架构或流程变化时同步更新 `spec.md`/`plan.md`/`tasks.md` | 待定 | In Progress | 宪章·质量门禁 |
-| T-002 | 为 `src/context_manager.py`、`src/diversity_calculator.py` 编写单元测试 | 待定 | Backlog | spec.md §7 (legacy) |
+| T-002 | 为 `src/context_manager.py`、`src/diversity_calculator.py` 编写单元测试 | TDD Agent | Done | spec.md §7 |
 | T-003 | 建立自动化演示脚本 | 待定 | Backlog | spec.md §9.2 |
 | T-004 | 扩展 WebSocket 鉴权机制 | 待定 | Backlog | spec.md §5.2 |
 | T-005 | 评估知识库持久化方案（向量数据库） | 待定 | Backlog | spec.md §6 |
@@ -38,14 +38,14 @@
 | T-014 | 批量整合 `codex/*` 分支 | Codex | Done | 宪章·流程约束 |
 | T-015 | 创建规范检查脚本 `check_specs.py` | Codex | Done | spec.md §10.2 |
 
-## 待处理 PR 相关任务
+## SpecKit 维护任务
 
 | 编号 | 任务 | 负责人 | 状态 | 关联文档 |
 | ---- | ---- | ------ | ---- | -------- |
-| T-024 | 审阅 PR: T_max 滑块 UX 改进 | Reviewer | TODO | spec.md §5.3 |
-| T-025 | 审阅 PR: CORS 安全修复 | Reviewer | TODO | spec.md §11.3 |
-| T-026 | 审阅 PR: 聊天消息 Memoization | Reviewer | TODO | N/A |
-| T-027 | 处理审计报告: 更新文档一致性 | Spec Sync | Done | spec.md (v2.0) |
+| T-028 | 同步 spec.md 收敛条件文档 (entropy_change_threshold) | Spec Sync | Done | spec.md §2.2, §4.1 |
+| T-029 | 修复 test_convergence.py 与规范一致性 | TDD Agent | Done | tests/ |
+| T-030 | 配置 pytest-cov 测试覆盖率工具 | TDD Agent | Done | pytest.ini |
+| T-031 | 为 context_manager.py 添加单元测试 | TDD Agent | In Progress | spec.md §7 |
 
 ---
 
@@ -53,6 +53,7 @@
 
 ## 版本历史
 
+- **2025-12-13**: 清理过时PR任务(T-024~T-026), 新增 T-028~T-031 SpecKit维护任务
 - **2025-12-12**: 新增 T-021 至 T-027，反映 SpecKit 完整集成工作
 - **2025-12**: 更新架构演进任务状态 (T-016 至 T-020 标记为 Done)
 - **2025-10**: 初始任务创建
