@@ -15,7 +15,7 @@ Deep Think Evolving 是一个基于 **LangGraph** 的多代理进化研究助理
 
 ### 2.1 工作流概览
 
-```
+```text
 Phase 1 (问题理解): TaskDecomposer → Researcher → StrategyGenerator
 Phase 2 (初评): DistillerForJudge → Judge → Evolution
 Phase 3 (执行循环): ArchitectScheduler → Executor → DistillerForJudge → Judge → Evolution → (收敛?)
@@ -114,10 +114,12 @@ Phase 3 (执行循环): ArchitectScheduler → Executor → DistillerForJudge �
   milestones: Array<{title, summary}>;
   
   // 进化指标 (由 Evolution 计算)
-  embedding: float[] | null;     // 嵌入向量
+  embedding: float[] | null;     // 嵌入向量 (4096维 for Qwen3-Embedding-8B)
   density: float | null;         // KDE 密度
   log_density: float | null;     // 对数密度
-  score: float;                  // 归一化评分 (0-1)
+  score: float;                  // Judge评分 (0-1)
+  ucb_score: float | null;       // UCB综合评分 (用于排序/展示)
+  child_quota: int | null;       // Boltzmann分配的子节点配额
   
   status: "active" | "pruned" | "completed" | "expanded";
   trajectory: string[];          // 执行轨迹记录
@@ -197,7 +199,7 @@ Phase 3 (执行循环): ArchitectScheduler → Executor → DistillerForJudge �
 
 **Boltzmann 分配公式**:
 
-```
+```text
 n_s = round(C * exp(V_s / T) / Z)
 其中 Z = sum(exp(V_j / T)) 是配分函数
 ```

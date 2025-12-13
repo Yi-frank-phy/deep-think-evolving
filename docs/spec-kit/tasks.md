@@ -45,7 +45,10 @@
 | T-028 | 同步 spec.md 收敛条件文档 (entropy_change_threshold) | Spec Sync | Done | spec.md §2.2, §4.1 |
 | T-029 | 修复 test_convergence.py 与规范一致性 | TDD Agent | Done | tests/ |
 | T-030 | 配置 pytest-cov 测试覆盖率工具 | TDD Agent | Done | pytest.ini |
-| T-031 | 为 context_manager.py 添加单元测试 | TDD Agent | In Progress | spec.md §7 |
+| T-031 | 为 context_manager.py 添加单元测试 | TDD Agent | Done | tests/test_context_manager.py |
+| T-032 | 移除测试Mock依赖，使用真实API | TDD Agent | Done | tests/ |
+| T-033 | 更新 StrategyNode 规范 (ucb_score, child_quota) | Spec Sync | Done | spec.md §3.3 |
+| T-034 | 增强 check_specs.py 添加函数签名验证 | Spec Sync | Done | scripts/check_specs.py |
 
 ---
 

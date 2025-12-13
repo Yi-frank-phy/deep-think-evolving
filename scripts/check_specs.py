@@ -39,6 +39,7 @@ class SpecKitChecker:
             ("Agent Modules", self.check_agent_modules),
             ("Core Modules", self.check_core_modules),
             ("Math Engine Modules", self.check_math_engine_modules),
+            ("Math Engine Functions", self.check_math_engine_functions),
             ("Server Endpoints", self.check_server_endpoints),
             ("Knowledge Base Tools", self.check_knowledge_base_tools),
         ]
@@ -171,6 +172,31 @@ class SpecKitChecker:
             else:
                 self.errors.append(f"MathEngine: {module_name} ({filename}) 不存在于 {math_dir}")
     
+    def check_math_engine_functions(self):
+        """检查数学引擎中规范定义的函数是否存在"""
+        math_dir = self.src_dir / "math_engine"
+        
+        # 规范 spec.md §3.5 定义的函数
+        required_functions = [
+            ("kde.py", "gaussian_kernel_log_density", "高斯核对数密度"),
+            ("kde.py", "estimate_bandwidth", "带宽估计"),
+            ("temperature.py", "calculate_effective_temperature", "有效温度计算"),
+            ("temperature.py", "calculate_normalized_temperature", "归一化温度"),
+            ("ucb.py", "batch_calculate_ucb", "批量UCB计算"),
+        ]
+        
+        for filename, func_name, description in required_functions:
+            module_path = math_dir / filename
+            if not module_path.exists():
+                continue  # 文件不存在由其他检查报告
+            
+            content = module_path.read_text(encoding="utf-8")
+            # 检查函数定义是否存在
+            if f"def {func_name}(" in content:
+                self.passed.append(f"Function: {func_name}() ({description}) 存在")
+            else:
+                self.errors.append(f"Function: {func_name}() ({description}) 未在 {filename} 中找到")
+
     def check_server_endpoints(self):
         """检查 server.py 中的端点是否符合规范"""
         server_path = self.base_dir / "server.py"
