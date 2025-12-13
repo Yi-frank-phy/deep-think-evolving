@@ -52,8 +52,8 @@ class TestShouldContinueFunction:
         result = should_continue(state)
         assert result == "continue"
 
-    def test_ends_when_entropy_below_threshold(self):
-        """Should return 'end' when spatial_entropy < entropy_threshold (converged)."""
+    def test_ends_when_entropy_stabilized(self):
+        """Should return 'end' when entropy change rate is below threshold (converged)."""
         from src.core.graph_builder import should_continue
         
         state = {
@@ -61,14 +61,16 @@ class TestShouldContinueFunction:
             "strategies": [
                 {"id": "s1", "status": "active"},
             ],
-            "spatial_entropy": 0.05,  # Below threshold -> converged!
+            "spatial_entropy": 0.51,  # Current entropy
+            "prev_spatial_entropy": 0.50,  # Previous entropy (very small change)
             "config": {
                 "max_iterations": 10,
-                "entropy_threshold": 0.1,
+                "entropy_change_threshold": 0.1,  # Relative change threshold
             },
             "iteration_count": 3,  # Under max iterations
         }
         
+        # Change = |0.51 - 0.50| / max(0.51, 0.50, 1.0) = 0.01 / 1.0 = 0.01 < 0.1
         result = should_continue(state)
         assert result == "end"
 
@@ -108,18 +110,20 @@ class TestShouldContinueFunction:
         result = should_continue(state)
         assert result == "end"
 
-    def test_uses_default_entropy_threshold_when_missing(self):
-        """Should use default entropy_threshold=0.01 when not in config."""
+    def test_uses_default_entropy_change_threshold_when_missing(self):
+        """Should use default entropy_change_threshold=0.1 when not in config."""
         from src.core.graph_builder import should_continue
         
         state = {
             "problem_state": "Test",
             "strategies": [{"id": "s1", "status": "active"}],
-            "spatial_entropy": 0.005,  # Below default threshold (0.01)
-            "config": {},  # No entropy_threshold specified
+            "spatial_entropy": 0.505,  # Current
+            "prev_spatial_entropy": 0.50,  # Previous (tiny change)
+            "config": {},  # No entropy_change_threshold specified, uses default 0.1
             "iteration_count": 2,
         }
         
+        # Change = 0.005 / 1.0 = 0.005 < 0.1 (default threshold) -> converged
         result = should_continue(state)
         assert result == "end"
 

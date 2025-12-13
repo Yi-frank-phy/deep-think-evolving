@@ -26,8 +26,11 @@ Phase 3 (执行循环): ArchitectScheduler → Executor → DistillerForJudge �
 系统在以下任一条件满足时终止进化循环：
 
 1. `iteration_count >= max_iterations` (默认: 10)
-2. `spatial_entropy < entropy_threshold` (默认: 0.01) - 策略已收敛
+2. 熵变化率稳定: `|Δentropy| / max(|entropy|, 1.0) < entropy_change_threshold` (默认: 0.1)
 3. 无活跃策略剩余
+
+> **设计说明**: 使用相对变化率而非绝对阈值，因为高维嵌入空间的差分熵可能为负值。
+> 首次迭代自动跳过熵收敛检查（无历史数据可比较）。
 
 ## 3. 核心代理规范
 
@@ -307,7 +310,7 @@ interface DeepThinkState {
     beam_width?: int;        // 默认: 3
     thinking_budget?: int;   // 默认: 1024
     max_iterations?: int;    // 默认: 10
-    entropy_threshold?: float; // 默认: 0.01
+    entropy_change_threshold?: float; // 熵变化率阈值，默认: 0.1
     total_child_budget?: int;  // Boltzmann 总预算，默认: 6
     max_research_iterations?: int; // 默认: 3
   };
