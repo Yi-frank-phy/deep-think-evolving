@@ -121,7 +121,9 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick }) => {
         setNodes(newNodes);
         setEdges(newEdges);
 
-    }, [state, setNodes, setEdges]);
+    // ⚡ Bolt: Optimize re-renders by only updating layout when strategies change,
+    // ignoring other state updates like logs, iteration counts, or metrics.
+    }, [state?.strategies, setNodes, setEdges]);
 
     return (
         <div className="task-graph-container" style={{
