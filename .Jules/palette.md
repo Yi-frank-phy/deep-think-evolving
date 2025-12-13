@@ -1,3 +1,3 @@
-## 2024-05-22 - [Technical Parameter Accessibility]
-**Learning:** Users (even experts) benefit significantly from simple tooltips and visual sliders for abstract parameters like "Temperature" or "Entropy". It reduces cognitive load by visualizing the range and providing context in-situ.
-**Action:** For any numerical parameter that controls behavior (exploration, creativity, etc.), default to a Slider + Value + Tooltip pattern instead of a raw number input.
+## 2024-04-18 - [Chat Input Accessibility & Polish]
+**Learning:** Replaced emoji-based buttons with `lucide-react` icons and added ARIA labels. Inline SVG icons provide better scaling and visual consistency than emojis.
+**Action:** Use `lucide-react` for all future icon needs and ensure every icon-only button has an `aria-label`. Visually hidden labels for inputs are essential for screen readers when design omits visible labels.

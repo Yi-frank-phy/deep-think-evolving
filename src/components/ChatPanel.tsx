@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Sender } from '../types';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { MessageItem, Message } from './MessageItem';
+import { Send, Mic, Square, X, Loader2 } from 'lucide-react';
 
 const API_URL = 'http://localhost:8000';
 
@@ -153,6 +154,9 @@ export const ChatPanel: React.FC = () => {
             </div>
             <form id="chat-form" onSubmit={handleSubmit}>
                 <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
+                    <label htmlFor="user-input" className="sr-only" style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>
+                        User Input
+                    </label>
                     <input
                         type="text"
                         id="user-input"
@@ -168,6 +172,7 @@ export const ChatPanel: React.FC = () => {
                         onClick={toggleRecording}
                         disabled={isLoading}
                         title={isRecording ? "Stop recording" : "Start voice recording"}
+                        aria-label={isRecording ? "Stop recording" : "Start voice recording"}
                         style={{
                             background: isRecording ? '#e53935' : '#444',
                             minWidth: '40px',
@@ -175,10 +180,13 @@ export const ChatPanel: React.FC = () => {
                             border: 'none',
                             borderRadius: '4px',
                             cursor: 'pointer',
-                            transition: 'background 0.2s'
+                            transition: 'background 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                         }}
                     >
-                        {isRecording ? '⏹' : '🎤'}
+                        {isRecording ? <Square size={18} /> : <Mic size={18} />}
                     </button>
                 </div>
                 {audioBlob && (
@@ -191,18 +199,47 @@ export const ChatPanel: React.FC = () => {
                         <button
                             type="button"
                             onClick={clearAudio}
+                            aria-label="Clear recorded audio"
                             style={{
                                 background: 'transparent', border: 'none',
-                                color: '#888', cursor: 'pointer', fontSize: '0.9rem'
+                                color: '#888', cursor: 'pointer', fontSize: '0.9rem',
+                                display: 'flex', alignItems: 'center'
                             }}
                         >
-                            ✕
+                            <X size={14} />
                         </button>
                     </div>
                 )}
-                <button type="submit" disabled={isLoading || (!inputValue.trim() && !audioBlob)}>
-                    {isLoading ? '...' : 'Send'}
+                <button
+                    type="submit"
+                    disabled={isLoading || (!inputValue.trim() && !audioBlob)}
+                    aria-label={isLoading ? "Sending message" : "Send message"}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        minWidth: '80px'
+                    }}
+                >
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="animate-spin" size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                            <span>Sending...</span>
+                        </>
+                    ) : (
+                        <>
+                            <span>Send</span>
+                            <Send size={16} />
+                        </>
+                    )}
                 </button>
+                <style>{`
+                    @keyframes spin {
+                        from { transform: rotate(0deg); }
+                        to { transform: rotate(360deg); }
+                    }
+                `}</style>
             </form>
         </section>
     );
