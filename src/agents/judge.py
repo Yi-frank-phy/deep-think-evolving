@@ -72,7 +72,7 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
     parser = None
     
     if not use_mock:
-        model_name = os.environ.get("GEMINI_MODEL_JUDGE", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
+        model_name = os.environ.get("GEMINI_MODEL_JUDGE", os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"))
         print(f"[Judge] Using model: {model_name}")
         
         # Create LLM with tool binding for knowledge base
@@ -170,13 +170,32 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
                             except Exception as e:
                                 print(f"  [KB Error] {e}")
                 
-                # Parse the JSON content
+                # Parse the JSON content - improved extraction
                 try:
-                    result = parser.parse(response.content)
-                except (json.JSONDecodeError, ValueError) as parse_err:
-                    # Fallback if JSON parsing fails
+                    content = response.content
+                    # Try to extract JSON from markdown code blocks
+                    import re
+                    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+                    if json_match:
+                        content = json_match.group(1)
+                    else:
+                        # Try to find raw JSON object
+                        json_match = re.search(r'\{[^{}]*"feasibility_score"[^{}]*\}', content, re.DOTALL)
+                        if json_match:
+                            content = json_match.group(0)
+                    
+                    result = json.loads(content)
+                except (json.JSONDecodeError, ValueError, AttributeError) as parse_err:
+                    # Fallback: try to extract score from text
                     print(f"  [Judge] Warning: JSON parse failed for {strategy['name']}: {parse_err}")
-                    result = {"feasibility_score": 5.0, "reasoning": "Evaluation completed"}
+                    # Try to extract numeric score from response
+                    score_match = re.search(r'feasibility_score["\s:]+(\d+(?:\.\d+)?)', str(response.content))
+                    if score_match:
+                        extracted_score = float(score_match.group(1))
+                        result = {"feasibility_score": extracted_score, "reasoning": "Score extracted from response"}
+                        print(f"  [Judge] Extracted score: {extracted_score}")
+                    else:
+                        result = {"feasibility_score": 5.0, "reasoning": "Evaluation completed (parse fallback)"}
                 
                 score = float(result.get("feasibility_score", 5.0))
                 reasoning = result.get("reasoning", "")

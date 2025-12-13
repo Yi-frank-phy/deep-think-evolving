@@ -43,11 +43,11 @@ body {
   margin: 0;
   display: flex;
   justify-content: center;
-  align-items: center;
-  /* Centered visually */
+  align-items: flex-start;
+  /* Changed from center to flex-start for scrolling */
   padding: 2rem;
-  overflow: hidden;
-  /* Prevent body scroll if dashboard fits */
+  overflow-y: auto;
+  /* Changed from hidden to enable scrolling */
 }
 
 /* Custom Scrollbar */

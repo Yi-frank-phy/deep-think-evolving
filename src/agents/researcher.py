@@ -123,7 +123,7 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
         
         grounding_config = types.GenerateContentConfig(
             tools=[grounding_tool],
-            response_mime_type="application/json"
+            # Note: response_mime_type is NOT compatible with tools/grounding
         )
         
         prompt = RESEARCHER_PROMPT_TEMPLATE.format(
@@ -157,12 +157,12 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
                 "missing_items": ["搜索过程出错，需要重试"]
             }
     
-    research_context = result.get("research_context", "")
+    research_context = result.get("research_context") or ""  # Ensure not None
     information_status = result.get("information_status", "sufficient")
     missing_items = result.get("missing_items", [])
     
     print(f"[Researcher] Research complete. Status: {information_status}")
-    print(f"[Researcher] Context length: {len(research_context)} chars")
+    print(f"[Researcher] Context length: {len(research_context) if research_context else 0} chars")
     
     if missing_items:
         print(f"[Researcher] Missing items: {missing_items}")

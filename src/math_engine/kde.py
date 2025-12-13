@@ -3,12 +3,14 @@ import numpy as np
 
 def estimate_bandwidth(embeddings: np.ndarray) -> float:
     """
-    Estimate optimal bandwidth using Silverman's rule of thumb.
+    高维自适应带宽估计。
     
-    Silverman's rule (for Gaussian kernel):
-    h = (4 * sigma^5 / (3 * N))^(1/5)
+    对于 D >> N 的高维情况，传统 Silverman 规则失效。
+    采用基于实际距离尺度的估计:
     
-    For multivariate data, we use the average standard deviation across dimensions.
+    h = median(pairwise_distances) / sqrt(2)
+    
+    这确保 ||u||²/(2h²) ≈ 1 对于典型距离，使 log_density 在合理范围内。
     
     Args:
         embeddings: (N, D) array of embedding vectors.
@@ -22,22 +24,37 @@ def estimate_bandwidth(embeddings: np.ndarray) -> float:
     
     N, D = embeddings.shape
     
-    # Handle edge cases
+    # 边界情况
     if N <= 1:
-        return 1.0  # Default fallback
+        return 1.0
     
-    # Calculate average standard deviation across dimensions
-    stds = np.std(embeddings, axis=0)
-    sigma = np.mean(stds)
+    # 计算成对距离的平方
+    dot_product = np.dot(embeddings, embeddings.T)
+    sq_norm = np.diag(dot_product)
+    dist_sq = sq_norm[:, np.newaxis] + sq_norm[np.newaxis, :] - 2 * dot_product
+    dist_sq = np.maximum(dist_sq, 0.0)
     
-    # Handle zero variance (identical points)
-    if sigma < 1e-10:
-        return 1e-3  # Small positive value
+    # 提取上三角 (不含对角线) 的距离
+    upper_tri_indices = np.triu_indices(N, k=1)
+    distances = np.sqrt(dist_sq[upper_tri_indices])
     
-    # Silverman's rule: h = (4 * sigma^5 / (3 * N))^(1/5)
-    h = (4 * sigma**5 / (3 * N)) ** 0.2
+    if len(distances) == 0:
+        return 1.0
+    
+    # 使用中位距离作为尺度参数
+    median_dist = np.median(distances)
+    
+    # 避免零带宽
+    if median_dist < 1e-10:
+        # 回退到基于 L2 范数的估计
+        avg_norm = np.mean(np.sqrt(sq_norm))
+        return max(avg_norm * 0.1, 1e-3)
+    
+    # h = median_dist / sqrt(2) 确保典型距离下 exp(-d²/(2h²)) ≈ exp(-1)
+    h = median_dist / np.sqrt(2)
     
     return float(h)
+
 
 
 def gaussian_kernel_log_density(

@@ -209,9 +209,13 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
     print(f"[Evolution] Allocated {total_budget} children across {len(valid_active)} strategies "
           f"({strategies_with_children} with children, {strategies_without_children} with 0)")
     
+    # Store previous entropy for convergence detection (entropy change rate)
+    prev_entropy = state.get("spatial_entropy", None)
+    
     return {
         **state,
         "spatial_entropy": spatial_entropy,
+        "prev_spatial_entropy": prev_entropy,  # For convergence detection
         "effective_temperature": float(t_eff),
         "normalized_temperature": float(tau),
         "iteration_count": iteration_count,

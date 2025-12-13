@@ -31,28 +31,28 @@ def should_continue(state: DeepThinkState) -> Literal["continue", "end"]:
     
     Convergence conditions (any triggers 'end'):
     1. iteration_count >= max_iterations (default: 10)
-    2. spatial_entropy < entropy_threshold (default: 0.1) -> converged
+    2. Entropy has stabilized (relative change below threshold)
     3. No active strategies remain
+    
+    Note: In high-dimensional spaces, differential entropy can be negative.
+    We use entropy CHANGE RATE (not absolute value) for convergence detection.
+    First iteration automatically continues since no previous entropy exists.
     
     Returns:
         "continue" to keep evolving, "end" to terminate.
     """
     config = state.get("config", {})
     max_iterations = config.get("max_iterations", 10)
-    entropy_threshold = config.get("entropy_threshold", 0.01)  # Lowered for high-dim embeddings
+    entropy_change_threshold = config.get("entropy_change_threshold", 0.1)  # Relative change
     
     iteration_count = state.get("iteration_count", 0)
-    spatial_entropy = state.get("spatial_entropy", float("inf"))
+    spatial_entropy = state.get("spatial_entropy", 0.0)
+    prev_entropy = state.get("prev_spatial_entropy", None)
     strategies = state.get("strategies", [])
     
     # Check if iteration limit reached
     if iteration_count >= max_iterations:
         print(f"[Convergence] Max iterations ({max_iterations}) reached. Ending.")
-        return "end"
-    
-    # Check if entropy converged
-    if spatial_entropy < entropy_threshold:
-        print(f"[Convergence] Entropy ({spatial_entropy:.4f}) below threshold ({entropy_threshold}). Converged!")
         return "end"
     
     # Check if any active strategies remain
@@ -61,7 +61,22 @@ def should_continue(state: DeepThinkState) -> Literal["continue", "end"]:
         print("[Convergence] No active strategies remain. Ending.")
         return "end"
     
-    print(f"[Convergence] Continuing (iter={iteration_count}, entropy={spatial_entropy:.4f})")
+    # Entropy convergence check (natural: skipped on first iteration when prev_entropy is None)
+    if prev_entropy is not None:
+        # Use relative change for convergence (handles both positive and negative entropy)
+        entropy_change = abs(spatial_entropy - prev_entropy)
+        reference = max(abs(spatial_entropy), abs(prev_entropy), 1.0)  # Avoid division by zero
+        relative_change = entropy_change / reference
+        
+        if relative_change < entropy_change_threshold:
+            print(f"[Convergence] Entropy stabilized (change={relative_change:.4f} < {entropy_change_threshold}). Converged!")
+            return "end"
+        else:
+            print(f"[Convergence] Continuing (iter={iteration_count}, entropy={spatial_entropy:.4f}, change={relative_change:.4f})")
+    else:
+        # First iteration - no previous entropy to compare
+        print(f"[Convergence] Continuing (iter={iteration_count}, entropy={spatial_entropy:.4f}, first iteration)")
+    
     return "continue"
 
 
