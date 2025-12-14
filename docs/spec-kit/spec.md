@@ -211,16 +211,8 @@ n_s = f(C * exp(V_s / T) / Z)
 
 > **注意**: 由于向上取整，实际总分配可能略超过 `total_child_budget`。
 
-**温度耦合配置**:
-
-| 配置项 | 类型 | 默认值 | 描述 |
-|--------|------|--------|------|
-| `temperature_coupling_mode` | string | "decoupled" | 温度耦合模式 |
-| `fixed_llm_temperature` | float | 1.0 | 解耦模式下LLM固定温度 |
-| `max_llm_temperature` | float | 1.5 | 耦合模式下LLM温度上限 |
-
-- **解耦模式 (decoupled)**: 系统温度仅影响资源分配，LLM使用固定温度
-- **耦合模式 (coupled)**: 系统温度同时影响资源分配和LLM生成多样性
+**LLM 温度**: 固定为 `T=1.0` (Logic Manifold Integrity)。
+系统温度 τ 仅影响资源分配 (Sampling Count N / Beam Width)，不影响 LLM 推理。
 
 ---
 
@@ -386,8 +378,7 @@ interface SimulationRequest {
     max_iterations?: int;      // 默认: 10
     entropy_threshold?: float; // 默认: 0.01
     total_child_budget?: int;  // 默认: 6
-    temperature_coupling?: "auto" | "manual"; // 默认: "auto"
-    manual_llm_temperature?: float; // 默认: 1.0
+    // NOTE: LLM temperature is always 1.0 (Logic Manifold Integrity)
   };
 }
 ```

@@ -25,8 +25,8 @@ export const ControlTower: React.FC = () => {
         max_iterations: 10,
         entropy_threshold: 0.1,
         total_child_budget: 6,
-        temperature_coupling: 'auto', // 'auto' | 'manual'
-        manual_llm_temperature: 1.0
+        // NOTE: LLM temperature is always 1.0 (Logic Manifold Integrity)
+        // System temperature τ controls resource allocation only
     });
     const [showConfig, setShowConfig] = useState(false);
     const [selectedNode, setSelectedNode] = useState<StrategyNode | null>(null);
@@ -193,25 +193,8 @@ export const ControlTower: React.FC = () => {
                         {/* 3. Physics & Temperature */}
                         <div className="config-section">
                             <h4 style={{ marginBottom: '0.5rem', borderBottom: '1px solid #444', paddingBottom: '0.25rem' }}>Physics & Temp</h4>
-                            <div className="config-item">
-                                <label>Temp Coupling</label>
-                                <select
-                                    value={config.temperature_coupling}
-                                    onChange={e => setConfig({ ...config, temperature_coupling: e.target.value })}
-                                    style={{ width: '100%', padding: '0.25rem', background: '#333', border: '1px solid #555', color: '#fff' }}
-                                >
-                                    <option value="auto">Auto (Dynamic)</option>
-                                    <option value="manual">Manual (Fixed)</option>
-                                </select>
-                            </div>
-                            {config.temperature_coupling === 'manual' && (
-                                <div className="config-item">
-                                    <label>Fixed Temp: {config.manual_llm_temperature}</label>
-                                    <input type="range" min="0" max="2" step="0.1" value={config.manual_llm_temperature}
-                                        onChange={e => setConfig({ ...config, manual_llm_temperature: parseFloat(e.target.value) })}
-                                        style={{ width: '100%' }} />
-                                </div>
-                            )}
+                            {/* NOTE: LLM temperature is always 1.0 (Logic Manifold Integrity) */}
+                            {/* System temperature τ controls Sampling Count (N) / Beam Width */}
                             <div className="config-item">
                                 <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} title="Controls initial exploration intensity. Higher values (1.5-2.0) encourage innovation; lower values (0.5-1.0) favor stability.">
                                     <span style={{ borderBottom: '1px dotted #888', cursor: 'help' }}>Max Temp (T_max)</span>
@@ -278,6 +261,6 @@ export const ControlTower: React.FC = () => {
                     }
                 }}
             />
-        </div>
+        </div >
     );
 };

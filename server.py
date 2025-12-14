@@ -179,8 +179,8 @@ class SimulationConfig(BaseModel):
     max_iterations: int = 10  # Maximum evolution iterations before forced termination
     entropy_threshold: float = 0.01  # Lower threshold for high-dim embeddings (was 0.1)
     total_child_budget: int = 6  # Total children to allocate across strategies
-    temperature_coupling: str = "auto"  # "auto" or "manual"
-    manual_llm_temperature: float = 1.0  # Used when temperature_coupling="manual"
+    # NOTE: LLM temperature is always 1.0 (Logic Manifold Integrity)
+    # System temperature τ controls resource allocation only (see temperature_helper.py)
 
 class SimulationRequest(BaseModel):
     problem: str

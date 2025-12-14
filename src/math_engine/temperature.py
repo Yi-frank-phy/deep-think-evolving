@@ -10,6 +10,16 @@ def calculate_effective_temperature(
     Energy-LogProbability relation.
     
     Theory: ln p(v) = (1/T) * v + C
+    
+    STATE PROBE (Inverse Canonical Ensemble):
+    We solve the inverse problem to estimate the system's current "diversity 
+    temperature" from the EMPIRICAL DISTRIBUTION of the strategy batch.
+    
+    - p(v): Empirical density distribution of current strategies (KDE-estimated)
+    - This result is used as a FEEDBACK SIGNAL for the next step's resource allocation
+    - Higher T_eff → more uniform distribution → increase exploration (higher N)
+    - Lower T_eff → concentrated distribution → favor exploitation (lower N)
+    
     We estimate 1/T using linear regression slope k. 
     T_eff = 1 / |k| = | Var(V) / Cov(V, ln p) |
     

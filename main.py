@@ -31,13 +31,8 @@ def parse_args(argv: Optional[list[str]] = None) -> Namespace:
         default=5,
         help="Maximum evolution iterations before termination.",
     )
-    parser.add_argument(
-        "--temperature-coupling",
-        type=str,
-        choices=["auto", "manual"],
-        default="auto",
-        help="Temperature coupling mode: 'auto' (τ->LLM temp) or 'manual' (fixed 1.0).",
-    )
+    # NOTE: --temperature-coupling removed. LLM temperature is always 1.0.
+    # System temperature τ controls resource allocation only.
     return parser.parse_args(argv)
 
 
@@ -71,15 +66,14 @@ async def run_pipeline(args: Namespace) -> None:
             "total_child_budget": 6,
             "t_max": 2.0,
             "c_explore": 1.0,
-            "temperature_coupling": args.temperature_coupling,
-            "manual_llm_temperature": 1.0,
+            # NOTE: LLM temperature is always 1.0 (Logic Manifold Integrity)
         },
         "virtual_filesystem": {},
         "history": [],
         "iteration_count": 0,
     }
 
-    print(f"\nConfig: max_iterations={args.max_iterations}, coupling={args.temperature_coupling}")
+    print(f"\nConfig: max_iterations={args.max_iterations}")
 
     # Execute the graph (async for streaming support)
     try:

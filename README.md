@@ -321,23 +321,43 @@ UCB = V_norm + c × sqrt(τ × (1 - density_norm))
 
 ---
 
-### 5. 温度耦合模式
+### 5. 热力学控制机制 (Thermodynamic Control Mechanism)
 
-支持两种温度-LLM关系模式：
+系统温度 τ **严格控制计算资源分配**（采样数 N、Beam Width），而非 LLM 的采样温度。
 
-| 模式 | LLM Temperature | 适用场景 |
-|------|----------------|---------|
-| **Decoupled (解耦)** | 固定值 (默认1.0) | 精密推理、代码生成 |
-| **Coupled (耦合)** | min(τ, max_temp) | 创意任务、策略发散 |
+> **设计原则 (Logic Manifold Integrity)**: LLM 的内在推理温度固定为 `T=1.0`，以保持逻辑流形完整性。
+> Google DeepMind 建议推理模型（如 Gemini 3）保持 `temperature=1.0`。
 
-```python
-# src/core/temperature_helper.py
-def get_llm_temperature(state):
-    if mode == "coupled":
-        return min(state["normalized_temperature"], max_temp)
-    else:
-        return fixed_temp  # 默认 1.0
+**资源分配公式**:
+
 ```
+n_s = f(C × exp(V_s / τ) / Z)
+
+其中:
+- n_s = 策略 s 的采样/分支预算
+- τ = 系统有效温度 (State Probe 估计)
+- V_s = 策略 s 的 Judge 评分
+- Z = Σ exp(V_j / τ) 配分函数
+```
+
+**有效温度计算** (State Probe - 逆正则系综问题):
+
+从当前批次的**经验分布** p(v) 估计系统"多样性温度"：
+
+```
+k = Cov(V, ln p) / Var(V)
+T_eff = |1 / k|
+```
+
+- `p(v)`: 当前策略批次的经验密度分布 (KDE 估计)
+- 这是一个**状态探测器**：估计系统当前多样性温度，作为下一步资源分配的反馈信号
+
+**温度语义**:
+
+| 温度状态 | 含义 | 资源分配行为 |
+|---------|------|-------------|
+| 高 τ (接近1) | 策略分布均匀 | 广播探索 (High N) |
+| 低 τ (接近0) | 策略趋于集中 | 贪婪收敛 (Low N) |
 
 ---
 
@@ -431,11 +451,10 @@ npm run test
 | `max_iterations` | 10 | 最大进化循环次数 |
 | `entropy_change_threshold` | 0.1 | 收敛判定熵变化率阈值 |
 | `total_child_budget` | 6 | 每轮生成的子策略预算 (实际可能略超) |
-| `t_max` | 2.0 | 最大温度上限 |
+| `t_max` | 2.0 | 最大系统温度上限 (用于归一化) |
 | `c_explore` | 1.0 | UCB 探索系数 |
-| `temperature_coupling_mode` | "decoupled" | 温度耦合模式 ("coupled" / "decoupled") |
-| `fixed_llm_temperature` | 1.0 | 解耦模式下 LLM 固定温度 |
-| `max_llm_temperature` | 1.5 | 耦合模式下 LLM 温度上限 |
+
+> **Note**: LLM 推理温度固定为 `T=1.0` (Logic Manifold Integrity)，不可配置。
 
 ---
 
