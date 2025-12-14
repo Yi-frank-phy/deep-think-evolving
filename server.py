@@ -276,7 +276,9 @@ class SimulationManager:
             current_agent = None
 
             # Use astream with stream_mode="updates" - returns dict {node_name: output}
-            async for chunk in graph_app.astream(initial_state, stream_mode="updates"):
+            # Set recursion_limit high enough to allow for research loops and evolution loops
+            run_config = {"recursion_limit": 100}  # Allow up to 100 recursive calls
+            async for chunk in graph_app.astream(initial_state, stream_mode="updates", config=run_config):
                 # chunk is a dict like {"node_name": node_output}
                 for node_name, node_output in chunk.items():
                     print(f"[Stream] Node: {node_name}")
