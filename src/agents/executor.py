@@ -431,9 +431,15 @@ def executor_node(state: DeepThinkState) -> DeepThinkState:
                     "density": None,
                     "log_density": None,
                     "score": 0.0,
+                    "ucb_score": None,
+                    "child_quota": 0,
                     "status": "active",
                     "trajectory": [f"[Executor] Generated as variant of {strategy['name']}"],
-                    "parent_id": strategy["id"]
+                    "parent_id": strategy["id"],
+                    "pruned_at_report_version": None,
+                    # 完整响应和思维摘要 - 确保前端能显示完整内容
+                    "full_response": result.get("execution_result", ""),
+                    "thinking_summary": f"由策略 '{strategy['name']}' 分支生成。\n洞见: {', '.join(result.get('new_insights', []))}"
                 }
                 new_strategies.append(new_node)
                 print(f"    Created variant: '{new_node['name']}'")

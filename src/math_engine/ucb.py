@@ -14,59 +14,38 @@ def calculate_ucb_score(
     """
     Calculates the Dynamic Normalized UCB score for a single item.
     
-    Formula:
-    Score = Normalized(V) + c * tau * (sqrt(ln N) / sqrt(p))
-    
-    Wait, the doc derivation says:
-    Exploration Bonus propto sqrt(ln N) / sqrt(p)
-    
-    Doc 3.2.4.3 says:
-    Score(x) = (V - V_min)/(V_max - V_min + eps) + c * tau * (1 / sqrt(p(x)))
-    
-    Note: The doc formula in 3.2.4.3 omits the sqrt(ln N) term explicitly in the final formula, 
-    possibly absorbing it into 'c' or assuming it's part of the standard UCB derivation 
-    but the specific implemented formula is: c * tau * (1/sqrt(p)).
-    
-    However, standard UCB is c * sqrt(ln N / n). 
-    Here n ~ p * N. So 1/sqrt(n) ~ 1/sqrt(p*N) = 1/sqrt(p) * 1/sqrt(N).
-    
-    We will follow the explicit formula in Section 3.2.4.3:
-    Bonus = c * tau * (1 / sqrt(p))
-    
     Args:
         value: Raw value V(x).
         density: Probability density p(x).
         v_min: Minimum value in population.
         v_max: Maximum value in population.
-        count_total: Total population size N (not strictly used in doc formula 3.2.4.3 but commonly in UCB).
-                     kept for potential extension.
+        count_total: Not used.
         tau: Normalized temperature.
         c: Exploration constant.
-        epsilon: Stability term for normalization.
+        epsilon: Stability term.
         
     Returns:
         UCB score.
     """
-    
-    # Normalize Value
+    # 1. Normalize Value to [0, 1]
     v_range = v_max - v_min
     if v_range < epsilon:
-        normalized_value = 0.5 # Default middle if range is degenerate
+        normalized_value = 0.5
     else:
         normalized_value = (value - v_min) / (v_range + epsilon)
         
-    # Exploration Term
-    # handle density close to 0
-    if density <= 0:
-        inv_sqrt_p = 1e6 # Large penalty/bonus? 
-        # Low density means High exploration bonus.
-        # If density is 0, bonus should be high.
+    # 2. Exploration Term with dimensionality correction
+    # Single item calculation lacks context of p_max, so we assume
+    # the caller has already normalized density or we use raw (danger of explosion).
+    # For safety in single-item calls, we clamp, but batch mode is preferred.
+    if density <= 1e-30:
+         inv_sqrt_p = 100.0 # Cap for numerical stability
     else:
-        inv_sqrt_p = 1.0 / np.sqrt(density)
-        
-    exploration_bonus = c * tau * inv_sqrt_p
-    
-    return normalized_value + exploration_bonus
+         inv_sqrt_p = 1.0 / np.sqrt(density)
+
+    # Note: Single item calculation is inherently risky for high-dim scaling
+    # without p_max context. Batch calculation is strongly recommended.
+    return normalized_value + c * tau * inv_sqrt_p
 
 def batch_calculate_ucb(
     values: np.ndarray,
@@ -77,21 +56,49 @@ def batch_calculate_ucb(
     c: float = 1.0
 ) -> np.ndarray:
     """
-    Vectorized calculation of UCB scores.
+    Vectorized UCB calculation using Relative Density.
+    
+    Fix for High-Dimensionality:
+    In 4096-dim space, raw density p(x) has a tiny magnitude (e.g. 1e-1000) due 
+    to volume scaling. This causes 1/sqrt(p) to explode.
+    
+    Solution: 
+    Use Relative Density p_rel(x) = p(x) / p_max.
+    Exploration = c * tau * (1 / sqrt(p_rel))
+    
+    This preserves the exact shape/physics of the distribution derived from 
+    Gaussian kernels, but eliminates the dimension-dependent constant factor.
     """
-    # Normalize Values
-    epsilon = 1e-5
+    epsilon = 1e-9
+    
+    # 1. Normalize Values to [0, 1]
     v_range = v_max - v_min
-    if v_range < epsilon:
+    if v_range < 1e-5:
         normalized_values = np.full_like(values, 0.5)
     else:
-        normalized_values = (values - v_min) / (v_range + epsilon)
+        normalized_values = (values - v_min) / (v_range + 1e-5)
         
-    # Exploration Terms
-    # Avoid div by zero
-    safe_densities = np.maximum(densities, 1e-9)
-    inv_sqrt_p = 1.0 / np.sqrt(safe_densities)
+    # 2. Relative Density Calculation
+    # p_max captures the "scale" of the current probability landscape
+    # In high-dim space, p_max can be extremely small (e.g. 1e-1000) - this is NORMAL
+    p_max = np.max(densities)
     
-    exploration_bonuses = c * tau * inv_sqrt_p
+    # Only guard against actual zero (not small values)
+    if p_max == 0:
+        p_max = 1.0  # Fallback only if literally zero
+        
+    # p_rel will be in (0, 1]
+    # We use stable division
+    p_rel = densities / p_max
     
-    return normalized_values + exploration_bonuses
+    # Clip small values to prevent 1/sqrt(0)
+    p_rel = np.maximum(p_rel, epsilon)
+    
+    # 3. Exploration Term
+    # When p_rel = 1 (most explored), term = 1.0 -> Bonus = c * tau
+    # When p_rel -> 0 (least explored), term increases
+    exploration_term = 1.0 / np.sqrt(p_rel)
+    
+    return normalized_values + c * tau * exploration_term
+
+

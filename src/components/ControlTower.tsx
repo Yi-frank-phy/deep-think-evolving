@@ -9,6 +9,7 @@ import { NodeDetailModal } from './NodeDetailModal';
 import { ActivityPanel } from './ActivityPanel';
 import { InterventionPanel } from './InterventionPanel';
 import { ForceSynthesizeBar } from './ForceSynthesizeBar';
+import { ThinkingPanel } from './ThinkingPanel';
 import { useSimulation } from '../hooks/useSimulation';
 import { useModels } from '../hooks/useModels';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
@@ -288,27 +289,44 @@ export const ControlTower: React.FC = () => {
                 )}
             </header>
 
-            <main className="dashboard-main">
-                <div className="left-panel">
-                    <KPIDashboard
+            <main className="dashboard-main" style={{
+                display: 'grid',
+                gridTemplateColumns: '320px 1fr 280px',
+                gap: '16px',
+                padding: '16px',
+                height: 'calc(100vh - 180px)',
+                overflow: 'hidden'
+            }}>
+                {/* 左侧: Thinking Panel (Gemini Deep Research 风格) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
+                    <ThinkingPanel
                         state={state}
-                        currentAgent={currentAgent}
-                        simulationStatus={simulationStatus}
-                    />
-                    <ActivityPanel
                         activityLog={activityLog}
                         currentAgent={currentAgent}
                         simulationStatus={simulationStatus}
                     />
+                </div>
+
+                {/* 中间: TaskGraph (图状结构演化) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
                     <TaskGraph
                         state={state}
                         onNodeClick={handleNodeClick}
                         selectedNodeIds={selectedForSynthesize}
                     />
-                    <ChatPanel />
+                    {/* 底部 KPI */}
+                    <KPIDashboard
+                        state={state}
+                        currentAgent={currentAgent}
+                        simulationStatus={simulationStatus}
+                    />
                 </div>
 
-                <KnowledgePanel />
+                {/* 右侧: 知识库 + 报告 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
+                    <KnowledgePanel />
+                    <ChatPanel />
+                </div>
             </main>
 
             <NodeDetailModal

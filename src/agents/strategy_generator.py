@@ -169,10 +169,17 @@ def strategy_generator_node(state: DeepThinkState) -> DeepThinkState:
             "density": None,
             "log_density": None,
             "score": 0.0,
+            "ucb_score": None,
+            "child_quota": 0,
             
             "status": "active",
             "trajectory": ["[StrategyGenerator] Initial generation"],
-            "parent_id": None
+            "parent_id": None,
+            "pruned_at_report_version": None,
+            
+            # 完整响应 - 初始策略的 rationale 就是完整响应
+            "full_response": raw.get("rationale", ""),
+            "thinking_summary": f"初始策略生成。假设: {raw.get('initial_assumption', '')}"
         }
         new_strategies.append(node)
     

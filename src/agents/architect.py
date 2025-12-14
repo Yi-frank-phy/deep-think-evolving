@@ -99,8 +99,8 @@ def _format_strategies_for_prompt(strategies: List[StrategyNode]) -> str:
         lines.append(
             f"{i}. [{s['id'][:8]}...] {s['name']}\n"
             f"   UCB: {ucb:.3f}, Score: {score:.3f}, 配额: {quota}\n"
-            f"   理由: {s.get('rationale', '')[:100]}...\n"
-            f"   假设: {s.get('assumption', '')[:80]}..."
+            f"   理由: {s.get('rationale', '')}\n"
+            f"   假设: {s.get('assumption', '')}"
         )
     
     return "\n\n".join(lines)

@@ -17,6 +17,7 @@ from src.agents.task_decomposer import task_decomposer_node
 from src.agents.researcher import research_node
 from src.agents.strategy_generator import strategy_generator_node
 from src.agents.architect import architect_scheduler_node, strategy_architect_node
+from src.agents.propagation import propagation_node  # 子节点生成
 
 # Existing agents
 from src.agents.judge import judge_node
@@ -140,6 +141,7 @@ def build_deep_think_graph():
     workflow.add_node("distiller_for_judge", distiller_for_judge_node)
     workflow.add_node("judge", judge_node)
     workflow.add_node("evolution", evolution_node)
+    workflow.add_node("propagation", propagation_node)  # 新增: 子节点生成
     workflow.add_node("architect_scheduler", architect_scheduler_node)
     workflow.add_node("executor", executor_node)
     # Note: Report generation is now dynamically handled by Executor (no fixed writer node)
@@ -169,11 +171,12 @@ def build_deep_think_graph():
     workflow.add_edge("judge", "evolution")
     
     # ========== Phase 3: Execution Loop ==========
-    # Evolution -> (should_continue?) -> ArchitectScheduler or END
-    # Note: Report is generated dynamically by Executor during the loop,
-    # not as a fixed terminal node. Architect decides when to assign synthesis tasks.
+    # Evolution → Propagation → (should_continue?) → ArchitectScheduler or END
+    # Propagation 基于 child_quota 生成子节点
+    workflow.add_edge("evolution", "propagation")
+    
     workflow.add_conditional_edges(
-        "evolution",
+        "propagation",
         should_continue,
         {
             "continue": "architect_scheduler",
