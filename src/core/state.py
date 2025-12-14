@@ -77,8 +77,9 @@ class DeepThinkState(TypedDict):
     # Placeholder for now, can be a simple Dict
     virtual_filesystem: Dict[str, str]
     
-    # History of operations for transparency
-    history: Annotated[List[str], operator.add]
+    # History of operations for transparency (最近20条，避免无限累积)
+    # 注意：不使用 Annotated[..., operator.add]，改为在各节点中手动管理
+    history: List[str]
     
     # Iteration tracking for convergence
     iteration_count: int

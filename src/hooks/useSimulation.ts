@@ -50,10 +50,9 @@ export const useSimulation = () => {
                                 return {
                                     ...prev,
                                     ...update,
-                                    // Append history instead of replacing, as backend sends deltas
-                                    history: update.history
-                                        ? [...(prev.history || []), ...update.history]
-                                        : prev.history
+                                    // History: 使用后端发送的完整历史，不再累积
+                                    // 后端现在管理 history 的大小限制
+                                    history: update.history || prev.history
                                 };
                             });
                             break;
