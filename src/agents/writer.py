@@ -1,7 +1,13 @@
 """
-WriterAgent - 最终报告生成器
+WriterAgent - 报告生成工具
 
-在进化过程收敛后，将所有研究发现综合成一份结构化的最终报告/回答。
+注意: 此模块现在主要作为独立工具函数使用。
+报告生成已从固定图节点改为由 Executor 动态调用。
+
+当前状态:
+- `writer_node` 函数仍可独立调用（用于测试或特殊用途）
+- 主要报告生成逻辑已迁移到 executor.py 的 execute_synthesis_task()
+- 新的报告生成支持硬剪枝机制和知识库归档
 
 参考设计: LangChain Open Deep Research 的 final_report_generation
 """

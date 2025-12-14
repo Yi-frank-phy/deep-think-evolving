@@ -103,7 +103,7 @@ export type SimulationMessage =
     | { type: "agent_complete"; data: { agent: AgentPhase; message: string; duration_ms?: number } }
     // Human-in-the-Loop messages
     | { type: "hil_required"; data: HilRequest }
-    // Final report from WriterAgent
+    // Final report (generated dynamically by Executor when Architect assigns synthesis tasks)
     | { type: "final_report"; data: string };
 
 // Human-in-the-Loop request type

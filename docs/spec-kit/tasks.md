@@ -52,12 +52,26 @@
 | T-035 | 实现分段取整 Boltzmann 分配 (<1四舍五入, >=1向上取整) | Backend | Done | evolution.py |
 | T-036 | 添加温度耦合配置 (coupled/decoupled 模式) | Backend | Done | temperature_helper.py |
 
+## 动态报告生成与硬剪枝 (新增)
+
+| 编号 | 任务 | 负责人 | 状态 | 关联文档 |
+| ---- | ---- | ------ | ---- | -------- |
+| T-037 | 实现动态报告生成 (Executor 综合任务) | Backend Agent | Done | spec.md §3.7, §13 |
+| T-038 | 实现硬剪枝机制 (status=pruned_synthesized) | Backend Agent | Done | spec.md §13 |
+| T-039 | 实现策略归档 (write_strategy_archive) | Backend Agent | Done | spec.md §6.3 |
+| T-040 | 更新 Architect Prompt (元策略框架+剪枝警告) | Backend Agent | Done | architect.py |
+| T-041 | 更新 Executor Prompt (剪枝通知+完整性要求) | Backend Agent | Done | executor.py |
+| T-042 | 移除固定 Writer 节点 (改为动态调用) | Backend Agent | Done | graph_builder.py |
+| T-043 | 添加硬剪枝测试 (test_hard_pruning.py) | TDD Agent | Done | tests/ |
+| T-044 | 增强 check_specs.py v3.0 (行为验证) | Spec Sync | Done | scripts/check_specs.py |
+
 ---
 
 > 状态取值：`TODO`（待开始）、`In Progress`（进行中）、`Done`（完成）、`Backlog`（暂缓）。
 
 ## 版本历史
 
+- **2025-12-14**: 新增 T-037~T-044 动态报告生成与硬剪枝任务
 - **2025-12-13**: 清理过时PR任务(T-024~T-026), 新增 T-028~T-031 SpecKit维护任务
 - **2025-12-12**: 新增 T-021 至 T-027，反映 SpecKit 完整集成工作
 - **2025-12**: 更新架构演进任务状态 (T-016 至 T-020 标记为 Done)
