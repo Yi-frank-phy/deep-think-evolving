@@ -96,6 +96,97 @@ def write_experience(
     return f"Experience saved: {file_path.name}"
 
 
+def write_strategy_archive(
+    strategy: Dict[str, Any],
+    synthesis_context: str,
+    branch_rationale: str,
+    report_version: int
+) -> str:
+    """
+    Archive a strategy to knowledge base before hard pruning.
+    
+    This is called when a strategy is synthesized into a report.
+    All valuable information is preserved in the vector database:
+    - Core strategy info (name, rationale, assumption)
+    - Branch decision rationale (why this direction was chosen)
+    - Execution trajectory
+    - Score and evaluation results
+    
+    Args:
+        strategy: The strategy node to archive
+        synthesis_context: Context about why this strategy was synthesized
+        branch_rationale: Rationale for the branch decisions made
+        report_version: Which report version this was synthesized into
+        
+    Returns:
+        Confirmation message
+    """
+    kb_path = get_kb_path()
+    
+    # Generate unique filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    short_id = str(uuid.uuid4())[:8]
+    safe_name = "".join(c if c.isalnum() or c in "_ -" else "_" for c in strategy.get("name", "unknown"))[:30]
+    filename = f"{timestamp}_strategy_archive_{safe_name}_{short_id}.json"
+    
+    # Extract trajectory summary
+    trajectory = strategy.get("trajectory", [])
+    trajectory_summary = "\n".join(trajectory[-5:]) if trajectory else "No trajectory"
+    
+    # Build archive record
+    archive = {
+        "id": str(uuid.uuid4()),
+        "type": "strategy_archive",
+        "title": f"策略归档: {strategy.get('name', 'Unknown')}",
+        "content": json.dumps({
+            "strategy_id": strategy.get("id"),
+            "strategy_name": strategy.get("name"),
+            "rationale": strategy.get("rationale"),
+            "assumption": strategy.get("assumption"),
+            "final_score": strategy.get("score", 0),
+            "final_status": strategy.get("status"),
+            "trajectory_summary": trajectory_summary,
+            "branch_rationale": branch_rationale,
+            "synthesis_context": synthesis_context,
+            "report_version": report_version
+        }, ensure_ascii=False),
+        "tags": [
+            "archived",
+            "strategy",
+            strategy.get("name", "unknown"),
+            f"report_v{report_version}"
+        ],
+        "related_strategy": strategy.get("name"),
+        "created_at": datetime.now().isoformat(),
+        "metadata": {
+            "source": "synthesis_pruning",
+            "version": "1.0",
+            "original_strategy_id": strategy.get("id")
+        }
+    }
+    
+    # Generate embedding for semantic search
+    embedding_text = f"""
+策略: {strategy.get('name', '')}
+理由: {strategy.get('rationale', '')}
+假设: {strategy.get('assumption', '')}
+分支决策: {branch_rationale}
+轨迹: {trajectory_summary}
+综合上下文: {synthesis_context}
+"""
+    embedding = embed_text(embedding_text)
+    if embedding:
+        archive["embedding"] = embedding
+    
+    # Write to file
+    file_path = kb_path / filename
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(archive, f, ensure_ascii=False, indent=2)
+    
+    print(f"[KB] Strategy archived: {strategy.get('name')} -> {file_path.name}")
+    return f"Strategy archived: {file_path.name}"
+
+
 @tool
 def search_experiences(
     query: str,

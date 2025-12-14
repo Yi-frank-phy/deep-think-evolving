@@ -78,10 +78,11 @@ class TestExecutorSynthesis:
         
         result = execute_synthesis_task(
             problem="测试问题",
-            strategies=[{"name": "测试策略", "score": 0.8, "rationale": "测试", "assumption": "假设"}],
+            strategies=[{"id": "test-id-1", "name": "测试策略", "status": "active", "score": 0.8, "rationale": "测试", "assumption": "假设", "trajectory": []}],
             decision={"executor_instruction": "生成报告"},
             research_context=None,
             existing_report=None,
+            report_version=0,
             api_key="",
             use_mock=True
         )
@@ -89,6 +90,9 @@ class TestExecutorSynthesis:
         assert "report" in result
         assert result["report"] is not None
         assert "Mock" in result["report"]
+        # Verify pruning IDs are returned
+        assert "prune_strategy_ids" in result
+        assert "test-id-1" in result["prune_strategy_ids"]
 
 
 class TestGraphStructure:
