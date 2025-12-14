@@ -49,6 +49,8 @@
 | T-032 | 移除测试Mock依赖，使用真实API | TDD Agent | Done | tests/ |
 | T-033 | 更新 StrategyNode 规范 (ucb_score, child_quota) | Spec Sync | Done | spec.md §3.3 |
 | T-034 | 增强 check_specs.py 添加函数签名验证 | Spec Sync | Done | scripts/check_specs.py |
+| T-035 | 实现分段取整 Boltzmann 分配 (<1四舍五入, >=1向上取整) | Backend | Done | evolution.py |
+| T-036 | 添加温度耦合配置 (coupled/decoupled 模式) | Backend | Done | temperature_helper.py |
 
 ---
 

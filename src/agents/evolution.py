@@ -20,8 +20,12 @@ def calculate_boltzmann_allocation(
     """
     Calculate child node allocation using pure Boltzmann distribution (Ising model soft pruning).
     
-    Formula: n_s = round(C * exp(V_s / T) / Z)
+    Formula: n_s = f(C * exp(V_s / T) / Z)
     where Z = sum(exp(V_j / T)) is the partition function.
+    
+    Rounding rules (分段取整):
+    - quota < 1: 四舍五入 (gives low-value strategies fair chance)
+    - quota >= 1: 向上取整 (ensures high-value strategies get sufficient resources)
     
     This implements pure Ising model principle without boundary hardcoding:
     - At low T: allocation naturally concentrates on high-value strategies
@@ -31,7 +35,7 @@ def calculate_boltzmann_allocation(
     Args:
         values: Array of value scores V for each strategy (typically 0-1 from Judge)
         t_eff: Effective temperature. Higher T -> more uniform allocation.
-        total_budget: Total number of children to allocate across all strategies.
+        total_budget: Total number of children to allocate (approximate, may exceed due to ceiling).
         min_allocation: Minimum children per strategy (default 0 for true soft pruning)
         
     Returns:
@@ -56,24 +60,25 @@ def calculate_boltzmann_allocation(
     # Probabilities (log-sum-exp ensures numerical stability)
     probs = np.exp(log_weights - log_Z)
     
-    # Allocate proportionally
+    # Raw allocation (continuous)
     raw_allocation = probs * total_budget
     
-    # Round while preserving total budget (largest remainder method)
-    allocation = np.floor(raw_allocation).astype(int)
-    remainder = total_budget - np.sum(allocation)
-    
-    # Distribute remainder by fractional parts
-    fractional_parts = raw_allocation - allocation
-    sorted_indices = np.argsort(fractional_parts)[::-1]
-    for i in range(int(remainder)):
-        allocation[sorted_indices[i]] += 1
+    # 分段取整 (Piecewise rounding):
+    # - quota < 1: 四舍五入 (round) - fair chance for low-value strategies
+    # - quota >= 1: 向上取整 (ceil) - ensure high-value strategies get enough
+    allocation = np.zeros(n, dtype=int)
+    for i, raw in enumerate(raw_allocation):
+        if raw < 1.0:
+            allocation[i] = int(round(raw))  # 四舍五入
+        else:
+            allocation[i] = int(np.ceil(raw))  # 向上取整
     
     # Apply minimum allocation if specified
     if min_allocation > 0:
         allocation = np.maximum(allocation, min_allocation)
     
     return allocation
+
 
 
 def evolution_node(state: DeepThinkState) -> DeepThinkState:

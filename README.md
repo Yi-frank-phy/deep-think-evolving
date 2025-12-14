@@ -216,36 +216,169 @@ deep-think-evolving/
 
 ## 进化算法详解
 
-### 空间熵 (Spatial Entropy)
+本系统的数学引擎受**统计力学**启发，将策略进化建模为一个热力学系统。
 
-系统通过嵌入向量计算策略间的语义多样性：
+### 核心物理隐喻
 
-```python
-H(Strategies) = -Σ p(s) * log(p(s))
-```
+| 物理概念 | 系统对应 | 代码位置 |
+|---------|---------|----------|
+| 粒子 (Particle) | 策略节点 (StrategyNode) | `state.py` |
+| 能量 (Energy) | 策略价值 (Judge Score) | `judge.py` |
+| 温度 (Temperature) | 探索倾向 (τ) | `temperature.py` |
+| 熵 (Entropy) | 策略多样性 | `kde.py` |
+| 配分函数 (Z) | 归一化因子 | `evolution.py` |
 
-其中概率密度通过**核密度估计 (KDE)** 从嵌入空间计算得出。
+---
 
-### 自适应温度 (τ)
+### 1. 空间熵 (Spatial Entropy)
 
-归一化温度控制探索与利用的平衡：
-
-```python
-τ = T_eff / T_max
-```
-
-- **高 τ（接近 1）**：高熵阶段，鼓励探索，LLM temperature 升高
-- **低 τ（接近 0）**：低熵阶段，收敛信号，LLM 更保守
-
-### UCB 评分
-
-策略选择基于改进的 UCB 公式：
+通过 **核密度估计 (KDE)** 计算策略在嵌入空间的分布密度：
 
 ```python
-UCB_Score = Value_Score + C * sqrt(log(N) / n)
+# 高斯核密度估计
+p(x) = (1/n) * Σ K_h(x - x_i)
+
+# 空间熵 (差分熵)
+H = -E[log p(x)] = -mean(log_densities)
 ```
 
-结合探索奖励（稀有概念加分）与开发价值。
+> **高维注意**: 4096维嵌入空间中，差分熵**可能为负值**。系统使用**熵变化率**而非绝对阈值判断收敛。
+
+**带宽估计** (Silverman规则):
+
+```python
+h = 1.06 * σ * n^(-1/5)
+```
+
+---
+
+### 2. 有效温度 (Effective Temperature)
+
+基于 **Value-LogDensity 线性回归** 估计系统温度：
+
+```
+ln p(v) = (1/T) * v + C
+```
+
+通过计算斜率 k = Cov(V, ln p) / Var(V)，得到：
+
+```python
+T_eff = |Var(V) / Cov(V, ln p)|
+τ = T_eff / T_max  # 归一化到 [0, 1]
+```
+
+**物理意义**:
+
+- **高 τ (接近1)**: 策略分布均匀，需要**发散探索**
+- **低 τ (接近0)**: 策略趋于集中，可以**收敛利用**
+
+---
+
+### 3. Boltzmann 资源分配 (Soft Pruning)
+
+**核心公式** (Ising模型):
+
+```
+n_s = f(C × exp(V_s / T) / Z)
+
+其中:
+- C = total_child_budget (总预算)
+- V_s = 策略s的Judge评分 (0-1)
+- T = T_eff (有效温度)
+- Z = Σ exp(V_j / T) (配分函数)
+```
+
+**分段取整规则** (Piecewise Rounding):
+
+| 原始配额 | 规则 | 示例 |
+|----------|------|------|
+| quota < 1 | 四舍五入 | 0.3→0, 0.5→1 |
+| quota >= 1 | 向上取整 | 1.1→2, 2.3→3 |
+
+**设计理由**:
+
+- 低分策略通过四舍五入获得**公平机会** (尾部探索)
+- 高分策略通过向上取整保证**足够资源** (头部利用)
+- 总分配可能**略超**预算，这是设计预期
+
+---
+
+### 4. UCB 评分 (Multi-Armed Bandit)
+
+结合**利用**与**探索**的评分公式：
+
+```python
+UCB = V_norm + c × sqrt(τ × (1 - density_norm))
+
+其中:
+- V_norm = (V - V_min) / (V_max - V_min)  # 归一化价值
+- density_norm = normalized density from KDE
+- c = c_explore 探索系数 (默认 1.0)
+- τ = 归一化温度
+```
+
+低密度（新颖）策略获得**探索奖励**。
+
+---
+
+### 5. 温度耦合模式
+
+支持两种温度-LLM关系模式：
+
+| 模式 | LLM Temperature | 适用场景 |
+|------|----------------|---------|
+| **Decoupled (解耦)** | 固定值 (默认1.0) | 精密推理、代码生成 |
+| **Coupled (耦合)** | min(τ, max_temp) | 创意任务、策略发散 |
+
+```python
+# src/core/temperature_helper.py
+def get_llm_temperature(state):
+    if mode == "coupled":
+        return min(state["normalized_temperature"], max_temp)
+    else:
+        return fixed_temp  # 默认 1.0
+```
+
+---
+
+### 6. 收敛条件
+
+系统在以下**任一**条件满足时终止：
+
+1. `iteration_count >= max_iterations` (默认: 10)
+2. 熵变化率稳定: `|ΔH| / max(|H|, 1.0) < threshold` (默认: 0.1)
+3. 无活跃策略剩余
+
+> **首轮跳过**: 第一次迭代无历史熵可比较，自动继续。
+
+---
+
+### 7. 资源分配架构
+
+```
+           ┌─────────────────┐
+           │    Evolution    │
+           │     (CFO)       │
+           └────────┬────────┘
+                    │ child_quota (数量)
+                    ▼
+           ┌─────────────────┐
+           │    Architect    │
+           │     (CTO)       │
+           └────────┬────────┘
+                    │ 具体任务类型
+                    ▼
+           ┌─────────────────┐
+           │    Executor     │
+           │    (Worker)     │
+           └─────────────────┘
+```
+
+**职责分离**:
+
+- **Evolution (CFO)**: 只计算 `child_quota` (探索配额数量)
+- **Architect (CTO)**: 决定具体任务类型 (探索/利用/变异)
+- **完全不剪枝**: 低分策略只是"冻结" (quota=0)，随时可能复活
 
 ---
 
@@ -296,11 +429,13 @@ npm run test
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `max_iterations` | 10 | 最大进化循环次数 |
-| `entropy_threshold` | 0.01 | 收敛判定熵阈值 |
-| `total_child_budget` | 6 | 每轮生成的子策略数量 |
+| `entropy_change_threshold` | 0.1 | 收敛判定熵变化率阈值 |
+| `total_child_budget` | 6 | 每轮生成的子策略预算 (实际可能略超) |
 | `t_max` | 2.0 | 最大温度上限 |
 | `c_explore` | 1.0 | UCB 探索系数 |
-| `temperature_coupling` | auto | 温度-LLM 耦合模式 |
+| `temperature_coupling_mode` | "decoupled" | 温度耦合模式 ("coupled" / "decoupled") |
+| `fixed_llm_temperature` | 1.0 | 解耦模式下 LLM 固定温度 |
+| `max_llm_temperature` | 1.5 | 耦合模式下 LLM 温度上限 |
 
 ---
 

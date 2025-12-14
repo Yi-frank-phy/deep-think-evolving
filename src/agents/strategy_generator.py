@@ -14,6 +14,7 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from src.core.state import DeepThinkState, StrategyNode
+from src.core.temperature_helper import get_llm_temperature
 
 
 STRATEGY_GENERATOR_PROMPT = """\
@@ -102,6 +103,10 @@ def strategy_generator_node(state: DeepThinkState) -> DeepThinkState:
         config = state.get("config", {})
         thinking_budget = config.get("thinking_budget", 1024)
         
+        # 使用温度辅助函数获取LLM温度
+        llm_temperature = get_llm_temperature(state)
+        print(f"[StrategyGenerator] LLM temperature: {llm_temperature}")
+        
         generation_config = {}
         if thinking_budget > 0:
             generation_config["thinking_config"] = {
@@ -112,7 +117,7 @@ def strategy_generator_node(state: DeepThinkState) -> DeepThinkState:
         llm = ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=api_key,
-            temperature=0.7,
+            temperature=llm_temperature,  # 动态温度
             generation_config=generation_config
         )
         
