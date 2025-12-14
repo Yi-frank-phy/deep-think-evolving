@@ -488,6 +488,42 @@ async def get_pending_hil_requests():
     }
 
 
+class ForceSynthesizeRequest(BaseModel):
+    """Request to force synthesize selected strategies into a report."""
+    strategy_ids: List[str] = Field(..., description="List of strategy IDs to synthesize")
+
+
+@app.post("/api/hil/force_synthesize", tags=["hil"])
+async def force_synthesize_strategies(req: ForceSynthesizeRequest):
+    """
+    Force synthesize selected strategies into a report (HIL action).
+    This triggers the Executor to generate a synthesis report and marks the selected strategies as pruned_synthesized.
+    """
+    if not sim_manager.is_running:
+        return {"status": "error", "message": "No simulation is currently running"}
+    
+    if not req.strategy_ids:
+        return {"status": "error", "message": "No strategies selected for synthesis"}
+    
+    # Broadcast the force synthesize command to the simulation
+    await sim_manager.broadcast({
+        "type": "HIL_FORCE_SYNTHESIZE",
+        "data": {
+            "strategy_ids": req.strategy_ids,
+            "message": f"User requested force synthesis of {len(req.strategy_ids)} strategies"
+        }
+    })
+    
+    logger.info(f"[HIL] Force synthesize requested for strategies: {req.strategy_ids}")
+    
+    return {
+        "status": "ok",
+        "message": f"Force synthesis triggered for {len(req.strategy_ids)} strategies",
+        "strategy_ids": req.strategy_ids
+    }
+
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

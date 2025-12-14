@@ -42,6 +42,10 @@ export interface StrategyNode {
 
     // Hard pruning tracking (spec.md §13)
     pruned_at_report_version?: number;
+
+    // Full response for UI expansion (T-050)
+    full_response?: string;  // 完整 AI 回答
+    thinking_summary?: string;  // Gemini 思维链摘要
 }
 
 export interface DeepThinkState {

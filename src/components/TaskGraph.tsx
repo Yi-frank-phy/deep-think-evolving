@@ -14,10 +14,11 @@ import { DeepThinkState, StrategyNode } from '../types';
 
 interface TaskGraphProps {
     state: DeepThinkState | null;
-    onNodeClick?: (node: StrategyNode) => void;
+    onNodeClick?: (node: StrategyNode, ctrlKey: boolean) => void;
+    selectedNodeIds?: Set<string>;  // For multi-select highlighting
 }
 
-export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick }) => {
+export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick, selectedNodeIds = new Set() }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -71,13 +72,15 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick }) => {
             const y = level * 180;
 
             const isActive = strat.status === 'active';
-            const isPruned = strat.status === 'pruned' || strat.status === 'pruned_beam';
+            const isPruned = strat.status === 'pruned' || strat.status === 'pruned_synthesized';
             const isExpanded = strat.status === 'expanded';
+            const isCompleted = strat.status === 'completed';
 
             let borderColor = '#666';
             if (isActive) borderColor = '#4CAF50';
             else if (isPruned) borderColor = '#f44336';
             else if (isExpanded) borderColor = '#2196F3';
+            else if (isCompleted) borderColor = '#9C27B0';
 
             return {
                 id: strat.id,
@@ -121,8 +124,8 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick }) => {
         setNodes(newNodes);
         setEdges(newEdges);
 
-    // ⚡ Bolt: Optimize re-renders by only updating layout when strategies change,
-    // ignoring other state updates like logs, iteration counts, or metrics.
+        // ⚡ Bolt: Optimize re-renders by only updating layout when strategies change,
+        // ignoring other state updates like logs, iteration counts, or metrics.
     }, [state?.strategies, setNodes, setEdges]);
 
     return (
@@ -139,7 +142,7 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick }) => {
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
-                onNodeClick={(_, node) => {
+                onNodeClick={(event, node) => {
                     // Find the original StrategyNode based on ID or index
                     if (!state?.strategies) return;
                     // Our IDs are strat-${index} or strat.id
@@ -147,7 +150,9 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick }) => {
                         (s.id && s.id === node.id) || `strat-${i}` === node.id
                     );
                     if (strategy && onNodeClick) {
-                        onNodeClick(strategy);
+                        // Pass ctrlKey/metaKey for multi-select
+                        const isMultiSelect = event.ctrlKey || event.metaKey;
+                        onNodeClick(strategy, isMultiSelect);
                     }
                 }}
                 fitView

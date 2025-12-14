@@ -81,10 +81,10 @@
 
 | 编号 | 任务 | 负责人 | 状态 | 关联文档 |
 | ---- | ---- | ------ | ---- | -------- |
-| T-050 | 节点完整展开: 添加 full_response 和 thinking_summary 字段 | Backend | TODO | spec.md §3.3 |
-| T-051 | 节点完整展开: 前端 NodeDetailModal 展示完整 AI 回答和思维链 | Frontend | TODO | - |
-| T-052 | HIL 强制收束: 添加节点多选和"收束为报告"控件 | Frontend | TODO | spec.md §7, §13 |
-| T-053 | HIL 强制收束: 创建 /api/hil/force_synthesize 后端端点 | Backend | TODO | spec.md §5.1 |
+| T-050 | 节点完整展开: 添加 full_response 和 thinking_summary 字段 | Backend | Done | spec.md §3.3 |
+| T-051 | 节点完整展开: 前端 NodeDetailModal 展示完整 AI 回答和思维链 | Frontend | Done | - |
+| T-052 | HIL 强制收束: 添加节点多选和"收束为报告"控件 | Frontend | Done | spec.md §7, §13 |
+| T-053 | HIL 强制收束: 创建 /api/hil/force_synthesize 后端端点 | Backend | Done | spec.md §5.1 |
 | T-054 | 任务图节点动态大小: 根据 ucb_score 调整节点宽度 | Frontend | TODO | todo_list.md Task 1.1 |
 | T-055 | 增强干预 UI: 添加 [Force Continue], [Prune Branch] 按钮 | Frontend | TODO | todo_list.md Task 2.2 |
 
@@ -96,6 +96,13 @@
 | T-057 | 在 DeepThinkState 添加 token_usage, estimated_cost, budget_limit 字段 | Backend | TODO | spec.md §4.1 |
 | T-058 | KPI 仪表盘添加 API Cost 和 Token Usage 卡片 | Frontend | TODO | todo_list.md Task 1.2 |
 | T-059 | 实现预算阈值检测 (90% 警告, 100% 暂停) | Backend | TODO | todo_list.md Task 4.1 |
+
+## API Rate Limit 硬约束任务
+
+| 编号 | 任务 | 负责人 | 状态 | 关联文档 |
+| ---- | ---- | ------ | ---- | -------- |
+| T-062 | Qwen Embedding (ModelScope) Rate Limit 查询与硬约束实现 | Backend | TODO | - |
+| T-063 | Gemini 4 模型 (Tier1) Rate Limit 查询与 RPM 硬约束实现 | Backend | TODO | - |
 
 ## 离线进化任务 (P3 可选)
 

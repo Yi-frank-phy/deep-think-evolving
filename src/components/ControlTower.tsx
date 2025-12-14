@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Mic, Square, Settings, Play, TriangleAlert } from 'lucide-react';
 import { ChatPanel } from './ChatPanel';
 import { KnowledgePanel } from './KnowledgePanel';
@@ -8,6 +8,7 @@ import { KPIDashboard } from './KPIDashboard';
 import { NodeDetailModal } from './NodeDetailModal';
 import { ActivityPanel } from './ActivityPanel';
 import { InterventionPanel } from './InterventionPanel';
+import { ForceSynthesizeBar } from './ForceSynthesizeBar';
 import { useSimulation } from '../hooks/useSimulation';
 import { useModels } from '../hooks/useModels';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
@@ -31,6 +32,56 @@ export const ControlTower: React.FC = () => {
     });
     const [showConfig, setShowConfig] = useState(false);
     const [selectedNode, setSelectedNode] = useState<StrategyNode | null>(null);
+
+    // T-052: Multi-select state for force synthesize
+    const [selectedForSynthesize, setSelectedForSynthesize] = useState<Set<string>>(new Set());
+    const [isSynthesizing, setIsSynthesizing] = useState(false);
+
+    // Strategy name map for display
+    const strategyNames = useMemo(() => {
+        const map = new Map<string, string>();
+        state?.strategies?.forEach(s => map.set(s.id, s.name));
+        return map;
+    }, [state?.strategies]);
+
+    // Handle Ctrl+Click for multi-select
+    const handleNodeClick = useCallback((node: StrategyNode, ctrlKey: boolean) => {
+        if (ctrlKey) {
+            // Multi-select mode
+            setSelectedForSynthesize(prev => {
+                const newSet = new Set(prev);
+                if (newSet.has(node.id)) {
+                    newSet.delete(node.id);
+                } else {
+                    newSet.add(node.id);
+                }
+                return newSet;
+            });
+        } else {
+            // Single click - open detail modal
+            setSelectedNode(node);
+        }
+    }, []);
+
+    // Force synthesize handler
+    const handleForceSynthesize = async (ids: string[]) => {
+        setIsSynthesizing(true);
+        try {
+            const response = await fetch('http://localhost:8000/api/hil/force_synthesize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ strategy_ids: ids })
+            });
+            const data = await response.json();
+            if (data.status === 'ok') {
+                setSelectedForSynthesize(new Set()); // Clear selection
+            }
+        } catch (error) {
+            console.error('Force synthesize failed:', error);
+        } finally {
+            setIsSynthesizing(false);
+        }
+    };
 
     // Get current model's thinking budget constraints
     const currentModel = useMemo(() => {
@@ -249,7 +300,11 @@ export const ControlTower: React.FC = () => {
                         currentAgent={currentAgent}
                         simulationStatus={simulationStatus}
                     />
-                    <TaskGraph state={state} onNodeClick={setSelectedNode} />
+                    <TaskGraph
+                        state={state}
+                        onNodeClick={handleNodeClick}
+                        selectedNodeIds={selectedForSynthesize}
+                    />
                     <ChatPanel />
                 </div>
 
@@ -260,6 +315,15 @@ export const ControlTower: React.FC = () => {
                 node={selectedNode}
                 isOpen={!!selectedNode}
                 onClose={() => setSelectedNode(null)}
+            />
+
+            {/* T-052: Force Synthesize Bar for multi-selected strategies */}
+            <ForceSynthesizeBar
+                selectedIds={Array.from(selectedForSynthesize)}
+                strategyNames={strategyNames}
+                onSynthesize={handleForceSynthesize}
+                onClearSelection={() => setSelectedForSynthesize(new Set())}
+                isLoading={isSynthesizing}
             />
 
             {/* Human-in-the-Loop Intervention Panel */}

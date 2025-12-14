@@ -41,6 +41,10 @@ class StrategyNode(TypedDict):
     
     # Hard pruning tracking (spec.md §13)
     pruned_at_report_version: Optional[int]  # 被剪枝时的报告版本
+    
+    # Full response for UI expansion (T-050)
+    full_response: Optional[str]  # 完整 AI 回答
+    thinking_summary: Optional[str]  # Gemini 思维链摘要
 
 
 class DeepThinkState(TypedDict):
