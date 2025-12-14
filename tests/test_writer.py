@@ -1,5 +1,11 @@
 """
-Tests for WriterAgent (Final Report Generator)
+Tests for Synthesis/Report Generation (Dynamic Report via Executor)
+
+After refactoring:
+- Fixed WriterAgent node removed
+- Report generation is now dynamically handled by Executor
+- Architect decides when to assign synthesis tasks
+- writer.py still exists but is no longer a graph node
 """
 
 import pytest
@@ -7,11 +13,11 @@ from unittest.mock import patch, MagicMock, AsyncMock
 import os
 
 
-class TestWriterAgent:
-    """Test suite for WriterAgent functionality."""
+class TestWriterModule:
+    """Test that writer.py module still works (for standalone use)."""
     
     def test_writer_import(self):
-        """Test that WriterAgent can be imported."""
+        """Test that writer module can be imported."""
         from src.agents.writer import writer_node
         assert callable(writer_node)
     
@@ -51,72 +57,58 @@ class TestWriterAgent:
         assert "策略B" in result
         # Check score formatting
         assert "0.85" in result or "0.850" in result
-    
-    def test_writer_node_mock_mode(self):
-        """Test writer_node in mock mode (no API key)."""
-        from src.agents.writer import writer_node
-        
-        # Ensure no API key is set for mock mode
-        with patch.dict(os.environ, {"GEMINI_API_KEY": "", "USE_MOCK_AGENTS": "true"}):
-            state = {
-                "problem_state": "测试问题",
-                "research_context": "测试研究背景",
-                "strategies": [
-                    {"name": "测试策略", "status": "active", "score": 0.8, 
-                     "rationale": "测试理由", "assumption": "测试假设", "trajectory": []}
-                ],
-                "iteration_count": 3,
-                "spatial_entropy": 0.5,
-                "history": []
-            }
-            
-            result = writer_node(state)
-            
-            # Should have generated a mock report
-            assert "final_report" in result
-            assert result["final_report"] is not None
-            assert "Mock" in result["final_report"]
-            # Should have updated history
-            assert any("Writer" in h for h in result.get("history", []))
-    
-    def test_writer_node_no_api_key(self):
-        """Test writer_node with no API key and not in mock mode."""
-        from src.agents.writer import writer_node
-        
-        with patch.dict(os.environ, {"GEMINI_API_KEY": "", "USE_MOCK_AGENTS": "false"}, clear=False):
-            # Remove GEMINI_API_KEY if it exists
-            if "GEMINI_API_KEY" in os.environ:
-                del os.environ["GEMINI_API_KEY"]
-            
-            state = {
-                "problem_state": "测试问题",
-                "strategies": [],
-                "iteration_count": 0,
-                "spatial_entropy": 0.0,
-                "history": []
-            }
-            
-            result = writer_node(state)
-            
-            # Should have generated a placeholder report
-            assert "final_report" in result
-            assert "⚠️" in result["final_report"] or "无法" in result["final_report"]
 
 
-class TestGraphIntegration:
-    """Test that WriterAgent is properly integrated into the graph."""
+class TestExecutorSynthesis:
+    """Test that Executor can handle synthesis tasks."""
     
-    def test_writer_node_in_graph(self):
-        """Test that writer node exists in the compiled graph."""
+    def test_synthesis_function_import(self):
+        """Test that synthesis function can be imported from executor."""
+        from src.agents.executor import execute_synthesis_task
+        assert callable(execute_synthesis_task)
+    
+    def test_executor_node_import(self):
+        """Test that executor_node can be imported."""
+        from src.agents.executor import executor_node
+        assert callable(executor_node)
+    
+    def test_synthesis_mock_mode(self):
+        """Test synthesis task in mock mode."""
+        from src.agents.executor import execute_synthesis_task
+        
+        result = execute_synthesis_task(
+            problem="测试问题",
+            strategies=[{"name": "测试策略", "score": 0.8, "rationale": "测试", "assumption": "假设"}],
+            decision={"executor_instruction": "生成报告"},
+            research_context=None,
+            existing_report=None,
+            api_key="",
+            use_mock=True
+        )
+        
+        assert "report" in result
+        assert result["report"] is not None
+        assert "Mock" in result["report"]
+
+
+class TestGraphStructure:
+    """Test that graph structure reflects the new architecture."""
+    
+    def test_no_fixed_writer_node(self):
+        """Test that writer node is NOT in the graph (dynamic via Executor now)."""
         from src.core.graph_builder import build_deep_think_graph
         
         graph = build_deep_think_graph()
         nodes = list(graph.nodes)
         
-        assert "writer" in nodes, f"'writer' node not found in graph nodes: {nodes}"
+        # Writer should NOT be a fixed node anymore
+        assert "writer" not in nodes, f"'writer' should not be a fixed node: {nodes}"
+        
+        # But executor should be there (handles synthesis dynamically)
+        assert "executor" in nodes, f"'executor' node should be in graph: {nodes}"
     
-    def test_evolution_to_writer_edge(self):
-        """Test that evolution has conditional edge to writer on convergence."""
+    def test_evolution_to_end_edge(self):
+        """Test that evolution goes directly to END on convergence."""
         from src.core.graph_builder import build_deep_think_graph
         
         graph = build_deep_think_graph()
@@ -126,12 +118,40 @@ class TestGraphIntegration:
 
 
 class TestStateDefinition:
-    """Test that state includes final_report field."""
+    """Test that state includes report-related fields."""
     
     def test_final_report_in_state(self):
         """Test that DeepThinkState has final_report field."""
         from src.core.state import DeepThinkState
         
-        # TypedDict annotations
         annotations = DeepThinkState.__annotations__
         assert "final_report" in annotations, f"final_report not in state: {annotations.keys()}"
+    
+    def test_report_version_in_state(self):
+        """Test that DeepThinkState has report_version field."""
+        from src.core.state import DeepThinkState
+        
+        annotations = DeepThinkState.__annotations__
+        assert "report_version" in annotations, f"report_version not in state: {annotations.keys()}"
+
+
+class TestArchitectMetaStrategy:
+    """Test that Architect prompt includes meta-strategy framework."""
+    
+    def test_architect_prompt_has_meta_strategy(self):
+        """Test that Architect prompt includes meta-strategy concept."""
+        from src.agents.architect import ARCHITECT_SCHEDULER_PROMPT
+        
+        assert "元策略" in ARCHITECT_SCHEDULER_PROMPT or "Meta-Strategy" in ARCHITECT_SCHEDULER_PROMPT
+        assert "探索" in ARCHITECT_SCHEDULER_PROMPT
+        assert "利用" in ARCHITECT_SCHEDULER_PROMPT
+        assert "综合" in ARCHITECT_SCHEDULER_PROMPT
+    
+    def test_architect_prompt_has_system_state(self):
+        """Test that Architect prompt includes system state placeholders."""
+        from src.agents.architect import ARCHITECT_SCHEDULER_PROMPT
+        
+        assert "normalized_temperature" in ARCHITECT_SCHEDULER_PROMPT
+        assert "spatial_entropy" in ARCHITECT_SCHEDULER_PROMPT
+        assert "iteration_count" in ARCHITECT_SCHEDULER_PROMPT
+        assert "report_version" in ARCHITECT_SCHEDULER_PROMPT

@@ -2,7 +2,12 @@
 Executor Agent - 策略执行器
 
 执行 Architect 分配的具体任务。共享 Executor 池按需分配。
-可以：生成策略变体、直接探索策略方向、验证假设等。
+可以：
+- 生成策略变体
+- 直接探索策略方向
+- 验证假设
+- 综合多策略生成阶段性报告（当 strategy_id 为 null 时）
+
 所有 Agent 都有 Grounding 能力，这不是某个 Agent 的特权。
 """
 
@@ -17,6 +22,7 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from src.core.state import DeepThinkState, StrategyNode
+
 
 
 EXECUTOR_PROMPT_TEMPLATE = """\
@@ -138,12 +144,141 @@ def execute_single_task(
         }
 
 
+# Prompt template for synthesis/report tasks (strategy_id is null)
+SYNTHESIS_PROMPT_TEMPLATE = """\
+你是一位"研究综合专家"，拥有 Google Search Grounding 工具能力（如需要可以搜索外部信息）。
+
+## 原始问题
+{problem}
+
+## Architect 的综合指令
+{executor_instruction}
+
+## 当前策略概览 (按分数排序)
+{strategies_summary}
+
+## 研究背景资料
+{research_context}
+
+## 已有报告 (如有)
+{existing_report}
+
+## 任务
+根据 Architect 的指令，综合当前所有策略的发现，生成阶段性研究报告。
+
+报告应该：
+1. 使用与原始问题相同的语言
+2. 结构清晰，包含问题摘要、主要发现、对比分析、推荐方案等
+3. 如有外部搜索结果，正确引用来源
+4. 如果已有报告，可以在其基础上增量更新
+
+## 输出格式 (严格 JSON)
+{{
+    "report": "完整的 Markdown 格式报告",
+    "report_summary": "一句话摘要",
+    "key_findings": ["关键发现1", "关键发现2"]
+}}
+"""
+
+
+def execute_synthesis_task(
+    problem: str,
+    strategies: List[StrategyNode],
+    decision: Dict[str, Any],
+    research_context: Optional[str],
+    existing_report: Optional[str],
+    api_key: str,
+    use_mock: bool = False
+) -> Dict[str, Any]:
+    """
+    Execute a synthesis/report task (when strategy_id is null).
+    
+    Args:
+        problem: Original problem statement
+        strategies: All strategies to synthesize
+        decision: Architect's decision containing executor_instruction
+        research_context: Research background if available
+        existing_report: Existing report for incremental update
+        api_key: API key for LLM
+        use_mock: Whether to run in mock mode
+        
+    Returns:
+        Synthesis result containing the report
+    """
+    if use_mock:
+        return {
+            "report": f"# Mock 阶段性报告\\n\\n问题: {problem[:100]}...\\n\\n## 主要发现\\n- Mock finding 1\\n- Mock finding 2\\n\\n## 推荐方案\\nMock recommendation.",
+            "report_summary": "Mock synthesis completed",
+            "key_findings": ["Mock finding 1", "Mock finding 2"]
+        }
+    
+    # Format strategies summary
+    sorted_strategies = sorted(strategies, key=lambda s: s.get("score", 0), reverse=True)
+    strategies_summary = []
+    for i, s in enumerate(sorted_strategies[:5]):
+        strategies_summary.append(
+            f"{i+1}. **{s.get('name', 'Unknown')}** (Score: {s.get('score', 0):.3f})\\n"
+            f"   - 理由: {s.get('rationale', '')[:100]}...\\n"
+            f"   - 假设: {s.get('assumption', '')[:80]}..."
+        )
+    
+    # Initialize client with grounding
+    client = genai.Client(api_key=api_key)
+    grounding_tool = types.Tool(google_search=types.GoogleSearch())
+    
+    model_name = os.environ.get(
+        "GEMINI_MODEL_EXECUTOR",
+        os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    )
+    
+    config = types.GenerateContentConfig(
+        tools=[grounding_tool],
+        response_mime_type="application/json"
+    )
+    
+    prompt = SYNTHESIS_PROMPT_TEMPLATE.format(
+        problem=problem,
+        executor_instruction=decision.get("executor_instruction", "综合当前发现生成报告"),
+        strategies_summary="\\n\\n".join(strategies_summary) or "无策略数据",
+        research_context=research_context[:2000] if research_context else "无研究背景",
+        existing_report=existing_report[:1500] if existing_report else "无已有报告"
+    )
+    
+    try:
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=config,
+        )
+        
+        import json
+        try:
+            result = json.loads(response.text)
+        except json.JSONDecodeError:
+            result = {
+                "report": response.text,
+                "report_summary": "Report generated",
+                "key_findings": []
+            }
+        
+        return result
+        
+    except Exception as e:
+        print(f"[Executor] Error executing synthesis task: {e}")
+        return {
+            "report": f"Error generating report: {str(e)}",
+            "report_summary": "Error",
+            "key_findings": []
+        }
+
+
 def executor_node(state: DeepThinkState) -> DeepThinkState:
     """
     Executor Node - 策略执行器
     
-    基于 Architect 的决策，对每个策略执行相应任务。
-    共享 Executor 池按需分配，每次调用是独立的 API 请求。
+    基于 Architect 的决策，执行相应任务。
+    - 当 strategy_id 存在时：对特定策略执行任务
+    - 当 strategy_id 为 null 时：执行综合任务（如生成报告）
     """
     print("\n[Executor] Executing tasks based on Architect decisions...")
     
@@ -166,62 +301,92 @@ def executor_node(state: DeepThinkState) -> DeepThinkState:
     
     new_strategies: List[StrategyNode] = []
     executed_count = 0
+    synthesis_count = 0
+    updated_report = state.get("final_report")
+    report_version = state.get("report_version", 0)
     
     for decision in architect_decisions:
         strategy_id = decision.get("strategy_id")
-        if not strategy_id or strategy_id not in strategy_map:
-            continue
+        
+        # Check if this is a synthesis task (strategy_id is null or special marker)
+        is_synthesis = strategy_id is None or strategy_id == "null" or strategy_id == "SYNTHESIS"
+        
+        if is_synthesis:
+            # Execute synthesis/report task
+            print("  > Executing synthesis task...")
             
-        strategy = strategy_map[strategy_id]
-        
-        print(f"  > Executing for '{strategy['name']}'...")
-        
-        # Execute the task
-        result = execute_single_task(
-            problem=problem,
-            strategy=strategy,
-            decision=decision,
-            api_key=api_key,
-            use_mock=use_mock
-        )
-        
-        # Update strategy trajectory
-        strategy["trajectory"] = strategy.get("trajectory", []) + [
-            f"[Executor] {result.get('execution_result', 'Task executed')[:100]}..."
-        ]
-        
-        # If a variant strategy was generated, add it
-        variant = result.get("variant_strategy")
-        if variant and isinstance(variant, dict) and variant.get("strategy_name"):
-            new_node: StrategyNode = {
-                "id": str(uuid.uuid4()),
-                "name": variant.get("strategy_name", "Variant"),
-                "rationale": variant.get("rationale", ""),
-                "assumption": variant.get("initial_assumption", ""),
-                "milestones": [],
-                "embedding": None,
-                "density": None,
-                "log_density": None,
-                "score": 0.0,
-                "status": "active",
-                "trajectory": [f"[Executor] Generated as variant of {strategy['name']}"],
-                "parent_id": strategy["id"]
-            }
-            new_strategies.append(new_node)
-            print(f"    Created variant: '{new_node['name']}'")
-        
-        executed_count += 1
+            result = execute_synthesis_task(
+                problem=problem,
+                strategies=strategies,
+                decision=decision,
+                research_context=state.get("research_context"),
+                existing_report=updated_report,
+                api_key=api_key,
+                use_mock=use_mock
+            )
+            
+            # Update report
+            if result.get("report"):
+                updated_report = result["report"]
+                report_version += 1
+                print(f"    Report updated (v{report_version})")
+            
+            synthesis_count += 1
+            
+        elif strategy_id in strategy_map:
+            # Execute strategy-specific task
+            strategy = strategy_map[strategy_id]
+            
+            print(f"  > Executing for '{strategy['name']}'...")
+            
+            # Execute the task
+            result = execute_single_task(
+                problem=problem,
+                strategy=strategy,
+                decision=decision,
+                api_key=api_key,
+                use_mock=use_mock
+            )
+            
+            # Update strategy trajectory
+            strategy["trajectory"] = strategy.get("trajectory", []) + [
+                f"[Executor] {result.get('execution_result', 'Task executed')[:100]}..."
+            ]
+            
+            # If a variant strategy was generated, add it
+            variant = result.get("variant_strategy")
+            if variant and isinstance(variant, dict) and variant.get("strategy_name"):
+                new_node: StrategyNode = {
+                    "id": str(uuid.uuid4()),
+                    "name": variant.get("strategy_name", "Variant"),
+                    "rationale": variant.get("rationale", ""),
+                    "assumption": variant.get("initial_assumption", ""),
+                    "milestones": [],
+                    "embedding": None,
+                    "density": None,
+                    "log_density": None,
+                    "score": 0.0,
+                    "status": "active",
+                    "trajectory": [f"[Executor] Generated as variant of {strategy['name']}"],
+                    "parent_id": strategy["id"]
+                }
+                new_strategies.append(new_node)
+                print(f"    Created variant: '{new_node['name']}'")
+            
+            executed_count += 1
     
     # Merge new strategies with existing
     all_strategies = strategies + new_strategies
     
-    print(f"[Executor] Executed {executed_count} tasks, created {len(new_strategies)} variants.")
+    print(f"[Executor] Executed {executed_count} strategy tasks, {synthesis_count} synthesis tasks, {len(new_strategies)} variants.")
     
     return {
         **state,
         "strategies": all_strategies,
         "architect_decisions": [],  # Clear decisions after execution
+        "final_report": updated_report,
+        "report_version": report_version,
         "history": state.get("history", []) + [
-            f"Executor: {executed_count} tasks, {len(new_strategies)} variants"
+            f"Executor: {executed_count} tasks, {synthesis_count} synthesis, {len(new_strategies)} variants"
         ]
     }

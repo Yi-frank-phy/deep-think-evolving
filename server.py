@@ -259,8 +259,8 @@ class SimulationManager:
                 "executor": "⚙️ Executor",
                 "judge": "⚖️ Judge",
                 "evolution": "🧬 Evolution",
-                "propagation": "🌱 Propagation",
-                "writer": "📝 Report Writer"
+                "propagation": "🌱 Propagation"
+                # Note: writer removed - report generation is now dynamically handled by Executor
             }
             
             current_agent = None
