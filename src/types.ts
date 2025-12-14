@@ -15,18 +15,33 @@ export type KnowledgeMessage =
     | { type: "update"; data: KnowledgeEntry }
     | { type: "delete"; data: { id: string } };
 
+// Strategy status values - synced with backend state.py (spec.md §3.3)
+export type StrategyStatus = "active" | "pruned" | "completed" | "expanded" | "pruned_synthesized";
+
 export interface StrategyNode {
     id: string;
-    parent_id: string | null; // Added for tree visualization
+    parent_id: string | null;  // For tree visualization
     name: string;
     rationale: string;
     assumption: string;
     milestones: any;
-    status: "active" | "pruned" | "pruned_beam" | "pruned_error" | "completed" | "expanded";
-    score: number;
+
+    // Evolution Metrics (spec.md §3.3)
+    embedding_preview: number[];  // Truncated for frontend display
     density: number;
-    embedding_preview: number[];
+    log_density?: number;
+    score: number;  // Judge评分 (0-1)
+    ucb_score?: number;  // UCB综合评分 (用于排序/展示)
+    child_quota?: number;  // Boltzmann分配的子节点配额
+
+    // Status
+    status: StrategyStatus;
+
+    // Execution
     trajectory: string[];
+
+    // Hard pruning tracking (spec.md §13)
+    pruned_at_report_version?: number;
 }
 
 export interface DeepThinkState {

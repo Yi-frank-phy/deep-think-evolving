@@ -67,10 +67,50 @@
 
 ---
 
+## SpecKit 类型修复任务
+
+| 编号 | 任务 | 负责人 | 状态 | 关联文档 |
+| ---- | ---- | ------ | ---- | -------- |
+| T-045 | 修复 StrategyNode 缺失字段 (ucb_score, child_quota, pruned_at_report_version) | Backend | Done | spec.md §3.3 |
+| T-046 | 修复 status 类型注解添加 pruned_synthesized | Backend | Done | spec.md §3.3 |
+| T-047 | 同步 types.ts 与 state.py 类型定义 | Frontend | Done | spec.md §3.3, §4.1 |
+| T-048 | 清理 types.ts 遗留状态值 (pruned_beam, pruned_error) | Frontend | Done | spec.md §3.3 |
+| T-049 | 更新 ARCHITECTURE_TODO.md 标记未实现功能为 Backlog | Spec Sync | Done | ARCHITECTURE_TODO.md |
+
+## UI/HIL 增强任务
+
+| 编号 | 任务 | 负责人 | 状态 | 关联文档 |
+| ---- | ---- | ------ | ---- | -------- |
+| T-050 | 节点完整展开: 添加 full_response 和 thinking_summary 字段 | Backend | TODO | spec.md §3.3 |
+| T-051 | 节点完整展开: 前端 NodeDetailModal 展示完整 AI 回答和思维链 | Frontend | TODO | - |
+| T-052 | HIL 强制收束: 添加节点多选和"收束为报告"控件 | Frontend | TODO | spec.md §7, §13 |
+| T-053 | HIL 强制收束: 创建 /api/hil/force_synthesize 后端端点 | Backend | TODO | spec.md §5.1 |
+| T-054 | 任务图节点动态大小: 根据 ucb_score 调整节点宽度 | Frontend | TODO | todo_list.md Task 1.1 |
+| T-055 | 增强干预 UI: 添加 [Force Continue], [Prune Branch] 按钮 | Frontend | TODO | todo_list.md Task 2.2 |
+
+## 成本管理任务 (P0)
+
+| 编号 | 任务 | 负责人 | 状态 | 关联文档 |
+| ---- | ---- | ------ | ---- | -------- |
+| T-056 | 创建 cost_tracker.py 成本追踪模块 | Backend | TODO | todo_list.md Task 4.1 |
+| T-057 | 在 DeepThinkState 添加 token_usage, estimated_cost, budget_limit 字段 | Backend | TODO | spec.md §4.1 |
+| T-058 | KPI 仪表盘添加 API Cost 和 Token Usage 卡片 | Frontend | TODO | todo_list.md Task 1.2 |
+| T-059 | 实现预算阈值检测 (90% 警告, 100% 暂停) | Backend | TODO | todo_list.md Task 4.1 |
+
+## 离线进化任务 (P3 可选)
+
+| 编号 | 任务 | 负责人 | 状态 | 关联文档 |
+| ---- | ---- | ------ | ---- | -------- |
+| T-060 | 实现 HybridMemory 统一记忆抽象层 | Backend | Backlog | ARCHITECTURE_TODO.md Phase 4 |
+| T-061 | 实现元策略进化框架 (MetaStrategyNode) | Backend | Backlog | ARCHITECTURE_TODO.md Phase 4 |
+
+---
+
 > 状态取值：`TODO`（待开始）、`In Progress`（进行中）、`Done`（完成）、`Backlog`（暂缓）。
 
 ## 版本历史
 
+- **2025-12-14**: 新增 T-045~T-053 SpecKit 类型修复和 UI/HIL 增强任务
 - **2025-12-14**: 新增 T-037~T-044 动态报告生成与硬剪枝任务
 - **2025-12-13**: 清理过时PR任务(T-024~T-026), 新增 T-028~T-031 SpecKit维护任务
 - **2025-12-12**: 新增 T-021 至 T-027，反映 SpecKit 完整集成工作
