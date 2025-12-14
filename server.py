@@ -259,7 +259,8 @@ class SimulationManager:
                 "executor": "⚙️ Executor",
                 "judge": "⚖️ Judge",
                 "evolution": "🧬 Evolution",
-                "propagation": "🌱 Propagation"
+                "propagation": "🌱 Propagation",
+                "writer": "📝 Report Writer"
             }
             
             current_agent = None
@@ -323,6 +324,16 @@ class SimulationManager:
                 })
                 
             await self.broadcast({"type": "status", "data": "completed"})
+            
+            # Broadcast final report if available
+            # Get final state from the last chunk (node_output contains the delta)
+            # We need to get final_report from node_output after writer runs
+            # The last node_output should have final_report if writer ran
+            if 'final_report' in node_output:
+                await self.broadcast({
+                    "type": "final_report",
+                    "data": node_output["final_report"]
+                })
             
         except Exception as e:
             logger.exception("Simulation failed")

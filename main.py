@@ -90,6 +90,16 @@ async def run_pipeline(args: Namespace) -> None:
     print(f"Final entropy: {final_state.get('spatial_entropy', 0):.4f}")
     print(f"Final temperature (tau): {final_state.get('normalized_temperature', 0):.4f}")
     
+    # Output final report
+    final_report = final_state.get("final_report")
+    if final_report:
+        print("\n" + "=" * 60)
+        print("📝 最终报告")
+        print("=" * 60)
+        print(final_report)
+        print("=" * 60)
+
+    
     strategies = final_state.get("strategies", [])
     active = [s for s in strategies if s.get("status") == "active"]
     expanded = [s for s in strategies if s.get("status") == "expanded"]

@@ -23,6 +23,7 @@ from src.agents.judge import judge_node
 from src.agents.evolution import evolution_node
 from src.agents.executor import executor_node
 from src.agents.distiller import distiller_node, distiller_for_judge_node
+from src.agents.writer import writer_node
 
 
 def should_continue(state: DeepThinkState) -> Literal["continue", "end"]:
@@ -118,7 +119,7 @@ def build_deep_think_graph():
     Phase 3 - Execution Loop:
         Evolution -> (should_continue?) 
             -> ArchitectScheduler -> Executor -> DistillerForJudge -> Judge -> Evolution
-            -> END (if converged)
+            -> WriterAgent -> END (if converged)
     
     Key Features:
     - TaskDecomposer breaks down problem into subtasks and information needs
@@ -141,6 +142,9 @@ def build_deep_think_graph():
     workflow.add_node("evolution", evolution_node)
     workflow.add_node("architect_scheduler", architect_scheduler_node)
     workflow.add_node("executor", executor_node)
+    
+    # ========== Phase 4: Report Generation ==========
+    workflow.add_node("writer", writer_node)
     
     # ========== Entry Point ==========
     workflow.set_entry_point("task_decomposer")
@@ -167,15 +171,19 @@ def build_deep_think_graph():
     workflow.add_edge("judge", "evolution")
     
     # ========== Phase 3: Execution Loop ==========
-    # Evolution -> (should_continue?) -> ArchitectScheduler or END
+    # Evolution -> (should_continue?) -> ArchitectScheduler or Writer
     workflow.add_conditional_edges(
         "evolution",
         should_continue,
         {
             "continue": "architect_scheduler",
-            "end": END
+            "end": "writer"  # Generate final report before ending
         }
     )
+    
+    # ========== Phase 4: Report Generation ==========
+    # Writer -> END (final output)
+    workflow.add_edge("writer", END)
     
     # ArchitectScheduler -> Executor -> DistillerForJudge -> Judge -> Evolution (loop)
     workflow.add_edge("architect_scheduler", "executor")
