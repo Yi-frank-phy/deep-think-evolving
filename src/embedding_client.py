@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from typing import Optional
+import concurrent.futures
 
 import numpy as np
 import requests
@@ -119,7 +120,8 @@ def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) ->
     endpoint = os.environ.get("MODELSCOPE_API_ENDPOINT", DEFAULT_MODELSCOPE_API_ENDPOINT)
     model = os.environ.get("MODELSCOPE_EMBEDDING_MODEL", DEFAULT_MODELSCOPE_MODEL)
 
-    for i, strategy in enumerate(strategies):
+    def process_strategy(strategy_idx_pair):
+        idx, strategy = strategy_idx_pair
         document_to_embed = (
             f"Strategy: {strategy.get('strategy_name', '')}\n"
             f"Rationale: {strategy.get('rationale', '')}\n"
@@ -128,46 +130,46 @@ def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) ->
 
         try:
             print(
-                f"  Embedding strategy {i + 1}/{len(strategies)} using ModelScope: "
+                f"  Embedding strategy {idx + 1}/{len(strategies)} using ModelScope: "
                 f"'{strategy.get('strategy_name', 'N/A')}'..."
             )
             
             embedding = _get_modelscope_embedding(document_to_embed, api_key, endpoint, model)
             
             if not embedding:
-                print("\n[ERROR] ModelScope response is missing the 'embedding' field.")
-                strategy["embedding"] = []
-                continue
+                print(f"\n[ERROR] ModelScope response is missing the 'embedding' field for strategy {idx + 1}.")
+                return []
 
-            strategy["embedding"] = embedding
-            print(f"  ...Success ({len(embedding)} dimensions).")
+            print(f"  ...Strategy {idx + 1} success ({len(embedding)} dimensions).")
+            return embedding
 
         except requests.exceptions.ConnectionError as error:
             print(f"\n[ERROR] Could not connect to ModelScope server at {endpoint}.")
             print(f"Underlying error: {error}")
             return []
         except requests.exceptions.Timeout as error:
-            print(f"\n[ERROR] ModelScope request timed out when embedding strategy {i + 1}: {error}")
-            strategy["embedding"] = []
-            continue
+            print(f"\n[ERROR] ModelScope request timed out when embedding strategy {idx + 1}: {error}")
+            return []
         except requests.exceptions.HTTPError as error:
             print(f"\n[ERROR] HTTP error during embedding: {error}")
-            try:
-                # Keep debug info from main but fix bare except
-                if hasattr(response, 'text'):
-                    print(f"Response from server: {response.text[:200]}...")
-            except Exception:
-                pass
-            strategy["embedding"] = []
-            continue
+            return []
         except requests.exceptions.RequestException as error:
-            print(f"\n[ERROR] Unexpected network error during embedding strategy {i + 1}: {error}")
-            strategy["embedding"] = []
-            continue
-        except Exception as error:  # pragma: no cover - defensive guard
-            print(f"\n[ERROR] An unexpected error occurred during embedding strategy {i + 1}: {error}")
-            strategy["embedding"] = []
-            continue
+            print(f"\n[ERROR] Unexpected network error during embedding strategy {idx + 1}: {error}")
+            return []
+        except Exception as error:
+            print(f"\n[ERROR] An unexpected error occurred during embedding strategy {idx + 1}: {error}")
+            return []
+
+    # Use ThreadPoolExecutor for parallel processing
+    # Limit max_workers to avoid hitting rate limits too hard (e.g., 5-10 parallel requests)
+    # or system resource limits. 10 is usually safe for I/O bound tasks like this.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        # Map returns results in the same order as input
+        results = list(executor.map(process_strategy, enumerate(strategies)))
+
+    # Assign results back to strategies
+    for i, embedding in enumerate(results):
+        strategies[i]["embedding"] = embedding
 
     return strategies
 
@@ -196,5 +198,3 @@ def embed_text(document: str) -> list[float]:
     except Exception as error:
         print(f"[ERROR] Failed to embed text: {error}")
         return []
-
-
