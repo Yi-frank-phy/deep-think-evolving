@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { Mic, Square, Settings, Play, TriangleAlert } from 'lucide-react';
 import { ChatPanel } from './ChatPanel';
 import { KnowledgePanel } from './KnowledgePanel';
 import { TaskGraph } from './TaskGraph';
@@ -101,6 +102,8 @@ export const ControlTower: React.FC = () => {
                     <div style={{ display: 'flex', flex: 1, gap: '0.5rem', alignItems: 'center' }}>
                         <input
                             type="text"
+                            id="problem-input"
+                            aria-label="Problem statement"
                             value={problemInput}
                             onChange={(e) => setProblemInput(e.target.value)}
                             placeholder={audioBlob ? "Audio recorded - add text..." : "Enter problem statement..."}
@@ -110,6 +113,7 @@ export const ControlTower: React.FC = () => {
                             type="button"
                             onClick={toggleRecording}
                             title={isRecording ? "Stop recording" : "Record voice problem"}
+                            aria-label={isRecording ? "Stop recording" : "Record voice problem"}
                             className={`voice-btn ${isRecording ? 'recording' : ''}`}
                             style={{
                                 background: isRecording ? '#e53935' : '#444',
@@ -121,18 +125,30 @@ export const ControlTower: React.FC = () => {
                                 justifyContent: 'center'
                             }}
                         >
-                            {isRecording ? '⏹' : '🎤'}
+                            {isRecording ? <Square size={18} /> : <Mic size={18} />}
                         </button>
                     </div>
-                    <button onClick={() => setShowConfig(!showConfig)} style={{ background: '#444' }}>
+                    <button
+                        onClick={() => setShowConfig(!showConfig)}
+                        style={{ background: '#444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        aria-expanded={showConfig}
+                        aria-controls="config-panel"
+                    >
+                        <Settings size={16} />
                         {showConfig ? 'Hide Config' : 'Config'}
                     </button>
-                    <button onClick={handleStart} className="primary">Start Mission</button>
-                    <button onClick={stopSimulation} className="danger">Abort</button>
+                    <button onClick={handleStart} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Play size={16} />
+                        Start Mission
+                    </button>
+                    <button onClick={stopSimulation} className="danger" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <TriangleAlert size={16} />
+                        Abort
+                    </button>
                 </div>
 
                 {showConfig && (
-                    <div className="config-panel" style={{
+                    <div id="config-panel" className="config-panel" style={{
                         marginTop: '1rem', padding: '1rem', background: '#2a2a2a',
                         borderRadius: '8px', border: '1px solid #444',
                         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem'
