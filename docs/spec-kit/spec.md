@@ -363,7 +363,7 @@ interface DeepThinkState {
 | GET | `/health` | 健康检查 |
 | GET | `/api/models` | 获取可用模型列表 |
 | POST | `/api/simulation/start` | 启动进化模拟 |
-| POST | `/api/simulation/stop` | 停止当前模拟 |
+| GET | `/api/simulation/stop` | 停止当前模拟 |
 | POST | `/api/expand_node` | 展开节点（扩展策略描述） |
 | POST | `/api/chat/stream` | 流式聊天 (SSE) |
 | POST | `/api/hil/response` | 提交人机交互响应 |
@@ -489,14 +489,13 @@ def ask_human(
 
 ### 8.1 配置
 
-支持多个嵌入服务提供商：
+使用 ModelScope Qwen3-Embedding-8B 嵌入服务：
 
 | 环境变量 | 描述 |
 |----------|------|
-| `EMBEDDING_PROVIDER` | 提供商选择: `ollama`, `modelscope`, `openai` |
-| `EMBEDDING_MODEL` | 模型名称 |
-| `EMBEDDING_BASE_URL` | API 端点 |
 | `MODELSCOPE_API_KEY` | ModelScope API Key |
+| `EMBEDDING_MODEL` | 模型名称 (默认: `Qwen/Qwen3-Embedding-8B`) |
+| `EMBEDDING_BASE_URL` | API 端点 (默认: `https://api-inference.modelscope.cn/v1/`) |
 
 ### 8.2 Mock 模式
 
