@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StrategyNode } from '../types';
+import { useModels } from '../hooks/useModels';
 
 interface NodeDetailModalProps {
     node: StrategyNode | null;
@@ -8,11 +9,7 @@ interface NodeDetailModalProps {
     onClose: () => void;
 }
 
-const AVAILABLE_MODELS = [
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Fast)' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Reasoning)' },
-    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)' }
-];
+// Models fetched dynamically from useModels hook
 
 // Collapsible section component
 const CollapsibleSection: React.FC<{
@@ -54,9 +51,17 @@ const CollapsibleSection: React.FC<{
 };
 
 export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, onClose }) => {
-    const [selectedModel, setSelectedModel] = useState(AVAILABLE_MODELS[0].value);
+    const { models } = useModels();
+    const [selectedModel, setSelectedModel] = useState('');
     const [expandedContent, setExpandedContent] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Initialize selected model when models are loaded
+    useEffect(() => {
+        if (models.length > 0 && !selectedModel) {
+            setSelectedModel(models[0].id);
+        }
+    }, [models, selectedModel]);
 
     if (!isOpen || !node) return null;
 
@@ -117,9 +122,26 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, 
                             )}
                         </div>
                     </div>
-                    <button onClick={onClose} style={{
-                        background: 'transparent', border: 'none', color: 'var(--header-color)', fontSize: '1.5rem', cursor: 'pointer'
-                    }}>×</button>
+                    <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+                        style={{
+                            background: 'rgba(255,255,255,0.1)',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            color: '#fff',
+                            fontSize: '1.25rem',
+                            cursor: 'pointer',
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'background 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,100,100,0.3)'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                    >✕</button>
                 </header>
 
                 <div className="modal-body" style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
@@ -181,8 +203,8 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, 
                                         border: '1px solid var(--border-color)', borderRadius: '6px'
                                     }}
                                 >
-                                    {AVAILABLE_MODELS.map(m => (
-                                        <option key={m.value} value={m.value}>{m.label}</option>
+                                    {models.map(m => (
+                                        <option key={m.id} value={m.id}>{m.name}</option>
                                     ))}
                                 </select>
                             </div>
