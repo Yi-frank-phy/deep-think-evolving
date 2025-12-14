@@ -156,9 +156,14 @@ def architect_scheduler_node(state: DeepThinkState) -> DeepThinkState:
         client = genai.Client(api_key=api_key)
         grounding_tool = types.Tool(google_search=types.GoogleSearch())
         
+        # 从 config 读取 thinking_budget
+        config_data = state.get("config", {})
+        thinking_budget = config_data.get("thinking_budget", 1024)
+        
         config = types.GenerateContentConfig(
             tools=[grounding_tool],
-            response_mime_type="application/json"
+            response_mime_type="application/json",
+            thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
         )
         
         prompt = ARCHITECT_SCHEDULER_PROMPT.format(

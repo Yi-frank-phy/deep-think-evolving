@@ -69,7 +69,8 @@ def execute_single_task(
     strategy: StrategyNode,
     decision: Dict[str, Any],
     api_key: str,
-    use_mock: bool = False
+    use_mock: bool = False,
+    thinking_budget: int = 1024
 ) -> Dict[str, Any]:
     """
     Execute a single task for a strategy based on Architect's decision.
@@ -103,7 +104,8 @@ def execute_single_task(
     
     config = types.GenerateContentConfig(
         tools=[grounding_tool],
-        response_mime_type="application/json"
+        response_mime_type="application/json",
+        thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
     )
     
     prompt = EXECUTOR_PROMPT_TEMPLATE.format(
@@ -335,6 +337,10 @@ def executor_node(state: DeepThinkState) -> DeepThinkState:
     # Create strategy lookup
     strategy_map = {s["id"]: s for s in strategies}
     
+    # 从 config 读取 thinking_budget
+    config_data = state.get("config", {})
+    thinking_budget = config_data.get("thinking_budget", 1024)
+    
     new_strategies: List[StrategyNode] = []
     executed_count = 0
     synthesis_count = 0
@@ -359,7 +365,8 @@ def executor_node(state: DeepThinkState) -> DeepThinkState:
                 existing_report=updated_report,
                 report_version=report_version,
                 api_key=api_key,
-                use_mock=use_mock
+                use_mock=use_mock,
+                thinking_budget=thinking_budget
             )
             
             # Update report
@@ -410,7 +417,8 @@ def executor_node(state: DeepThinkState) -> DeepThinkState:
                 strategy=strategy,
                 decision=decision,
                 api_key=api_key,
-                use_mock=use_mock
+                use_mock=use_mock,
+                thinking_budget=thinking_budget
             )
             
             # Update strategy trajectory

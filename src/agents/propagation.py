@@ -66,7 +66,8 @@ def generate_children_for_strategy(
     parent: StrategyNode,
     num_children: int,
     api_key: str,
-    use_mock: bool = False
+    use_mock: bool = False,
+    thinking_budget: int = 1024  # 新增: 思考预算
 ) -> List[StrategyNode]:
     """
     为单个父策略生成子策略。
@@ -132,9 +133,11 @@ def generate_children_for_strategy(
         os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
     )
     
+    # LLM 配置 - 包含 thinking_budget
     config = types.GenerateContentConfig(
         tools=[grounding_tool],
-        response_mime_type="application/json"
+        response_mime_type="application/json",
+        thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
     )
     
     try:
@@ -216,12 +219,17 @@ def propagation_node(state: DeepThinkState) -> DeepThinkState:
         
         print(f"  > Generating {quota} children for '{strategy['name']}'...")
         
+        # 从 config 获取 thinking_budget
+        config = state.get("config", {})
+        thinking_budget = config.get("thinking_budget", 1024)
+        
         children = generate_children_for_strategy(
             problem=problem,
             parent=strategy,
             num_children=quota,
             api_key=api_key,
-            use_mock=use_mock
+            use_mock=use_mock,
+            thinking_budget=thinking_budget
         )
         
         if children:
