@@ -121,9 +121,10 @@ Phase 3 (执行循环): ArchitectScheduler → Executor → DistillerForJudge �
   ucb_score: float | null;       // UCB综合评分 (用于排序/展示)
   child_quota: int | null;       // Boltzmann分配的子节点配额
   
-  status: "active" | "pruned" | "completed" | "expanded";
+  status: "active" | "pruned" | "completed" | "expanded" | "pruned_synthesized";
   trajectory: string[];          // 执行轨迹记录
   parent_id: string | null;      // 父策略 ID (用于树结构)
+  pruned_at_report_version?: int; // 被剪枝时的报告版本 (仅当 status="pruned_synthesized")
 }
 ```
 
@@ -252,6 +253,7 @@ n_s = f(C * exp(V_s / T) / Z)
 
 - 执行 Architect 分配的具体任务
 - 可生成策略变体（添加到策略池）
+- **综合任务**: 当 `strategy_id=null` 时，执行综合报告生成并触发硬剪枝
 
 **输入**:
 
@@ -262,7 +264,17 @@ n_s = f(C * exp(V_s / T) / Z)
 **输出**:
 
 - 更新后的 `strategies` (含轨迹更新和新变体)
+- `final_report`: 综合报告 (如有综合任务)
+- `report_version`: 报告版本号
 - 清空 `architect_decisions`
+
+**综合任务 Prompt**:
+
+当 `strategy_id=null` 时，触发综合任务：
+
+1. 通知 LLM 所有活跃策略将被硬剪枝
+2. 要求报告完整保留被剪枝策略的价值
+3. 执行硬剪枝并归档到知识库
 
 ---
 
@@ -430,6 +442,27 @@ def search_experiences(
 ) -> List[Dict]
 ```
 
+### 6.3 write_strategy_archive
+
+归档被剪枝策略到知识库。由 Executor 在综合任务后调用。
+
+```python
+def write_strategy_archive(
+    strategy: Dict[str, Any],
+    synthesis_context: str,
+    branch_rationale: str,
+    report_version: int
+) -> str
+```
+
+**存储内容**:
+
+- 策略核心信息 (name, rationale, assumption)
+- 分支选择逻辑
+- 执行轨迹
+- 综合上下文
+- 向量化 embedding 支持语义搜索
+
 ## 7. 人机交互 (HIL)
 
 **文件**: `src/tools/ask_human.py`
@@ -539,3 +572,42 @@ python scripts/check_specs.py
 |------|------|----------|
 | 1.0 | 2025-10 | 初始版本（线性流水线） |
 | 2.0 | 2025-12 | 重写为 LangGraph 多代理进化架构 |
+| 2.1 | 2025-12 | 新增动态报告生成和硬剪枝机制 |
+
+## 13. 硬剪枝机制
+
+### 13.1 设计理念
+
+**报告 = 剪枝信号**。当 Architect 分配综合任务 (`strategy_id=null`) 时，所有活跃策略被硬剪枝。
+
+价值通过两条路径保留：
+
+1. **报告** - 综合的结论和洞见
+2. **向量数据库** - 分支选择逻辑、经验、推理过程
+
+### 13.2 优势
+
+- 防止上下文腐烂 (Context Rot)
+- 降低 Token 成本
+- 保留所有有价值信息
+
+### 13.3 数据流
+
+```text
+Architect -> [strategy_id=null] -> Executor
+                                    |
+                          1. 生成报告 (通知剪枝)
+                          2. 归档到知识库 (向量化)
+                          3. 硬剪枝 (status="pruned_synthesized")
+                                    |
+                              价值保留于:
+                              - 报告 (活跃上下文)
+                              - 知识库 (向量数据库)
+```
+
+### 13.4 触发条件
+
+Architect 自主决定何时触发综合任务，建议在：
+
+- 温度 τ 足够低 (策略趋于收敛)
+- 策略足够成熟 (经过多次执行和评估)
