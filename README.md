@@ -91,7 +91,7 @@ Deep Think Evolving 是一个实验性多智能体系统，核心理念是将**�
 
 ```bash
 # 克隆仓库
-git clone https://github.com/your-repo/deep-think-evolving.git
+git clone https://github.com/Yi-frank-phy/deep-think-evolving.git
 cd deep-think-evolving
 
 # Python 虚拟环境（推荐）
@@ -147,14 +147,15 @@ npm run dev
 如需在命令行运行完整流水线：
 
 ```bash
-python main.py --max-iterations 5 --temperature-coupling auto
+python main.py --max-iterations 5
 ```
 
 可用参数：
 
 - `--max-iterations` - 最大进化迭代次数（默认 5）
-- `--temperature-coupling` - 温度耦合模式：`auto`（动态）或 `manual`（固定 1.0）
 - `--emit-spec-log` - 输出规范化日志到文件
+
+> **Note**: LLM 推理温度固定为 `T=1.0` (Logic Manifold Integrity)，系统温度 τ 仅控制资源分配。
 
 ---
 
