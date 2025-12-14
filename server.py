@@ -148,7 +148,7 @@ async def knowledge_base_updates(websocket: WebSocket) -> None:
 # --- Simulation Control & Telemetry ---
 
 import base64
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from fastapi.responses import StreamingResponse
 from google import genai
 from google.genai import types
@@ -158,10 +158,20 @@ from src.strategy_architect import expand_strategy_node
 from src.tools.ask_human import hil_manager
 
 class ChatRequest(BaseModel):
-    message: str
-    instruction: str | None = None
-    audio_base64: str | None = None  # Optional audio input
+    message: str = Field(..., max_length=50000, description="User message limited to 50k chars")
+    instruction: str | None = Field(None, max_length=10000, description="Optional system instruction")
+    audio_base64: str | None = Field(None, max_length=15_000_000, description="Optional audio input limited to ~11MB")
     model_name: str = "gemini-2.5-flash"
+
+    @field_validator("model_name")
+    @classmethod
+    def validate_model_name(cls, v: str) -> str:
+        valid_ids = {m["id"] for m in AVAILABLE_MODELS}
+        if v not in valid_ids:
+            # Fallback for older clients or if model removed, but log warning?
+            # Enforcing strict validation for security.
+            raise ValueError(f"Invalid model name: {v}. Must be one of {valid_ids}")
+        return v
 
 class ExpandNodeRequest(BaseModel):
     rationale: str
