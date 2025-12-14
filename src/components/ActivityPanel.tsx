@@ -8,20 +8,28 @@ interface ActivityPanelProps {
 }
 
 const AGENT_COLORS: Record<AgentPhase, string> = {
+    task_decomposer: '#9C27B0', // Deep Purple
     researcher: '#8B5CF6',      // Purple
+    strategy_generator: '#E91E63', // Pink
     distiller: '#06B6D4',       // Cyan
     architect: '#F59E0B',       // Amber
+    architect_scheduler: '#FF9800', // Orange
     distiller_for_judge: '#6366F1', // Indigo
+    executor: '#795548',        // Brown
     judge: '#EF4444',           // Red
     evolution: '#10B981',       // Emerald
     propagation: '#3B82F6',     // Blue
 };
 
 const AGENT_ICONS: Record<AgentPhase, string> = {
+    task_decomposer: '🧩',
     researcher: '🔍',
+    strategy_generator: '💡',
     distiller: '📝',
     architect: '🏗️',
+    architect_scheduler: '📅',
     distiller_for_judge: '📋',
+    executor: '🤖',
     judge: '⚖️',
     evolution: '🧬',
     propagation: '🌱',

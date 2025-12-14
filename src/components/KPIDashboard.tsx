@@ -8,10 +8,14 @@ interface KPIDashboardProps {
 }
 
 const AGENT_DISPLAY: Record<AgentPhase, { icon: string; name: string; color: string }> = {
+    task_decomposer: { icon: '🧩', name: 'Decomposer', color: '#9C27B0' },
     researcher: { icon: '🔍', name: 'Researcher', color: '#8B5CF6' },
+    strategy_generator: { icon: '💡', name: 'Generator', color: '#E91E63' },
     distiller: { icon: '📝', name: 'Distiller', color: '#06B6D4' },
     architect: { icon: '🏗️', name: 'Architect', color: '#F59E0B' },
+    architect_scheduler: { icon: '📅', name: 'Scheduler', color: '#FF9800' },
     distiller_for_judge: { icon: '📋', name: 'Context Prep', color: '#6366F1' },
+    executor: { icon: '🤖', name: 'Executor', color: '#795548' },
     judge: { icon: '⚖️', name: 'Judge', color: '#EF4444' },
     evolution: { icon: '🧬', name: 'Evolution', color: '#10B981' },
     propagation: { icon: '🌱', name: 'Propagation', color: '#3B82F6' },
