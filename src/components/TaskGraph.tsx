@@ -135,8 +135,10 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick, select
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-    useEffect(() => {
-        if (!state || !state.strategies) return;
+    // Optimization: Memoize layout calculation so it doesn't run when only selection changes
+    // This calculates positions and edges, but leaves styling for the effect
+    const layoutData = useMemo(() => {
+        if (!state || !state.strategies) return { baseNodes: [], edges: [] };
 
         // --- Tree Layout Logic ---
         const stratMap = new Map<string, StrategyNode>();
@@ -167,26 +169,24 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick, select
             children.forEach(childId => queue.push({ id: childId, level: level + 1 }));
         }
 
-        // Assign Positions
+        // Assign Positions and create Base Nodes
         const levelCurrentX: number[] = [];
-        const newNodes: Node[] = state.strategies.map((strat) => {
+        const baseNodes = state.strategies.map((strat) => {
             const level = levels.get(strat.id) || 0;
             const levelIdx = levelCurrentX[level] || 0;
             levelCurrentX[level] = levelIdx + 1;
 
             const width = maxLevelWidth[level] || 1;
-            const x = (levelIdx - width / 2) * 300;  // 更宽的间距
+            const x = (levelIdx - width / 2) * 300;  // Wider spacing
             const y = level * 160;
-
-            const isSelected = selectedNodeIds.has(strat.id);
 
             return {
                 id: strat.id,
                 position: { x, y },
                 data: {
-                    label: buildNodeLabel(strat)
-                },
-                style: getNodeStyle(strat, isSelected),
+                    label: buildNodeLabel(strat),
+                    strategy: strat // Pass strategy for styling in effect
+                }
             };
         });
 
@@ -226,9 +226,27 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick, select
             }
         });
 
-        setNodes(newNodes);
-        setEdges(newEdges);
-    }, [state?.strategies, selectedNodeIds, setNodes, setEdges]);
+        return { baseNodes, edges: newEdges };
+    }, [state?.strategies]);
+
+    // Apply selection styles and update ReactFlow state
+    useEffect(() => {
+        const { baseNodes, edges } = layoutData;
+
+        if (baseNodes.length === 0 && edges.length === 0) return;
+
+        const finalNodes: Node[] = baseNodes.map(node => {
+            const strat = node.data.strategy;
+            const isSelected = selectedNodeIds.has(node.id);
+            return {
+                ...node,
+                style: getNodeStyle(strat, isSelected)
+            };
+        });
+
+        setNodes(finalNodes);
+        setEdges(edges);
+    }, [layoutData, selectedNodeIds, setNodes, setEdges]);
 
     const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
         if (!state?.strategies) return;
