@@ -16,9 +16,9 @@ Deep Think Evolving 是一个基于 **LangGraph** 的多代理进化研究助理
 ### 2.1 工作流概览
 
 ```text
-Phase 1 (问题理解): TaskDecomposer → Researcher → StrategyGenerator
+Phase 1 (问题理解): TaskDecomposer → Researcher → Distiller → StrategyGenerator
 Phase 2 (初评): DistillerForJudge → Judge → Evolution
-Phase 3 (执行循环): ArchitectScheduler → Executor → DistillerForJudge → Judge → Evolution → (收敛?)
+Phase 3 (执行循环): Evolution → (收敛?) → Propagation → ArchitectScheduler → Executor → DistillerForJudge → Judge → Evolution
 ```
 
 ### 2.2 收敛条件
@@ -289,14 +289,39 @@ n_s = f(C * exp(V_s / T) / Z)
 
 **函数**:
 
-- `distiller_node()`: 通用蒸馏节点
+- `distiller_node()`: 通用蒸馏节点，在 StrategyGenerator 前**强制触发**
 - `distiller_for_judge_node()`: 专为 Judge 准备上下文
-- `should_distill()`: 动态触发检查
+- `conditional_distill_for_architect()`: Architect 专用 "Summarize, Don't Truncate" 模式
+- `should_distill()`: 动态触发检查 (默认阈值: 80,000 tokens)
 - `estimate_token_count()`: token 估计
 
 **输出**:
 
 - `judge_context`: 蒸馏后的上下文字符串
+
+
+---
+
+### 3.9 Propagation（策略传播器/中间件）
+
+**文件**: `src/agents/propagation.py`
+
+**职责**:
+
+- 基于 Evolution 分配的 `child_quota`，为每个策略生成子节点
+- 机械化执行，无决策逻辑
+
+**触发时机**: `Evolution → (继续?) → Propagation → ArchitectScheduler`
+
+**输入**:
+
+- `strategies`: 带 `child_quota` 的策略列表
+
+**输出**:
+
+- 更新后的 `strategies` (已创建子节点，父策略 `child_quota` 重置为 0)
+
+**设计说明**: Propagation 是一个中间件，不是独立决策代理。它的作用是将 Evolution 计算的 `child_quota` 实际化为子策略节点。
 
 ## 4. 状态管理
 
@@ -494,8 +519,8 @@ def ask_human(
 | 环境变量 | 描述 |
 |----------|------|
 | `MODELSCOPE_API_KEY` | ModelScope API Key |
-| `EMBEDDING_MODEL` | 模型名称 (默认: `Qwen/Qwen3-Embedding-8B`) |
-| `EMBEDDING_BASE_URL` | API 端点 (默认: `https://api-inference.modelscope.cn/v1/`) |
+| `MODELSCOPE_EMBEDDING_MODEL` | 模型名称 (默认: `Qwen/Qwen3-Embedding-8B`) |
+| `MODELSCOPE_API_ENDPOINT` | API 端点 (默认: `https://api-inference.modelscope.cn/v1/`) |
 
 ### 8.2 Mock 模式
 

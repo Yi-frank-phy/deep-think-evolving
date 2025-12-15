@@ -52,7 +52,7 @@ def should_distill(state: DeepThinkState) -> bool:
     Returns True if context exceeds the configured threshold.
     """
     config = state.get("config", {})
-    threshold = config.get("distill_threshold", 4000)  # tokens
+    threshold = config.get("distill_threshold", 80000)  # tokens (50k-90k safety buffer, 100k = context rot)
     
     current_tokens = estimate_token_count(state)
     
@@ -70,6 +70,23 @@ def conditional_distill(state: DeepThinkState) -> DeepThinkState:
         return distiller_for_judge_node(state)  # Use the lighter distiller
     return state
 
+
+def conditional_distill_for_architect(state: DeepThinkState) -> DeepThinkState:
+    """
+    Summarize, Don't Truncate mode for Architect.
+    
+    Architect needs full context access for strategic decisions,
+    but should be warned when context is large.
+    Appends a summary warning instead of replacing the context.
+    """
+    if should_distill(state):
+        summary = generate_judge_context(state)
+        warning = f"[上下文压缩提示]\n{summary}\n\n原始数据过长，请参考以上摘要做决策。如需完整信息，请明确说明。"
+        return {
+            **state,
+            "architect_context_warning": warning
+        }
+    return state
 
 def _get_llm():
     """Get the Distiller LLM instance."""

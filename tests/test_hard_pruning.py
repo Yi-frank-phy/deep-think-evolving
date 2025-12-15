@@ -56,7 +56,8 @@ class TestStrategyArchive:
             with open(files[0], encoding="utf-8") as f:
                 archive = json.load(f)
             
-            assert archive["type"] == "strategy_archive"
+            # Updated to match new branch_archive format
+            assert archive["type"] == "branch_archive"
             assert "测试策略" in archive["title"]
             assert "report_v1" in archive["tags"]
     
@@ -86,15 +87,14 @@ class TestStrategyArchive:
             with open(files[0], encoding="utf-8") as f:
                 archive = json.load(f)
             
-            # Per spec.md §6.3, must contain:
+            # Per updated knowledge_base.py design (轻量化分支归档)
+            # Only branch decision info is saved, not full strategy content
             content = json.loads(archive["content"])
             assert "strategy_name" in content
-            assert "rationale" in content
-            assert "assumption" in content
-            assert "trajectory_summary" in content
             assert "branch_rationale" in content
             assert "synthesis_context" in content
             assert "report_version" in content
+            assert "final_score" in content
 
 
 class TestHardPruning:
