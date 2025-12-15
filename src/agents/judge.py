@@ -67,11 +67,23 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
         model_name = os.environ.get("GEMINI_MODEL_JUDGE", os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"))
         print(f"[Judge] Using model: {model_name}")
         
+        # 从 config 读取 thinking_budget
+        config_data = state.get("config", {})
+        thinking_budget = config_data.get("thinking_budget", 1024)
+        
+        generation_config = {}
+        if thinking_budget > 0:
+            generation_config["thinking_config"] = {
+                "include_thoughts": True,
+                "thinking_budget": thinking_budget
+            }
+        
         # Create LLM with tool binding for knowledge base
         llm = ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=api_key,
             temperature=0.1,  # Low temperature for objective evaluation
+            generation_config=generation_config
         )
         
         # Bind knowledge base tools

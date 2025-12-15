@@ -126,16 +126,14 @@ def generate_children_for_strategy(
     
     # 调用 LLM
     client = genai.Client(api_key=api_key)
-    grounding_tool = types.Tool(google_search=types.GoogleSearch())
     
     model_name = os.environ.get(
         "GEMINI_MODEL_GENERATOR",
         os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
     )
     
-    # LLM 配置 - 包含 thinking_budget
+    # 决策类 Agent: JSON 输出 + thinking_budget，不需要 Grounding
     config = types.GenerateContentConfig(
-        tools=[grounding_tool],
         response_mime_type="application/json",
         thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
     )
@@ -234,8 +232,9 @@ def propagation_node(state: DeepThinkState) -> DeepThinkState:
         
         if children:
             new_children.extend(children)
-            # 标记父节点为已扩展 (但保持活跃)
+            # 标记父节点为已扩展，并清除 quota 防止重复扩展
             strategy["status"] = "expanded"
+            strategy["child_quota"] = 0  # 防止无限扩展
             expanded_count += 1
             print(f"    Created {len(children)} children")
     

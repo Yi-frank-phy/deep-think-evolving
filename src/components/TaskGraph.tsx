@@ -30,6 +30,7 @@ const getNodeStyle = (strat: StrategyNode, isSelected: boolean) => {
     const isPruned = strat.status === 'pruned' || strat.status === 'pruned_synthesized';
     const isExpanded = strat.status === 'expanded';
     const isCompleted = strat.status === 'completed';
+    const isProcessing = isActive && (strat.child_quota ?? 0) > 0; // 正在处理中
 
     let borderColor = '#555';
     let bgGradient = 'linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%)';
@@ -59,12 +60,15 @@ const getNodeStyle = (strat: StrategyNode, isSelected: boolean) => {
         fontSize: '12px',
         padding: '12px',
         cursor: 'pointer',
-        boxShadow: isSelected
-            ? '0 0 20px rgba(167, 139, 250, 0.4)'
-            : '0 4px 12px rgba(0,0,0,0.4)',
+        boxShadow: isProcessing
+            ? '0 0 15px rgba(76, 175, 80, 0.5), 0 0 30px rgba(76, 175, 80, 0.3)' // 处理中脉冲
+            : isSelected
+                ? '0 0 20px rgba(167, 139, 250, 0.4)'
+                : '0 4px 12px rgba(0,0,0,0.4)',
         opacity: isPruned ? 0.5 : 1,
         textAlign: 'left' as const,
-        transition: 'all 0.3s ease'
+        transition: 'all 0.3s ease',
+        animation: isProcessing ? 'pulse 2s ease-in-out infinite' : 'none'
     };
 };
 
@@ -191,12 +195,25 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick, select
         state.strategies.forEach(s => {
             if (s.parent_id) {
                 const isActive = s.status === 'active';
+                const ucbLabel = s.ucb_score ? `UCB: ${s.ucb_score.toFixed(1)}` : '';
+
                 newEdges.push({
                     id: `e-${s.parent_id}-${s.id}`,
                     source: s.parent_id,
                     target: s.id,
                     type: 'smoothstep',
                     animated: isActive,
+                    label: ucbLabel,
+                    labelStyle: {
+                        fill: '#FF9800',
+                        fontSize: 10,
+                        fontWeight: 500
+                    },
+                    labelBgStyle: {
+                        fill: 'rgba(0,0,0,0.7)',
+                        fillOpacity: 0.8
+                    },
+                    labelBgPadding: [4, 2] as [number, number],
                     style: {
                         stroke: isActive ? '#4CAF50' : '#444',
                         strokeWidth: isActive ? 2 : 1
@@ -272,9 +289,10 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick, select
                 <Controls style={{ background: '#1a1a1a', borderRadius: '8px' }} />
                 <MiniMap
                     nodeColor={(node) => {
-                        if (node.style?.borderLeft?.includes('#4CAF50')) return '#4CAF50';
-                        if (node.style?.borderLeft?.includes('#f44336')) return '#f44336';
-                        if (node.style?.borderLeft?.includes('#2196F3')) return '#2196F3';
+                        const borderLeft = String(node.style?.borderLeft ?? '');
+                        if (borderLeft.includes('#4CAF50')) return '#4CAF50';
+                        if (borderLeft.includes('#f44336')) return '#f44336';
+                        if (borderLeft.includes('#2196F3')) return '#2196F3';
                         return '#666';
                     }}
                     style={{

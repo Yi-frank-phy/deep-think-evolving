@@ -102,9 +102,9 @@ def execute_single_task(
         os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
     )
     
+    # 研究类 Agent: Grounding + thinking_budget，不需要 JSON 输出
     config = types.GenerateContentConfig(
         tools=[grounding_tool],
-        response_mime_type="application/json",
         thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
     )
     
@@ -207,7 +207,8 @@ def execute_synthesis_task(
     existing_report: Optional[str],
     report_version: int,
     api_key: str,
-    use_mock: bool = False
+    use_mock: bool = False,
+    thinking_budget: int = 1024
 ) -> Dict[str, Any]:
     """
     Execute a synthesis/report task (when strategy_id is null).
@@ -265,9 +266,10 @@ def execute_synthesis_task(
         os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
     )
     
+    # 研究类 Agent: Grounding + thinking_budget，不需要 JSON 输出
     config = types.GenerateContentConfig(
         tools=[grounding_tool],
-        response_mime_type="application/json"
+        thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
     )
     
     prompt = SYNTHESIS_PROMPT_TEMPLATE.format(
