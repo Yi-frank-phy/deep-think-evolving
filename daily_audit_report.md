@@ -1,30 +1,34 @@
-# 📋 Daily Consistency Audit Report - 2024-10-18
+# 📋 Daily Consistency Audit Report - [Date]
 
 ### 🚨 Critical Mismatches (Action Required)
 > List logic errors or direct contradictions.
 
-- **Requirement:** "POST /api/simulation/stop" (`spec.md` §5.1)
-- **Implementation:** Implemented as `GET /api/simulation/stop` (Line 269).
-- **File:** `server.py`
-- **Severity:** High (API Contract Violation)
+- **Requirement:** "Phase 3 (执行循环): ArchitectScheduler → Executor → DistillerForJudge → Judge → Evolution → (收敛?)" (Spec 2.1)
+- **Implementation:** `Evolution → Propagation → ArchitectScheduler` (Graph Builder)
+- **File:** `src/core/graph_builder.py`
+- **Severity:** High
+- **Description:** The `Propagation` node is inserted into the workflow to generate child strategies from quotas. This node is not documented in the Spec 2.1 workflow, nor is the `Propagation` agent defined in Spec 3. Core Agent Specs.
 
-- **Requirement:** "支持多个嵌入服务提供商... EMBEDDING_PROVIDER | 提供商选择: ollama, modelscope, openai" (`spec.md` §8.1)
-- **Implementation:** `src/embedding_client.py` only implements ModelScope logic. It checks `MODELSCOPE_API_KEY` directly and does not read `EMBEDDING_PROVIDER` to switch implementations.
+- **Requirement:** "Configuration: Using ModelScope Qwen3-Embedding-8B ... Env Vars: `EMBEDDING_MODEL`, `EMBEDDING_BASE_URL`" (Spec 8.1)
+- **Implementation:** Code uses `MODELSCOPE_EMBEDDING_MODEL`, `MODELSCOPE_API_ENDPOINT`.
 - **File:** `src/embedding_client.py`
-- **Severity:** High (Missing Core Infrastructure)
+- **Severity:** Medium
+- **Description:** Environment variable names differ from specification.
 
 ### ⚠️ Implementation Gaps
 > List features that are documented but completely missing.
 
-- [ ] **Embedding Provider Selection**: `ollama` and `openai` support is missing in `src/embedding_client.py`.
-- [ ] **Spec Compliance Check**: While `scripts/check_specs.py` exists, its usage in CI/CD (Github Actions) is not verified in this audit scope, but the script itself is present.
+- [ ] **Distiller Node (Generic)**: Spec 3.8 mentions `distiller_node()` and `DistillerForJudge`. Graph only uses `DistillerForJudge`. The generic `distiller_node` is unused in the graph.
 
 ### 👻 Unsolicited Code (Hallucination Check)
 > List major logic found in code but NOT in docs.
 
-- **Found:** Audio input support (`audio_base64`) in `ChatRequest` endpoint (`/api/chat/stream`).
-- **Risk:** Undocumented feature increasing attack surface and maintenance burden. `spec.md` only mentions "流式聊天 (SSE)".
+- **Found:** `Propagation` Agent/Node (`src/agents/propagation.py`)
+- **Risk:** Critical Logic exists without specification. The Spec implies `Executor` or `Evolution` handles reproduction, but Code uses a dedicated `Propagation` agent.
+
+- **Found:** `writer.py` (`src/agents/writer.py`)
+- **Risk:** Legacy/Unused code. Spec 3.7 assigns reporting to `Executor`. The `writer.py` file exists but is removed from the graph. It should be deleted or marked as deprecated.
 
 ### ✅ Verification Status
-- **Overall Consistency Score:** 92%
-- **Summary:** The system architecture (LangGraph, Agents, Math Engine) is highly consistent with `spec.md`. The primary deviations are in the Embedding Client's lack of provider flexibility and a minor HTTP method mismatch in the API.
+- **Overall Consistency Score:** 85%
+- **Summary:** The core architecture largely aligns, but the "Propagation" step (creating child nodes) is a major structural deviation from the Spec which implies a simpler loop. Environment variable naming also drifts from Spec.
