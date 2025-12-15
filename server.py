@@ -174,8 +174,8 @@ class ChatRequest(BaseModel):
         return v
 
 class ExpandNodeRequest(BaseModel):
-    rationale: str
-    context: str | None = None
+    rationale: str = Field(..., max_length=50000, description="Strategy rationale limited to 50k chars")
+    context: str | None = Field(None, max_length=1_000_000, description="Optional context limited to 1M chars")
     model_name: str = "gemini-2.5-flash"  # Default
 
 
@@ -193,12 +193,12 @@ class SimulationConfig(BaseModel):
     # System temperature τ controls resource allocation only (see temperature_helper.py)
 
 class SimulationRequest(BaseModel):
-    problem: str
+    problem: str = Field(..., max_length=50000, description="Problem description limited to 50k chars")
     config: SimulationConfig = SimulationConfig()
 
 class HilResponse(BaseModel):
     request_id: str
-    response: str
+    response: str = Field(..., max_length=50000, description="Human response limited to 50k chars")
 
 class SimulationManager:
     def __init__(self):

@@ -69,3 +69,45 @@ class TestServerSecurity:
         assert response.status_code == 422
         errors = response.json().get("detail", [])
         assert any("audio_base64" in e["loc"] for e in errors)
+
+    def test_expand_node_too_long(self):
+        """Test that expand_node requests with overly long rationale are rejected."""
+        large_rationale = "A" * 50001
+        payload = {
+            "rationale": large_rationale,
+            "model_name": "gemini-2.5-flash"
+        }
+
+        response = client.post("/api/expand_node", json=payload)
+
+        assert response.status_code == 422
+        errors = response.json().get("detail", [])
+        assert any("rationale" in e["loc"] for e in errors)
+
+    def test_simulation_request_too_long(self):
+        """Test that simulation requests with overly long problem description are rejected."""
+        large_problem = "A" * 50001
+        payload = {
+            "problem": large_problem,
+            "config": {}
+        }
+
+        response = client.post("/api/simulation/start", json=payload)
+
+        assert response.status_code == 422
+        errors = response.json().get("detail", [])
+        assert any("problem" in e["loc"] for e in errors)
+
+    def test_hil_response_too_long(self):
+        """Test that HIL responses with overly long response text are rejected."""
+        large_response = "A" * 50001
+        payload = {
+            "request_id": "req-123",
+            "response": large_response
+        }
+
+        response = client.post("/api/hil/response", json=payload)
+
+        assert response.status_code == 422
+        errors = response.json().get("detail", [])
+        assert any("response" in e["loc"] for e in errors)
