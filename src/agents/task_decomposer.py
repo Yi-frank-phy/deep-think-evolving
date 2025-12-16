@@ -107,7 +107,7 @@ def task_decomposer_node(state: DeepThinkState) -> DeepThinkState:
         llm = ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=api_key,
-            temperature=0.3,  # Low temperature for structured decomposition
+            temperature=1.0,  # Enforce Logic Manifold Integrity
         )
         
         parser = JsonOutputParser()

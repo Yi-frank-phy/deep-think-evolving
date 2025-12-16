@@ -123,6 +123,7 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
         
         grounding_config = types.GenerateContentConfig(
             tools=[grounding_tool],
+            temperature=1.0,  # Enforce Logic Manifold Integrity
             # Note: response_mime_type is NOT compatible with tools/grounding
         )
         

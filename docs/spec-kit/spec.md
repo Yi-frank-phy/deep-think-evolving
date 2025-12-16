@@ -392,6 +392,7 @@ interface DeepThinkState {
 | POST | `/api/chat/stream` | 流式聊天 (SSE) |
 | POST | `/api/hil/response` | 提交人机交互响应 |
 | GET | `/api/hil/pending` | 获取待处理的 HIL 请求 |
+| POST | `/api/hil/force_synthesize` | 强制综合（HIL Hard Pruning） |
 
 ### 5.2 WebSocket 端点
 
@@ -429,6 +430,7 @@ interface SimulationRequest {
 - `CONVERGENCE`: 收敛通知
 - `ERROR`: 错误通知
 - `HIL_REQUIRED`: 需要人类干预
+- `HIL_FORCE_SYNTHESIZE`: 强制综合通知
 
 **知识库** (`/ws/knowledge_base`):
 
@@ -605,6 +607,7 @@ python scripts/check_specs.py
 | 1.0 | 2025-10 | 初始版本（线性流水线） |
 | 2.0 | 2025-12 | 重写为 LangGraph 多代理进化架构 |
 | 2.1 | 2025-12 | 新增动态报告生成和硬剪枝机制 |
+| 2.2 | 2025-12 | 更新 HIL API 规范 (Force Synthesis) |
 
 ## 13. 硬剪枝机制
 

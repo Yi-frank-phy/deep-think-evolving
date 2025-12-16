@@ -117,7 +117,7 @@ def strategy_generator_node(state: DeepThinkState) -> DeepThinkState:
         llm = ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=api_key,
-            temperature=llm_temperature,  # 动态温度
+            temperature=1.0,  # Enforce Logic Manifold Integrity
             generation_config=generation_config
         )
         
