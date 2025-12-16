@@ -220,6 +220,7 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
     
     return {
         **state,
+        "strategies": strategies,  # Explicit return to ensure updated UCB scores are broadcast
         "spatial_entropy": spatial_entropy,
         "prev_spatial_entropy": prev_entropy,  # For convergence detection
         "effective_temperature": float(t_eff),
