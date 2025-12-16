@@ -182,7 +182,8 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
         v_min=v_min,
         v_max=v_max,
         tau=tau,
-        c=c_explore
+        c=c_explore,
+        log_densities=log_densities  # Use log domain for numerical stability
     )
     
     # Update UCB scores (for display/ranking)
