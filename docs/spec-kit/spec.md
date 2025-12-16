@@ -299,7 +299,6 @@ n_s = f(C * exp(V_s / T) / Z)
 
 - `judge_context`: 蒸馏后的上下文字符串
 
-
 ---
 
 ### 3.9 Propagation（策略传播器/中间件）
@@ -442,29 +441,38 @@ interface SimulationRequest {
 
 ### 6.1 write_experience
 
-写入经验到向量知识库。由 Judge 在评估过程中调用。
+写入有价值的经验到向量知识库。仅在 Agent 确信值得长期保存时调用。
 
 ```python
 @tool
 def write_experience(
-    category: Literal["lesson_learned", "success_pattern", "insight"],
-    context: str,
+    title: str,
     content: str,
-    tags: List[str] = []
+    experience_type: Literal["lesson_learned", "success_pattern", "branching_heuristic", "meta_insight"],
+    tags: Optional[List[str]] = None,
+    related_strategy: Optional[str] = None,
 ) -> str
 ```
 
+**适合保存的经验类型**:
+
+- 可泛化的抽象教训
+- 分支决策的元策略
+- 反复出现的失败模式
+
 ### 6.2 search_experiences
 
-向量搜索知识库中的相关经验。
+基于向量距离搜索知识库中的相关经验。只召回距离 < ε 的高度相关经验。
 
 ```python
-@tool
 def search_experiences(
     query: str,
-    category: Optional[str] = None,
-    top_k: int = 5
-) -> List[Dict]
+    query_embedding: Optional[List[float]] = None,
+    current_embeddings: Optional[List[List[float]]] = None,
+    experience_type: Optional[str] = None,
+    limit: int = 3,
+    epsilon_threshold: float = 1.0,
+) -> List[Dict[str, Any]]
 ```
 
 ### 6.3 write_strategy_archive
@@ -520,7 +528,7 @@ def ask_human(
 |----------|------|
 | `MODELSCOPE_API_KEY` | ModelScope API Key |
 | `MODELSCOPE_EMBEDDING_MODEL` | 模型名称 (默认: `Qwen/Qwen3-Embedding-8B`) |
-| `MODELSCOPE_API_ENDPOINT` | API 端点 (默认: `https://api-inference.modelscope.cn/v1/`) |
+| `MODELSCOPE_API_ENDPOINT` | API 端点 (默认: `https://api-inference.modelscope.cn/v1/embeddings`) |
 
 ### 8.2 Mock 模式
 
