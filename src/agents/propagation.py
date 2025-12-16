@@ -17,6 +17,7 @@ from typing import List, Dict, Any
 from google import genai
 from google.genai import types
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.core.state import DeepThinkState, StrategyNode
 
@@ -207,36 +208,51 @@ def propagation_node(state: DeepThinkState) -> DeepThinkState:
     new_children: List[StrategyNode] = []
     expanded_count = 0
     
-    for strategy in strategies:
-        if strategy.get("status") != "active":
-            continue
-            
-        quota = strategy.get("child_quota", 0)
-        if quota <= 0:
-            continue
+    # ⚡ Parallel Execution Optimization
+    # Use ThreadPoolExecutor to generate children for multiple strategies in parallel
+    # This significantly reduces the total time when multiple strategies need expansion.
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_strategy = {}
         
-        print(f"  > Generating {quota} children for '{strategy['name']}'...")
-        
-        # 从 config 获取 thinking_budget
-        config = state.get("config", {})
-        thinking_budget = config.get("thinking_budget", 1024)
-        
-        children = generate_children_for_strategy(
-            problem=problem,
-            parent=strategy,
-            num_children=quota,
-            api_key=api_key,
-            use_mock=use_mock,
-            thinking_budget=thinking_budget
-        )
-        
-        if children:
-            new_children.extend(children)
-            # 标记父节点为已扩展，并清除 quota 防止重复扩展
-            strategy["status"] = "expanded"
-            strategy["child_quota"] = 0  # 防止无限扩展
-            expanded_count += 1
-            print(f"    Created {len(children)} children")
+        for strategy in strategies:
+            if strategy.get("status") != "active":
+                continue
+
+            quota = strategy.get("child_quota", 0)
+            if quota <= 0:
+                continue
+
+            print(f"  > [Parallel Submit] Generating {quota} children for '{strategy['name']}'...")
+
+            # 从 config 获取 thinking_budget
+            config = state.get("config", {})
+            thinking_budget = config.get("thinking_budget", 1024)
+
+            future = executor.submit(
+                generate_children_for_strategy,
+                problem=problem,
+                parent=strategy,
+                num_children=quota,
+                api_key=api_key,
+                use_mock=use_mock,
+                thinking_budget=thinking_budget
+            )
+            future_to_strategy[future] = strategy
+
+        # Collect results as they complete
+        for future in as_completed(future_to_strategy):
+            strategy = future_to_strategy[future]
+            try:
+                children = future.result()
+                if children:
+                    new_children.extend(children)
+                    # 标记父节点为已扩展，并清除 quota 防止重复扩展
+                    strategy["status"] = "expanded"
+                    strategy["child_quota"] = 0  # 防止无限扩展
+                    expanded_count += 1
+                    print(f"    [Complete] '{strategy['name']}' -> Created {len(children)} children")
+            except Exception as e:
+                print(f"[Propagation] Error generating children for '{strategy.get('name', 'Unknown')}': {e}")
     
     # 合并新子策略到策略池
     all_strategies = strategies + new_children
