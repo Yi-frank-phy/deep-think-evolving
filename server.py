@@ -11,7 +11,10 @@ from typing import Dict, List
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+import webbrowser
+import sys
 
 load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
@@ -526,6 +529,34 @@ async def force_synthesize_strategies(req: ForceSynthesizeRequest):
 
 
 
+# ============ Static File Serving (for packaged EXE) ============
+# Check if running as bundled executable (PyInstaller) or if dist/ exists
+DIST_DIR = BASE_DIR / "dist"
+if getattr(sys, 'frozen', False):
+    # Running as PyInstaller bundle - dist is bundled
+    DIST_DIR = Path(sys._MEIPASS) / "dist"
+
+if DIST_DIR.exists():
+    # Mount static files for production/bundled mode
+    app.mount("/assets", StaticFiles(directory=DIST_DIR / "assets"), name="assets")
+    
+    @app.get("/")
+    async def serve_index():
+        return FileResponse(DIST_DIR / "index.html")
+    
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # SPA fallback: serve index.html for all non-API routes
+        file_path = DIST_DIR / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(DIST_DIR / "index.html")
+
 if __name__ == "__main__":
     import uvicorn
+    
+    # Auto-open browser for bundled EXE
+    if getattr(sys, 'frozen', False) or DIST_DIR.exists():
+        webbrowser.open("http://localhost:8000")
+    
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -325,16 +325,21 @@ n_s = f(C × exp(V_s / T) / Z)
 结合**利用**与**探索**的评分公式：
 
 ```python
-UCB = V_norm + c × sqrt(τ × (1 - density_norm))
+UCB = Score + c × τ × Normalize(1/√p_rel)
 
 其中:
-- V_norm = (V - V_min) / (V_max - V_min)  # 归一化价值
-- density_norm = normalized density from KDE
+- Score = Judge 评分 (0-1)，直接使用，不再二次归一化
+- p_rel = density / max(density)  # 相对密度
+- Normalize() = Min-Max 归一化到 [0, 1]
 - c = c_explore 探索系数 (默认 1.0)
 - τ = 归一化温度
 ```
 
-低密度（新颖）策略获得**探索奖励**。
+**数学基础**：不确定性 σ ∝ 1/√(有效样本量) ∝ 1/√(density)
+
+> 详细推导见 [docs/math_proof_ucb.md](./docs/math_proof_ucb.md)
+
+低密度（新颖/少探索）策略获得**探索奖励**，保证 UCB ≥ Score（上确界性质）。
 
 ---
 
