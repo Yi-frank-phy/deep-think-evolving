@@ -209,8 +209,9 @@ export const ControlTower: React.FC = () => {
                         <div className="config-section">
                             <h4 style={{ marginBottom: '0.5rem', borderBottom: '1px solid #444', paddingBottom: '0.25rem' }}>Model & Compute</h4>
                             <div className="config-item">
-                                <label>Core Model</label>
+                                <label htmlFor="config-model">Core Model</label>
                                 <select
+                                    id="config-model"
                                     value={config.model_name}
                                     onChange={e => handleModelChange(e.target.value)}
                                     style={{ width: '100%', padding: '0.5rem', background: '#333', border: '1px solid #555', color: '#fff', borderRadius: '4px' }}
@@ -219,17 +220,19 @@ export const ControlTower: React.FC = () => {
                                 </select>
                             </div>
                             <div className="config-item" style={{ marginTop: '0.5rem' }}>
-                                <label style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>Thinking Budget</span>
-                                    <span style={{ color: '#888', fontSize: '0.85rem' }}>{config.thinking_budget} tokens</span>
-                                </label>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <label htmlFor="config-budget">Thinking Budget</label>
+                                    <span style={{ color: '#888', fontSize: '0.85rem' }} aria-hidden="true">{config.thinking_budget} tokens</span>
+                                </div>
                                 <input
+                                    id="config-budget"
                                     type="range"
                                     min={currentModel.thinking_min}
                                     max={currentModel.thinking_max}
                                     step={128}
                                     value={config.thinking_budget}
                                     onChange={e => setConfig({ ...config, thinking_budget: parseInt(e.target.value) })}
+                                    aria-valuetext={`${config.thinking_budget} tokens`}
                                     style={{ width: '100%', marginTop: '0.5rem' }}
                                 />
                             </div>
@@ -239,20 +242,38 @@ export const ControlTower: React.FC = () => {
                         <div className="config-section">
                             <h4 style={{ marginBottom: '0.5rem', borderBottom: '1px solid #444', paddingBottom: '0.25rem' }}>Evolution Engine</h4>
                             <div className="config-item">
-                                <label>Max Iterations: {config.max_iterations}</label>
-                                <input type="range" min="1" max="50" value={config.max_iterations}
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <label htmlFor="config-iterations">Max Iterations</label>
+                                    <span aria-hidden="true">{config.max_iterations}</span>
+                                </div>
+                                <input
+                                    id="config-iterations"
+                                    type="range"
+                                    min="1"
+                                    max="50"
+                                    value={config.max_iterations}
                                     onChange={e => setConfig({ ...config, max_iterations: parseInt(e.target.value) })}
+                                    aria-valuetext={`${config.max_iterations} iterations`}
                                     style={{ width: '100%' }} />
                             </div>
                             <div className="config-item">
-                                <label>Entropy Threshold: {config.entropy_threshold}</label>
-                                <input type="number" step="0.01" value={config.entropy_threshold}
+                                <label htmlFor="config-entropy">Entropy Threshold</label>
+                                <input
+                                    id="config-entropy"
+                                    type="number"
+                                    step="0.01"
+                                    value={config.entropy_threshold}
                                     onChange={e => setConfig({ ...config, entropy_threshold: parseFloat(e.target.value) })}
                                     style={{ width: '100%', background: '#333', border: '1px solid #555', color: '#fff' }} />
                             </div>
                             <div className="config-item">
-                                <label>Child Budget: {config.total_child_budget}</label>
-                                <input type="number" min="2" max="20" value={config.total_child_budget}
+                                <label htmlFor="config-child-budget">Child Budget</label>
+                                <input
+                                    id="config-child-budget"
+                                    type="number"
+                                    min="2"
+                                    max="20"
+                                    value={config.total_child_budget}
                                     onChange={e => setConfig({ ...config, total_child_budget: parseInt(e.target.value) })}
                                     style={{ width: '100%', background: '#333', border: '1px solid #555', color: '#fff' }} />
                             </div>
@@ -264,23 +285,29 @@ export const ControlTower: React.FC = () => {
                             {/* NOTE: LLM temperature is always 1.0 (Logic Manifold Integrity) */}
                             {/* System temperature τ controls Sampling Count (N) / Beam Width */}
                             <div className="config-item">
-                                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} title="Controls initial exploration intensity. Higher values (1.5-2.0) encourage innovation; lower values (0.5-1.0) favor stability.">
-                                    <span style={{ borderBottom: '1px dotted #888', cursor: 'help' }}>Max Temp (T_max)</span>
-                                    <span style={{ color: '#888', fontSize: '0.85rem' }}>{config.t_max.toFixed(1)}</span>
-                                </label>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} title="Controls initial exploration intensity. Higher values (1.5-2.0) encourage innovation; lower values (0.5-1.0) favor stability.">
+                                    <label htmlFor="config-temp" style={{ borderBottom: '1px dotted #888', cursor: 'help' }}>Max Temp (T_max)</label>
+                                    <span style={{ color: '#888', fontSize: '0.85rem' }} aria-hidden="true">{config.t_max.toFixed(1)}</span>
+                                </div>
                                 <input
+                                    id="config-temp"
                                     type="range"
                                     min="0.0"
                                     max="2.0"
                                     step="0.1"
                                     value={config.t_max}
                                     onChange={e => setConfig({ ...config, t_max: parseFloat(e.target.value) })}
+                                    aria-valuetext={`Temperature ${config.t_max.toFixed(1)}`}
                                     style={{ width: '100%', marginTop: '0.5rem' }}
                                 />
                             </div>
                             <div className="config-item">
-                                <label>Exploration (C)</label>
-                                <input type="number" step="0.1" value={config.c_explore}
+                                <label htmlFor="config-explore">Exploration (C)</label>
+                                <input
+                                    id="config-explore"
+                                    type="number"
+                                    step="0.1"
+                                    value={config.c_explore}
                                     onChange={e => setConfig({ ...config, c_explore: parseFloat(e.target.value) })}
                                     style={{ width: '100%', background: '#333', border: '1px solid #555', color: '#fff' }} />
                             </div>
