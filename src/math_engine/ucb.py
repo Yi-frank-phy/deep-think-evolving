@@ -53,28 +53,21 @@ def batch_calculate_ucb(
     v_min: float,
     v_max: float,
     tau: float,
-    c: float = 1.0,
-    log_densities: np.ndarray = None
+    c: float = 1.0
 ) -> np.ndarray:
     """
-    Vectorized UCB calculation using Relative Density in LOG DOMAIN.
+    Vectorized UCB calculation using Relative Density.
     
     Fix for High-Dimensionality:
     In 4096-dim space, raw density p(x) has a tiny magnitude (e.g. 1e-1000) due 
-    to volume scaling. Direct exp(log_density) causes underflow to 0.
+    to volume scaling. This causes 1/sqrt(p) to explode.
     
     Solution: 
-    Compute relative density directly in log domain:
-    log(p_rel) = log_density - log_density_max
-    Then: 1/sqrt(p_rel) = exp(-0.5 * log(p_rel)) = exp(-0.5 * (log_density - log_density_max))
+    Use Relative Density p_rel(x) = p(x) / p_max.
+    Exploration = c * tau * (1 / sqrt(p_rel))
     
-    Args:
-        values: Array of value scores.
-        densities: DEPRECATED - kept for backward compatibility, ignored if log_densities provided.
-        v_min, v_max: Value range for normalization.
-        tau: Normalized temperature.
-        c: Exploration constant.
-        log_densities: Log-density values (preferred - avoids underflow).
+    This preserves the exact shape/physics of the distribution derived from 
+    Gaussian kernels, but eliminates the dimension-dependent constant factor.
     """
     epsilon = 1e-9
     
@@ -85,29 +78,27 @@ def batch_calculate_ucb(
     else:
         normalized_values = (values - v_min) / (v_range + 1e-5)
         
-    # 2. Relative Density Calculation in LOG DOMAIN
-    if log_densities is not None:
-        # Use log_densities directly (stable for high-dim)
-        log_density_max = np.max(log_densities)
-        log_p_rel = log_densities - log_density_max  # log(p_rel) in [-inf, 0]
+    # 2. Relative Density Calculation
+    # p_max captures the "scale" of the current probability landscape
+    # In high-dim space, p_max can be extremely small (e.g. 1e-1000) - this is NORMAL
+    p_max = np.max(densities)
+    
+    # Only guard against actual zero (not small values)
+    if p_max == 0:
+        p_max = 1.0  # Fallback only if literally zero
         
-        # Clip to prevent exp overflow: log_p_rel in [-20, 0] => p_rel in [2e-9, 1]
-        log_p_rel = np.maximum(log_p_rel, -20.0)
-        
-        # 1/sqrt(p_rel) = exp(-0.5 * log_p_rel)
-        exploration_term = np.exp(-0.5 * log_p_rel)
-    else:
-        # Legacy path: use densities directly (may underflow in high-dim)
-        p_max = np.max(densities)
-        if p_max == 0:
-            p_max = 1.0
-        p_rel = densities / p_max
-        p_rel = np.maximum(p_rel, epsilon)
-        exploration_term = 1.0 / np.sqrt(p_rel)
+    # p_rel will be in (0, 1]
+    # We use stable division
+    p_rel = densities / p_max
+    
+    # Clip small values to prevent 1/sqrt(0)
+    p_rel = np.maximum(p_rel, epsilon)
     
     # 3. Exploration Term
     # When p_rel = 1 (most explored), term = 1.0 -> Bonus = c * tau
-    # When p_rel -> 0 (least explored), term increases (capped by log_p_rel clip)
+    # When p_rel -> 0 (least explored), term increases
+    exploration_term = 1.0 / np.sqrt(p_rel)
+    
     return normalized_values + c * tau * exploration_term
 
 
