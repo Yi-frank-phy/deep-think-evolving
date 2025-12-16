@@ -196,7 +196,7 @@ def write_strategy_archive(
     return f"Branch archived: {file_path.name}"
 
 
-def search_experiences(
+def _search_experiences_impl(
     query: str,
     query_embedding: Optional[List[float]] = None,
     current_embeddings: Optional[List[List[float]]] = None,
@@ -205,7 +205,7 @@ def search_experiences(
     epsilon_threshold: float = 1.0,  # 距离阈值: 1ε = 一个标准差
 ) -> List[Dict[str, Any]]:
     """
-    基于向量距离搜索知识库中的相关经验。
+    基于向量距离搜索知识库中的相关经验 (内部实现)。
     
     ⚠️ 只召回距离 < epsilon_threshold * ε 的高度相关经验。
     这确保了上下文的纯净性，避免召回不相关的腐烂上下文。
@@ -271,6 +271,7 @@ def search_experiences(
                         "content": exp.get("content")[:300] if exp.get("content") else "",
                         "tags": exp.get("tags"),
                         "distance": distance,
+                        "score": 1.0 - (distance / distance_threshold),  # 归一化相关性 (兼容测试)
                         "relevance": 1.0 - (distance / distance_threshold)  # 归一化相关性
                     })
                     
@@ -288,6 +289,35 @@ def search_experiences(
         print(f"[KB] No experiences within distance threshold ({distance_threshold:.4f})")
     
     return experiences
+
+
+@tool
+def search_experiences(
+    query: str,
+    experience_type: Optional[str] = None,
+    limit: int = 3,
+) -> str:
+    """
+    基于向量距离搜索知识库中的相关经验。
+    
+    Args:
+        query: 搜索查询文本
+        experience_type: 可选的类型过滤 ("lesson_learned", "success_pattern", 等)
+        limit: 最大返回数量
+        
+    Returns:
+        JSON 格式的经验列表，或 "No matching experiences found."
+    """
+    results = _search_experiences_impl(
+        query=query,
+        experience_type=experience_type,
+        limit=limit
+    )
+    
+    if not results:
+        return "No matching experiences found."
+    
+    return json.dumps(results, ensure_ascii=False, indent=2)
 
 
 def format_experiences_for_context(experiences: List[Dict[str, Any]]) -> str:
