@@ -13,13 +13,11 @@ Executor Agent - 策略执行器
 
 import os
 import uuid
+import json
 from typing import List, Dict, Any, Optional
 
 from google import genai
 from google.genai import types
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from src.core.state import DeepThinkState, StrategyNode
 from src.tools.knowledge_base import write_strategy_archive
@@ -105,7 +103,8 @@ def execute_single_task(
     # 研究类 Agent: Grounding + thinking_budget，不需要 JSON 输出
     config = types.GenerateContentConfig(
         tools=[grounding_tool],
-        thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
+        thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
+        response_mime_type="application/json"
     )
     
     prompt = EXECUTOR_PROMPT_TEMPLATE.format(
@@ -124,7 +123,6 @@ def execute_single_task(
             config=config,
         )
         
-        import json
         try:
             result = json.loads(response.text)
         except json.JSONDecodeError:
@@ -269,7 +267,8 @@ def execute_synthesis_task(
     # 研究类 Agent: Grounding + thinking_budget，不需要 JSON 输出
     config = types.GenerateContentConfig(
         tools=[grounding_tool],
-        thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
+        thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
+        response_mime_type="application/json"
     )
     
     prompt = SYNTHESIS_PROMPT_TEMPLATE.format(
@@ -287,7 +286,6 @@ def execute_synthesis_task(
             config=config,
         )
         
-        import json
         try:
             result = json.loads(response.text)
         except json.JSONDecodeError:

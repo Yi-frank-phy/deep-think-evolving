@@ -7,11 +7,11 @@ StrategyGenerator Agent - 策略生成器
 
 import os
 import uuid
+import json
 from typing import List
 
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_google_genai import ChatGoogleGenerativeAI
+from google import genai
+from google.genai import types
 
 from src.core.state import DeepThinkState, StrategyNode
 from src.core.temperature_helper import get_llm_temperature
@@ -100,49 +100,44 @@ def strategy_generator_node(state: DeepThinkState) -> DeepThinkState:
         )
         print(f"[StrategyGenerator] Using model: {model_name}")
         
-        config = state.get("config", {})
-        thinking_budget = config.get("thinking_budget", 1024)
+        config_data = state.get("config", {})
+        thinking_budget = config_data.get("thinking_budget", 1024)
         
         # 使用温度辅助函数获取LLM温度
         llm_temperature = get_llm_temperature(state)
         print(f"[StrategyGenerator] LLM temperature: {llm_temperature}")
         
-        generation_config = {}
-        if thinking_budget > 0:
-            generation_config["thinking_config"] = {
-                "include_thoughts": True,
-                "thinking_budget": thinking_budget
-            }
+        client = genai.Client(api_key=api_key)
         
-        llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            google_api_key=api_key,
-            temperature=llm_temperature,  # 动态温度
-            generation_config=generation_config
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
+            temperature=llm_temperature
         )
-        
-        parser = JsonOutputParser()
-        prompt = PromptTemplate(
-            template=STRATEGY_GENERATOR_PROMPT,
-            input_variables=["problem_state", "research_context", "subtasks"]
-        )
-        
-        chain = prompt | llm | parser
         
         subtasks_str = "\n".join([f"- {s}" for s in subtasks]) if subtasks else "无子任务分解"
         
+        prompt = STRATEGY_GENERATOR_PROMPT.format(
+            problem_state=problem_state,
+            research_context=research_context,
+            subtasks=subtasks_str
+        )
+
         try:
-            response = chain.invoke({
-                "problem_state": problem_state,
-                "research_context": research_context,
-                "subtasks": subtasks_str
-            })
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=config,
+            )
             
-            if isinstance(response, dict):
-                raw_strategies = [response]
-            elif isinstance(response, list):
-                raw_strategies = response
-            else:
+            try:
+                raw_strategies = json.loads(response.text)
+                if isinstance(raw_strategies, dict):
+                    raw_strategies = [raw_strategies]
+                elif not isinstance(raw_strategies, list):
+                    raw_strategies = []
+            except json.JSONDecodeError:
+                print(f"[StrategyGenerator] Error parsing JSON response: {response.text[:100]}...")
                 raw_strategies = []
                 
         except Exception as e:

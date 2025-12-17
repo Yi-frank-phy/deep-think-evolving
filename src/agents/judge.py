@@ -1,15 +1,14 @@
 
 import json
 import os
+import re
 from typing import List, Optional
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_google_genai import ChatGoogleGenerativeAI
+from google import genai
+from google.genai import types
 
 from src.core.state import DeepThinkState, StrategyNode
-from src.tools.knowledge_base import write_experience, search_experiences
-
+from src.tools.knowledge_base import write_experience
 
 # System prompt for Judge with knowledge base awareness
 JUDGE_SYSTEM_PROMPT = """\
@@ -59,9 +58,7 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
         return state
 
     # Initialize LLM only if not in mock mode
-    llm = None
-    llm_with_tools = None
-    parser = None
+    client = None
     
     if not use_mock:
         model_name = os.environ.get("GEMINI_MODEL_JUDGE", os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"))
@@ -71,24 +68,20 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
         config_data = state.get("config", {})
         thinking_budget = config_data.get("thinking_budget", 1024)
         
-        generation_config = {}
-        if thinking_budget > 0:
-            generation_config["thinking_config"] = {
-                "include_thoughts": True,
-                "thinking_budget": thinking_budget
-            }
+        # Initialize client
+        client = genai.Client(api_key=api_key)
         
-        # Create LLM with tool binding for knowledge base
-        llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            google_api_key=api_key,
-            temperature=0.1,  # Low temperature for objective evaluation
-            generation_config=generation_config
+        # Create tools list
+        # We pass the raw function `write_experience` which google.genai can inspect
+        tools = [write_experience]
+        
+        # Config with thinking and tools
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            tools=tools,
+            thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
+            temperature=0.1 # Low temperature for objective evaluation
         )
-        
-        # Bind knowledge base tools
-        llm_with_tools = llm.bind_tools([write_experience])
-        parser = JsonOutputParser()
 
     # Get distilled context from Distiller (prevents context rot)
     judge_context = state.get("judge_context", "")
@@ -98,9 +91,9 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
         print("[Judge] Warning: No distilled judge_context found, using fallback.")
 
     # Enhanced prompt using DISTILLED context
-    evaluation_prompt = ChatPromptTemplate.from_messages([
-        ("system", JUDGE_SYSTEM_PROMPT),
-        ("human", """\
+    EVALUATION_PROMPT_TEMPLATE = """\
+{system_prompt}
+
 {judge_context}
 
 ---
@@ -130,7 +123,7 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
     "feasibility_score": float, // 0.0 到 10.0
     "reasoning": "简短评语"
 }}
-""")])
+"""
 
     evaluated_count = 0
     kb_writes = 0
@@ -152,8 +145,8 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
         
         try:
             if not use_mock:
-                # Invoke with tool support
-                messages = evaluation_prompt.format_messages(
+                prompt = EVALUATION_PROMPT_TEMPLATE.format(
+                    system_prompt=JUDGE_SYSTEM_PROMPT,
                     judge_context=judge_context,
                     strategy_name=strategy["name"],
                     rationale=strategy["rationale"],
@@ -161,39 +154,35 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
                     trajectory=format_trajectory(strategy.get("trajectory", []))
                 )
                 
-                response = llm_with_tools.invoke(messages)
+                # Call LLM
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=config
+                )
                 
-                # Check for tool calls
-                if hasattr(response, 'tool_calls') and response.tool_calls:
-                    for tool_call in response.tool_calls:
-                        if tool_call['name'] == 'write_experience':
+                # Check for tool calls (function calls) in response parts
+                if response.function_calls:
+                    for call in response.function_calls:
+                        if call.name == 'write_experience':
                             try:
-                                result = write_experience.invoke(tool_call['args'])
+                                # Convert MapComposite to dict
+                                args = {k: v for k, v in call.args.items()}
+                                result = write_experience(**args)
                                 print(f"  [KB] {result}")
                                 kb_writes += 1
                             except Exception as e:
                                 print(f"  [KB Error] {e}")
                 
-                # Parse the JSON content - improved extraction
+                # Parse the JSON content
                 try:
-                    content = response.content
-                    # Try to extract JSON from markdown code blocks
-                    import re
-                    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
-                    if json_match:
-                        content = json_match.group(1)
-                    else:
-                        # Try to find raw JSON object
-                        json_match = re.search(r'\{[^{}]*"feasibility_score"[^{}]*\}', content, re.DOTALL)
-                        if json_match:
-                            content = json_match.group(0)
-                    
+                    content = response.text
                     result = json.loads(content)
                 except (json.JSONDecodeError, ValueError, AttributeError) as parse_err:
-                    # Fallback: try to extract score from text
+                    # Fallback: try to extract score from text if response.text is not pure JSON (though response_mime_type should help)
                     print(f"  [Judge] Warning: JSON parse failed for {strategy['name']}: {parse_err}")
-                    # Try to extract numeric score from response
-                    score_match = re.search(r'feasibility_score["\s:]+(\d+(?:\.\d+)?)', str(response.content))
+                    # Try to extract numeric score from response text using regex
+                    score_match = re.search(r'feasibility_score["\s:]+(\d+(?:\.\d+)?)', str(response.text))
                     if score_match:
                         extracted_score = float(score_match.group(1))
                         result = {"feasibility_score": extracted_score, "reasoning": "Score extracted from response"}

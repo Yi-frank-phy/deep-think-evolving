@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Any, Iterable, List, TypedDict, Union
 
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.prompts import PromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
-
 import os
+import json
+from google import genai
+from google.genai import types
+
 DEFAULT_MODEL_NAME = os.environ.get("GEMINI_MODEL_ARCHITECT", os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
 
 
@@ -68,7 +68,7 @@ def generate_strategic_blueprint(
     problem_state: str, model_name: str = DEFAULT_MODEL_NAME, thinking_budget: int = 1024
 ) -> list[StrategyBlueprint]:
     """
-    Generates a strategic blueprint for a given problem state using LangChain and Gemini.
+    Generates a strategic blueprint for a given problem state using Gemini.
     """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -76,24 +76,12 @@ def generate_strategic_blueprint(
         print("Please set the environment variable before running.")
         return []
 
-    # Initialize the ChatGoogleGenerativeAI model
-    # Note: 'thinking_v2' is a hypothetical config for Gemini 2.5. 
-    # If the library doesn't support 'thinking_config', this might need adjustment.
-    # We pass it as a kwarg hoping the underlying client picks it up, or use generation_config.
-    
-    generation_config = {}
-    if thinking_budget > 0:
-        # Based on docs: thinking_config with snake_case keys for Python SDK
-        generation_config["thinking_config"] = {
-            "include_thoughts": True, 
-            "thinking_budget": thinking_budget
-        }
+    client = genai.Client(api_key=api_key)
 
-    llm = ChatGoogleGenerativeAI(
-        model=model_name,
-        google_api_key=api_key,
-        temperature=0.7,
-        generation_config=generation_config
+    config = types.GenerateContentConfig(
+        response_mime_type="application/json",
+        thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
+        temperature=0.7
     )
 
     system_prompt = (
@@ -123,36 +111,38 @@ def generate_strategic_blueprint(
   - 若某阶段没有额外需求, 仍需提供至少一个里程碑来解释该阶段的目标。
 """
 
-    parser = JsonOutputParser()
-    
-    prompt = PromptTemplate(
-        template=f"{system_prompt}\n\n{user_prompt_template}\n\n{{format_instructions}}",
-        input_variables=["problem_state"],
-        partial_variables={"format_instructions": parser.get_format_instructions()},
-    )
-
-    chain = prompt | llm | parser
+    prompt = f"{system_prompt}\n\n{user_prompt_template.format(problem_state=problem_state)}"
 
     try:
-        response = chain.invoke({"problem_state": problem_state})
-    except Exception as error:
-        print(f"An error occurred during LangChain execution: {error}")
-        return []
-
-    if isinstance(response, dict):
-        response = [response]
-
-    if not isinstance(response, list):
-        print(
-            "Model response was not a JSON array; received "
-            f"{type(response).__name__} instead."
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=config
         )
-        return []
+        try:
+            raw_strategies = json.loads(response.text)
+        except json.JSONDecodeError:
+            print(f"Error parsing JSON response: {response.text[:100]}...")
+            return []
 
-    validated = _validate_strategies(response)
-    if not validated:
-        print("No valid strategies were produced by the model.")
-    return validated
+        if isinstance(raw_strategies, dict):
+            raw_strategies = [raw_strategies]
+
+        if not isinstance(raw_strategies, list):
+            print(
+                "Model response was not a JSON array; received "
+                f"{type(raw_strategies).__name__} instead."
+            )
+            return []
+
+        validated = _validate_strategies(raw_strategies)
+        if not validated:
+            print("No valid strategies were produced by the model.")
+        return validated
+
+    except Exception as error:
+        print(f"An error occurred during Gemini execution: {error}")
+        return []
 
 
 def expand_strategy_node(
@@ -167,10 +157,9 @@ def expand_strategy_node(
     if not api_key:
         return "Error: GEMINI_API_KEY not set."
 
-    # Use a simpler setup for expansion - standard chat
-    llm = ChatGoogleGenerativeAI(
-        model=model_name,
-        google_api_key=api_key,
+    client = genai.Client(api_key=api_key)
+
+    config = types.GenerateContentConfig(
         temperature=0.7
     )
 
@@ -183,7 +172,11 @@ def expand_strategy_node(
     )
 
     try:
-        response = llm.invoke(prompt)
-        return response.content
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=config
+        )
+        return response.text
     except Exception as e:
         return f"Error expanding node: {str(e)}"

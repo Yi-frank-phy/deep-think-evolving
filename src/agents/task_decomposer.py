@@ -6,11 +6,11 @@ TaskDecomposer Agent - 任务拆解专家
 """
 
 import os
+import json
 from typing import List, TypedDict
 
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_google_genai import ChatGoogleGenerativeAI
+from google import genai
+from google.genai import types
 
 from src.core.state import DeepThinkState
 
@@ -104,22 +104,30 @@ def task_decomposer_node(state: DeepThinkState) -> DeepThinkState:
         )
         print(f"[TaskDecomposer] Using model: {model_name}")
         
-        llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            google_api_key=api_key,
-            temperature=0.3,  # Low temperature for structured decomposition
+        client = genai.Client(api_key=api_key)
+
+        # 决策类 Agent: JSON 输出 + thinking_budget (optional)
+        # 从 config 获取 thinking_budget
+        config_data = state.get("config", {})
+        thinking_budget = config_data.get("thinking_budget", 1024)
+        
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
+            temperature=0.3
         )
         
-        parser = JsonOutputParser()
-        prompt = PromptTemplate(
-            template=TASK_DECOMPOSER_PROMPT,
-            input_variables=["problem"]
-        )
-        
-        chain = prompt | llm | parser
+        prompt = TASK_DECOMPOSER_PROMPT.format(problem=problem)
         
         try:
-            decomposition = chain.invoke({"problem": problem})
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=config,
+            )
+
+            decomposition = json.loads(response.text)
+
         except Exception as e:
             print(f"[TaskDecomposer] Error: {e}")
             decomposition = {

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 import numpy as np
-from langchain_core.tools import tool
+# from langchain_core.tools import tool # Removing langchain dependency
 
 from src.embedding_client import embed_text
 from src.math_engine.kde import estimate_bandwidth
@@ -59,7 +59,6 @@ def get_current_epsilon(embeddings: List[List[float]]) -> float:
     return estimate_bandwidth(embeddings_array)
 
 
-@tool
 def write_experience(
     title: str,
     content: str,
@@ -291,7 +290,6 @@ def _search_experiences_impl(
     return experiences
 
 
-@tool
 def search_experiences(
     query: str,
     experience_type: Optional[str] = None,

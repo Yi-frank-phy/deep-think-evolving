@@ -14,9 +14,6 @@ from typing import List, Dict, Any
 
 from google import genai
 from google.genai import types
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 from src.core.state import DeepThinkState, StrategyNode
 

@@ -6,10 +6,12 @@ Distiller Agent - 信息蒸馏器
 """
 
 import os
+import json
 from typing import List, Optional, Dict, Any
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_google_genai import ChatGoogleGenerativeAI
+
+from google import genai
+from google.genai import types
+
 from src.core.state import DeepThinkState, StrategyNode
 
 
@@ -88,20 +90,6 @@ def conditional_distill_for_architect(state: DeepThinkState) -> DeepThinkState:
         }
     return state
 
-def _get_llm():
-    """Get the Distiller LLM instance."""
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        return None
-    
-    model_name = os.environ.get("GEMINI_MODEL_DISTILLER", 
-                                os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
-    return ChatGoogleGenerativeAI(
-        model=model_name,
-        google_api_key=api_key,
-        temperature=0.2,
-    )
-
 
 def _summarize_strategies(strategies: List[StrategyNode]) -> str:
     """Create a concise summary of all strategies and their status."""
@@ -159,15 +147,19 @@ def distiller_node(state: DeepThinkState) -> DeepThinkState:
         print("[Distiller] No research context found. Skipping distillation.")
         return state
     
-    llm = _get_llm()
-    if not llm:
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
         print("[Distiller] No API key. Skipping.")
         return state
 
-    print(f"[Distiller] Using model: {llm.model}")
+    model_name = os.environ.get("GEMINI_MODEL_DISTILLER",
+                                os.environ.get("GEMINI_MODEL", "gemini-1.5-flash"))
+
+    print(f"[Distiller] Using model: {model_name}")
+
+    client = genai.Client(api_key=api_key)
     
-    prompt = PromptTemplate(
-        template="""\
+    prompt_template = """\
 你是一位 "信息提取专家" (Information Distiller)。
 你的任务是从以下原始搜索结果中提取最关键的信息，去除噪音，并生成一断简练的 "背景摘要"。
 这段摘要将被用于辅助 "战略架构师" 更好地理解问题背景并制定方案。
@@ -183,17 +175,25 @@ def distiller_node(state: DeepThinkState) -> DeepThinkState:
 3. 任何可能影响战略制定的约束或机会。
 
 摘要:
-""",
-        input_variables=["problem", "context"]
+"""
+
+    prompt = prompt_template.format(
+        problem=state["problem_state"],
+        context=context
     )
     
-    chain = prompt | llm | StrOutputParser()
+    config = types.GenerateContentConfig(
+        temperature=0.2
+    )
     
     try:
-        summary = chain.invoke({
-            "problem": state["problem_state"],
-            "context": context
-        })
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=config
+        )
+
+        summary = response.text
         
         print(f"[Distiller] Distilled summary length: {len(summary)} chars.")
         
@@ -270,4 +270,3 @@ def distiller_for_judge_node(state: DeepThinkState) -> DeepThinkState:
         **state,
         "judge_context": judge_context,
     }
-
