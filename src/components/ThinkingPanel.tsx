@@ -5,9 +5,9 @@
  * 设计参考 Google Gemini Deep Research 的 Thinking Panel。
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronRight, Brain, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { DeepThinkState, AgentActivity, AgentPhase, StrategyNode } from '../types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { ChevronDown, ChevronRight, Brain, Loader2, CheckCircle2 } from 'lucide-react';
+import { DeepThinkState, AgentActivity, AgentPhase } from '../types';
 
 interface ThinkingPanelProps {
     state: DeepThinkState | null;
@@ -15,39 +15,6 @@ interface ThinkingPanelProps {
     currentAgent: AgentPhase | null;
     simulationStatus: 'idle' | 'running' | 'completed' | 'error' | 'awaiting_human';
 }
-
-// 阶段定义
-interface Phase {
-    id: string;
-    name: string;
-    icon: string;
-    agents: AgentPhase[];
-    status: 'pending' | 'active' | 'completed';
-}
-
-const PHASES: Phase[] = [
-    {
-        id: 'understanding',
-        name: '问题理解',
-        icon: '🎯',
-        agents: ['task_decomposer', 'researcher', 'strategy_generator'],
-        status: 'pending'
-    },
-    {
-        id: 'evaluation',
-        name: '评估与演化',
-        icon: '🧬',
-        agents: ['distiller_for_judge', 'judge', 'evolution'],
-        status: 'pending'
-    },
-    {
-        id: 'execution',
-        name: '执行与优化',
-        icon: '⚙️',
-        agents: ['architect_scheduler', 'executor'],
-        status: 'pending'
-    }
-];
 
 const AGENT_LABELS: Record<AgentPhase, string> = {
     task_decomposer: '任务分解',
@@ -69,6 +36,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = ({
     currentAgent,
     simulationStatus
 }) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set(['understanding', 'evaluation', 'execution']));
     const [expandedIterations, setExpandedIterations] = useState<Set<number>>(new Set());
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -79,18 +47,6 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = ({
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [activityLog, simulationStatus]);
-
-    const togglePhase = (phaseId: string) => {
-        setExpandedPhases(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(phaseId)) {
-                newSet.delete(phaseId);
-            } else {
-                newSet.add(phaseId);
-            }
-            return newSet;
-        });
-    };
 
     const toggleIteration = (iteration: number) => {
         setExpandedIterations(prev => {
@@ -104,8 +60,8 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = ({
         });
     };
 
-    // 按迭代分组活动
-    const groupActivitiesByIteration = () => {
+    // 按迭代分组活动 - Memoized to prevent re-grouping on every render
+    const iterationGroups = useMemo(() => {
         const groups: Map<number, AgentActivity[]> = new Map();
         let currentIteration = 0;
 
@@ -120,18 +76,32 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = ({
         });
 
         return groups;
-    };
+    }, [activityLog]);
 
-    const iterationGroups = groupActivitiesByIteration();
     const currentIteration = state?.iteration_count || 0;
+
+    // 策略摘要统计 - Memoized
+    const strategyStats = useMemo(() => {
+        if (!state?.strategies) return null;
+        return {
+            activeCount: state.strategies.filter(s => s.status === 'active').length,
+            prunedCount: state.strategies.filter(s => s.status === 'pruned' || s.status === 'pruned_synthesized').length,
+            total: state.strategies.length
+        };
+    }, [state?.strategies]);
+
+    // 高分策略计算 - Memoized
+    const topStrategies = useMemo(() => {
+        if (!state?.strategies) return [];
+        return state.strategies
+            .filter(s => s.status === 'active')
+            .sort((a, b) => (b.ucb_score || b.score || 0) - (a.ucb_score || a.score || 0))
+            .slice(0, 3);
+    }, [state?.strategies]);
 
     // 渲染策略摘要
     const renderStrategySummary = () => {
-        if (!state?.strategies) return null;
-
-        const active = state.strategies.filter(s => s.status === 'active');
-        const pruned = state.strategies.filter(s => s.status === 'pruned' || s.status === 'pruned_synthesized');
-        const total = state.strategies.length;
+        if (!strategyStats) return null;
 
         return (
             <div style={{
@@ -144,9 +114,9 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = ({
                     策略空间
                 </div>
                 <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
-                    <span style={{ color: '#4CAF50' }}>🟢 活跃: {active.length}</span>
-                    <span style={{ color: '#f44336' }}>🔴 剪枝: {pruned.length}</span>
-                    <span style={{ color: '#888' }}>总计: {total}</span>
+                    <span style={{ color: '#4CAF50' }}>🟢 活跃: {strategyStats.activeCount}</span>
+                    <span style={{ color: '#f44336' }}>🔴 剪枝: {strategyStats.prunedCount}</span>
+                    <span style={{ color: '#888' }}>总计: {strategyStats.total}</span>
                 </div>
             </div>
         );
@@ -280,21 +250,14 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = ({
 
     // 渲染高分策略
     const renderTopStrategies = () => {
-        if (!state?.strategies) return null;
-
-        const active = state.strategies
-            .filter(s => s.status === 'active')
-            .sort((a, b) => (b.ucb_score || b.score || 0) - (a.ucb_score || a.score || 0))
-            .slice(0, 3);
-
-        if (active.length === 0) return null;
+        if (topStrategies.length === 0) return null;
 
         return (
             <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>
                     🏆 当前领先策略
                 </div>
-                {active.map((s, idx) => (
+                {topStrategies.map((s, idx) => (
                     <div key={s.id} style={{
                         padding: '10px 12px',
                         background: idx === 0 ? 'rgba(76,175,80,0.1)' : 'rgba(255,255,255,0.02)',
