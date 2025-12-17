@@ -5,3 +5,7 @@
 ## 2024-05-24 - [Micro-interactions & Clipboard Feedback]
 **Learning:** Users lack immediate confirmation when performing actions like copying text. Adding a state-driven icon swap (Copy -> Check) provides clear, satisfying feedback.
 **Action:** For all future "copy" or "save" actions, implement a 2-second visual confirmation state.
+
+## 2025-05-27 - [Modal Accessibility]
+**Learning:** Modals require explicit accessibility attributes and keyboard handling. Users expect the Escape key to close modals, and screen readers need `role="dialog"` and `aria-modal="true"` to understand the context.
+**Action:** Always implement `useEffect` for Escape key handling and add ARIA attributes to modal overlays and content.

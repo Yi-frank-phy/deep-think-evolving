@@ -19,10 +19,14 @@ const CollapsibleSection: React.FC<{
     children: React.ReactNode;
 }> = ({ title, icon, defaultOpen = false, children }) => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
+    const contentId = `section-${title.replace(/\s+/g, '-').toLowerCase()}`;
+
     return (
         <section style={{ marginBottom: '1rem' }}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
+                aria-expanded={isOpen}
+                aria-controls={contentId}
                 style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem',
                     padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.05)',
@@ -35,10 +39,10 @@ const CollapsibleSection: React.FC<{
                     <span>{icon}</span>
                     <span>{title}</span>
                 </span>
-                <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▼</span>
+                <span style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} aria-hidden="true">▼</span>
             </button>
             {isOpen && (
-                <div style={{
+                <div id={contentId} style={{
                     padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '0 0 8px 8px',
                     border: '1px solid var(--border-color)', borderTop: 'none',
                     whiteSpace: 'pre-wrap', lineHeight: 1.7, maxHeight: '400px', overflowY: 'auto'
@@ -52,6 +56,17 @@ const CollapsibleSection: React.FC<{
 
 export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, onClose }) => {
     const { models } = useModels();
+
+    // Close on escape key
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isOpen) {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
     const [selectedModel, setSelectedModel] = useState('');
     const [expandedContent, setExpandedContent] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -88,12 +103,19 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, 
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-        }}>
+        <div
+            className="modal-overlay"
+            onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+            style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                backdropFilter: 'blur(4px)',
+                display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+            }}
+        >
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{
                 background: 'var(--panel-background)',
                 border: '1px solid var(--border-color)',
@@ -109,7 +131,7 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, 
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                 }}>
                     <div>
-                        <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#fff' }}>{node.name}</h2>
+                        <h2 id="modal-title" style={{ margin: 0, fontSize: '1.5rem', color: '#fff' }}>{node.name}</h2>
                         <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.85rem' }}>
                             <span className={`status-badge status-${node.status}`} style={{
                                 textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8
@@ -125,6 +147,7 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, 
                     <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+                        aria-label="Close details"
                         style={{
                             background: 'rgba(255,255,255,0.1)',
                             border: '1px solid rgba(255,255,255,0.2)',
