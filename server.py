@@ -450,7 +450,7 @@ async def chat_stream_endpoint(req: ChatRequest):
             
             # Configure generation
             config = types.GenerateContentConfig(
-                temperature=0.7,
+                temperature=1.0,  # Logic Manifold Integrity
             )
             
             # Stream response

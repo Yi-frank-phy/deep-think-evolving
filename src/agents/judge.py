@@ -82,7 +82,7 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
         llm = ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=api_key,
-            temperature=0.1,  # Low temperature for objective evaluation
+            temperature=1.0,  # Logic Manifold Integrity
             generation_config=generation_config
         )
         
