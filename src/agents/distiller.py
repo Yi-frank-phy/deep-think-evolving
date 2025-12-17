@@ -99,7 +99,7 @@ def _get_llm():
     return ChatGoogleGenerativeAI(
         model=model_name,
         google_api_key=api_key,
-        temperature=0.2,
+        temperature=1.0,  # Logic Manifold Integrity
     )
 
 

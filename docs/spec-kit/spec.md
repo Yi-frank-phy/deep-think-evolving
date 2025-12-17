@@ -125,6 +125,10 @@ Phase 3 (执行循环): Evolution → (收敛?) → Propagation → ArchitectSch
   trajectory: string[];          // 执行轨迹记录
   parent_id: string | null;      // 父策略 ID (用于树结构)
   pruned_at_report_version?: int; // 被剪枝时的报告版本 (仅当 status="pruned_synthesized")
+
+  // UI 增强字段 (T-050)
+  full_response?: string;        // 完整 AI 回答
+  thinking_summary?: string;     // 思维链摘要
 }
 ```
 
@@ -392,6 +396,7 @@ interface DeepThinkState {
 | POST | `/api/chat/stream` | 流式聊天 (SSE) |
 | POST | `/api/hil/response` | 提交人机交互响应 |
 | GET | `/api/hil/pending` | 获取待处理的 HIL 请求 |
+| POST | `/api/hil/force_synthesize` | 强制综合选定策略 (HIL) |
 
 ### 5.2 WebSocket 端点
 
