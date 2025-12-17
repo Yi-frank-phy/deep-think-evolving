@@ -116,7 +116,7 @@ def research_node(state: DeepThinkState) -> DeepThinkState:
         # Get model name from env
         model_name = os.environ.get(
             "GEMINI_MODEL_RESEARCHER",
-            os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+            os.environ.get("GEMINI_MODEL", "gemini-3.0-flash-preview")
         )
         print(f"[Researcher] Using model: {model_name}")
         print(f"[Researcher] Iteration: {current_iteration + 1}/{max_iterations}")

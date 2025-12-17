@@ -57,19 +57,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Available Gemini models with their thinking budget constraints
-# Model IDs verified from https://ai.google.dev/gemini-api/docs/models
-# Ordered by cost: cheapest first (default), premium models later for testing
+# Available Gemini models - Gemini 3.0 series with thinking_level support
+# Model IDs from https://ai.google.dev/gemini-api/docs/models
+# thinking_levels: MINIMAL (Flash only), LOW, MEDIUM (Flash only), HIGH
 AVAILABLE_MODELS = [
-    # Free/Cheap tier - good for daily development & testing
-    {"id": "gemini-2.5-flash-lite", "name": "⚡ 2.5 Flash-Lite (Default)", "thinking_min": 512, "thinking_max": 24576, "tier": "free"},
-    # Standard tier - balanced performance
-    {"id": "gemini-2.5-flash", "name": "🔥 2.5 Flash", "thinking_min": 0, "thinking_max": 24576, "tier": "standard"},
-    {"id": "gemini-2.0-flash", "name": "🔷 2.0 Flash", "thinking_min": 0, "thinking_max": 8192, "tier": "standard"},
-    # Premium tier - best performance for production testing
-    {"id": "gemini-2.5-pro", "name": "💎 2.5 Pro", "thinking_min": 128, "thinking_max": 65536, "tier": "premium"},
-    # Latest & Greatest - Gemini 3.0
-    {"id": "gemini-3-pro-preview", "name": "🚀 3.0 Pro Preview", "thinking_min": 0, "thinking_max": 65536, "tier": "experimental"},
+    # Default - affordable with good performance
+    {"id": "gemini-2.5-flash-lite-preview-06-17", "name": "⚡ 2.5 Flash-Lite", "thinking_levels": ["LOW", "HIGH"], "tier": "free"},
+    # Gemini 3.0 Flash - supports all levels including MINIMAL and MEDIUM
+    {"id": "gemini-3.0-flash-preview", "name": "🔥 3.0 Flash", "thinking_levels": ["MINIMAL", "LOW", "MEDIUM", "HIGH"], "tier": "standard"},
+    # Gemini 3.0 Pro - supports LOW and HIGH only
+    {"id": "gemini-3.0-pro-preview", "name": "💎 3.0 Pro", "thinking_levels": ["LOW", "HIGH"], "tier": "premium"},
 ]
 
 
@@ -183,11 +180,11 @@ class ExpandNodeRequest(BaseModel):
 
 
 class SimulationConfig(BaseModel):
-    model_name: str = "gemini-2.5-flash"  # Default model
+    model_name: str = "gemini-2.5-flash-lite-preview-06-17"  # Default model
     t_max: float = 2.0
     c_explore: float = 1.0
     beam_width: int = 3
-    thinking_budget: int = 1024  # Default token budget for thinking
+    thinking_level: str = "HIGH"  # Thinking depth: MINIMAL, LOW, MEDIUM, HIGH
     # --- Added to sync with frontend ---
     max_iterations: int = 10  # Maximum evolution iterations before forced termination
     entropy_threshold: float = 0.01  # Lower threshold for high-dim embeddings (was 0.1)

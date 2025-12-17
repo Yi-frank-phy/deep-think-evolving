@@ -68,7 +68,7 @@ def generate_children_for_strategy(
     num_children: int,
     api_key: str,
     use_mock: bool = False,
-    thinking_budget: int = 1024  # 新增: 思考预算
+    thinking_level: str = "HIGH"  # Gemini 3: MINIMAL, LOW, MEDIUM, HIGH
 ) -> List[StrategyNode]:
     """
     为单个父策略生成子策略。
@@ -130,13 +130,13 @@ def generate_children_for_strategy(
     
     model_name = os.environ.get(
         "GEMINI_MODEL_GENERATOR",
-        os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+        os.environ.get("GEMINI_MODEL", "gemini-3.0-flash-preview")
     )
     
-    # 决策类 Agent: JSON 输出 + thinking_budget，不需要 Grounding
+    # 决策类 Agent: JSON 输出 + thinking_level，不需要 Grounding
     config = types.GenerateContentConfig(
         response_mime_type="application/json",
-        thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
+        thinking_config=types.ThinkingConfig(thinking_budget=0)  # Gemini 3 uses thinking_level
     )
     
     try:
@@ -224,9 +224,9 @@ def propagation_node(state: DeepThinkState) -> DeepThinkState:
 
             print(f"  > [Parallel Submit] Generating {quota} children for '{strategy['name']}'...")
 
-            # 从 config 获取 thinking_budget
+            # 从 config 获取 thinking_level
             config = state.get("config", {})
-            thinking_budget = config.get("thinking_budget", 1024)
+            thinking_level = config.get("thinking_level", "HIGH")
 
             future = executor.submit(
                 generate_children_for_strategy,
@@ -235,7 +235,7 @@ def propagation_node(state: DeepThinkState) -> DeepThinkState:
                 num_children=quota,
                 api_key=api_key,
                 use_mock=use_mock,
-                thinking_budget=thinking_budget
+                thinking_level=thinking_level
             )
             future_to_strategy[future] = strategy
 

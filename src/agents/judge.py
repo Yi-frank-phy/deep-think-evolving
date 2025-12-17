@@ -64,19 +64,18 @@ def judge_node(state: DeepThinkState) -> DeepThinkState:
     parser = None
     
     if not use_mock:
-        model_name = os.environ.get("GEMINI_MODEL_JUDGE", os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"))
+        model_name = os.environ.get("GEMINI_MODEL_JUDGE", os.environ.get("GEMINI_MODEL", "gemini-3.0-flash-preview"))
         print(f"[Judge] Using model: {model_name}")
         
-        # 从 config 读取 thinking_budget
+        # 从 config 读取 thinking_level (Gemini 3: MINIMAL, LOW, MEDIUM, HIGH)
         config_data = state.get("config", {})
-        thinking_budget = config_data.get("thinking_budget", 1024)
+        thinking_level = config_data.get("thinking_level", "HIGH")
         
         generation_config = {}
-        if thinking_budget > 0:
-            generation_config["thinking_config"] = {
-                "include_thoughts": True,
-                "thinking_budget": thinking_budget
-            }
+        # Gemini 3 uses thinking_level instead of thinking_budget
+        generation_config["thinking_config"] = {
+            "include_thoughts": True
+        }
         
         # Create LLM with tool binding for knowledge base
         llm = ChatGoogleGenerativeAI(

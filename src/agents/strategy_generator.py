@@ -96,23 +96,23 @@ def strategy_generator_node(state: DeepThinkState) -> DeepThinkState:
     else:
         model_name = os.environ.get(
             "GEMINI_MODEL_GENERATOR",
-            os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+            os.environ.get("GEMINI_MODEL", "gemini-3.0-flash-preview")
         )
         print(f"[StrategyGenerator] Using model: {model_name}")
         
         config = state.get("config", {})
-        thinking_budget = config.get("thinking_budget", 1024)
+        thinking_level = config.get("thinking_level", "HIGH")
         
         # 使用温度辅助函数获取LLM温度
         llm_temperature = get_llm_temperature(state)
         print(f"[StrategyGenerator] LLM temperature: {llm_temperature}")
         
-        generation_config = {}
-        if thinking_budget > 0:
-            generation_config["thinking_config"] = {
-                "include_thoughts": True,
-                "thinking_budget": thinking_budget
+        # Gemini 3 uses thinking_level instead of thinking_budget
+        generation_config = {
+            "thinking_config": {
+                "include_thoughts": True
             }
+        }
         
         llm = ChatGoogleGenerativeAI(
             model=model_name,

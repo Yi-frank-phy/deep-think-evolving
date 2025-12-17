@@ -21,10 +21,10 @@ export const ControlTower: React.FC = () => {
     const { isRecording, audioBlob, startRecording, stopRecording, getBase64, clearAudio } = useAudioRecorder();
     const [problemInput, setProblemInput] = useState("");
     const [config, setConfig] = useState({
-        model_name: 'gemini-2.5-flash-lite',  // Default to cheapest for testing
+        model_name: 'gemini-2.5-flash-lite-preview-06-17',  // Default to affordable model
         t_max: 2.0,
         c_explore: 1.0,
-        thinking_budget: 1024,
+        thinking_level: 'HIGH',  // Thinking depth: MINIMAL, LOW, MEDIUM, HIGH
         max_iterations: 10,
         entropy_threshold: 0.1,
         total_child_budget: 6,
@@ -84,28 +84,27 @@ export const ControlTower: React.FC = () => {
         }
     };
 
-    // Get current model's thinking budget constraints
+    // Get current model's supported thinking levels
     const currentModel = useMemo(() => {
         return models.find(m => m.id === config.model_name) || {
             id: config.model_name,
             name: 'Unknown',
-            thinking_min: 0,
-            thinking_max: 24576
+            thinking_levels: ['LOW', 'HIGH']
         };
     }, [models, config.model_name]);
 
-    // When model changes, clamp thinking_budget to valid range
+    // When model changes, ensure thinking_level is valid for new model
     const handleModelChange = (modelId: string) => {
         const model = models.find(m => m.id === modelId);
         if (model) {
-            const clampedBudget = Math.max(
-                model.thinking_min,
-                Math.min(model.thinking_max, config.thinking_budget)
-            );
+            // If current level not supported by new model, default to HIGH
+            const validLevel = model.thinking_levels?.includes(config.thinking_level)
+                ? config.thinking_level
+                : 'HIGH';
             setConfig({
                 ...config,
                 model_name: modelId,
-                thinking_budget: clampedBudget
+                thinking_level: validLevel
             });
         } else {
             setConfig({ ...config, model_name: modelId });
@@ -220,21 +219,22 @@ export const ControlTower: React.FC = () => {
                                 </select>
                             </div>
                             <div className="config-item" style={{ marginTop: '0.5rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <label htmlFor="config-budget">Thinking Budget</label>
-                                    <span style={{ color: '#888', fontSize: '0.85rem' }} aria-hidden="true">{config.thinking_budget} tokens</span>
-                                </div>
-                                <input
-                                    id="config-budget"
-                                    type="range"
-                                    min={currentModel.thinking_min}
-                                    max={currentModel.thinking_max}
-                                    step={128}
-                                    value={config.thinking_budget}
-                                    onChange={e => setConfig({ ...config, thinking_budget: parseInt(e.target.value) })}
-                                    aria-valuetext={`${config.thinking_budget} tokens`}
-                                    style={{ width: '100%', marginTop: '0.5rem' }}
-                                />
+                                <label htmlFor="config-thinking-level">Thinking Level</label>
+                                <select
+                                    id="config-thinking-level"
+                                    value={config.thinking_level}
+                                    onChange={e => setConfig({ ...config, thinking_level: e.target.value })}
+                                    style={{ width: '100%', padding: '0.5rem', background: '#333', border: '1px solid #555', color: '#fff', borderRadius: '4px', marginTop: '0.25rem' }}
+                                >
+                                    {(currentModel.thinking_levels || ['LOW', 'HIGH']).map((level: string) => (
+                                        <option key={level} value={level}>
+                                            {level === 'MINIMAL' ? '⚡ Minimal (Fastest)' :
+                                                level === 'LOW' ? '🟢 Low' :
+                                                    level === 'MEDIUM' ? '🟡 Medium' :
+                                                        '🔴 High (Deep Reasoning)'}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 

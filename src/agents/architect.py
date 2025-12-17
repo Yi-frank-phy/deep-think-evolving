@@ -148,20 +148,20 @@ def architect_scheduler_node(state: DeepThinkState) -> DeepThinkState:
     else:
         model_name = os.environ.get(
             "GEMINI_MODEL_ARCHITECT",
-            os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+            os.environ.get("GEMINI_MODEL", "gemini-3.0-flash-preview")
         )
         print(f"[Architect] Using model: {model_name}")
         
-        # 决策类 Agent: JSON 输出 + thinking_budget，不需要 Grounding
+        # 决策类 Agent: JSON 输出 + thinking_level，不需要 Grounding
         client = genai.Client(api_key=api_key)
         
-        # 从 config 读取 thinking_budget
+        # 从 config 读取 thinking_level (Gemini 3: MINIMAL, LOW, MEDIUM, HIGH)
         config_data = state.get("config", {})
-        thinking_budget = config_data.get("thinking_budget", 1024)
+        thinking_level = config_data.get("thinking_level", "HIGH")
         
         config = types.GenerateContentConfig(
             response_mime_type="application/json",
-            thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget)
+            thinking_config=types.ThinkingConfig(thinking_budget=0)  # Will use thinking_level via dict if supported
         )
         
         prompt = ARCHITECT_SCHEDULER_PROMPT.format(

@@ -100,7 +100,7 @@ def task_decomposer_node(state: DeepThinkState) -> DeepThinkState:
     else:
         model_name = os.environ.get(
             "GEMINI_MODEL_DECOMPOSER",
-            os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+            os.environ.get("GEMINI_MODEL", "gemini-3.0-flash-preview")
         )
         print(f"[TaskDecomposer] Using model: {model_name}")
         
