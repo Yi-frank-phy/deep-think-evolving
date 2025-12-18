@@ -30,7 +30,7 @@ const AGENT_LABELS: Record<AgentPhase, string> = {
     propagation: '知识传播'
 };
 
-export const ThinkingPanel: React.FC<ThinkingPanelProps> = ({
+export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
     state,
     activityLog,
     currentAgent,
@@ -349,7 +349,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = ({
             `}</style>
         </div>
     );
-};
+});
 
 // 辅助函数
 function getTemperatureColor(t: number): string {
