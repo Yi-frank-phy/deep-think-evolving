@@ -21,7 +21,7 @@ const AGENT_DISPLAY: Record<AgentPhase, { icon: string; name: string; color: str
     propagation: { icon: '🌱', name: 'Propagation', color: '#3B82F6' },
 };
 
-export const KPIDashboard: React.FC<KPIDashboardProps> = ({
+export const KPIDashboard: React.FC<KPIDashboardProps> = React.memo(({
     state,
     currentAgent,
     simulationStatus = 'idle'
@@ -89,7 +89,7 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = ({
             `}</style>
         </div>
     );
-};
+});
 
 interface KPICardProps {
     title: string;

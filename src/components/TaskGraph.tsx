@@ -131,7 +131,7 @@ const buildNodeLabel = (strat: StrategyNode) => {
     );
 };
 
-export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick, selectedNodeIds = new Set() }) => {
+export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeClick, selectedNodeIds = new Set() }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -336,4 +336,4 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick, select
             )}
         </div>
     );
-};
+});

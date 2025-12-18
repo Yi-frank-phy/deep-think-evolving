@@ -6,7 +6,7 @@ import { Send, Mic, Square, X, Loader2 } from 'lucide-react';
 
 const API_URL = 'http://localhost:8000';
 
-export const ChatPanel: React.FC = () => {
+export const ChatPanel: React.FC = React.memo(() => {
     const [messages, setMessages] = useState<Message[]>([
         { sender: 'assistant', text: 'System standby. Awaiting your instructions.' }
     ]);
@@ -243,4 +243,4 @@ export const ChatPanel: React.FC = () => {
             </form>
         </section>
     );
-};
+});
