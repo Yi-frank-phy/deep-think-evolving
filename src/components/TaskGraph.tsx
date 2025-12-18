@@ -15,6 +15,7 @@ import ReactFlow, {
     MarkerType,
     MiniMap
 } from 'reactflow';
+import { GitGraph, Layers, BrainCircuit } from 'lucide-react';
 import 'reactflow/dist/style.css';
 import { DeepThinkState, StrategyNode } from '../types';
 
@@ -278,17 +279,21 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick, select
                 fontSize: '13px',
                 color: '#888'
             }}>
-                <span>🌳</span>
+                <GitGraph size={16} />
                 <span>Strategy Evolution Graph</span>
                 {state?.strategies && (
-                    <span style={{
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
                         background: 'rgba(255,255,255,0.1)',
                         padding: '2px 8px',
                         borderRadius: '4px',
                         fontSize: '11px'
                     }}>
-                        {state.strategies.length} nodes
-                    </span>
+                        <Layers size={12} />
+                        <span>{state.strategies.length} nodes</span>
+                    </div>
                 )}
             </div>
 
@@ -328,10 +333,32 @@ export const TaskGraph: React.FC<TaskGraphProps> = ({ state, onNodeClick, select
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
                     color: '#555',
-                    textAlign: 'center'
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '12px'
                 }}>
-                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>🌌</div>
-                    <div>Waiting for Simulation...</div>
+                    <div style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.05)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '8px'
+                    }}>
+                        <BrainCircuit size={32} color="#a78bfa" style={{ opacity: 0.6 }} />
+                    </div>
+                    <div>
+                        <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', color: '#e0e0e0', fontWeight: 500 }}>
+                            Ready to Evolve Strategies
+                        </h3>
+                        <p style={{ margin: 0, fontSize: '13px', color: '#888', maxWidth: '240px', lineHeight: 1.5 }}>
+                            Enter a problem statement and start the mission to visualize the reasoning process.
+                        </p>
+                    </div>
                 </div>
             )}
         </div>

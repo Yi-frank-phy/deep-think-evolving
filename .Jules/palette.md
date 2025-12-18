@@ -17,3 +17,7 @@
 
 **Learning:** Modals require explicit accessibility attributes and keyboard handling. Users expect the Escape key to close modals, and screen readers need `role="dialog"` and `aria-modal="true"` to understand the context.
 **Action:** Always implement `useEffect` for Escape key handling and add ARIA attributes to modal overlays and content.
+
+## 2025-06-03 - [TaskGraph Empty State]
+**Learning:** Empty states in data visualization components are prime real estate for user education. Replacing a generic "Waiting..." message with a descriptive, icon-rich call-to-action significantly improves perceived polish and usability.
+**Action:** Avoid generic empty states. Use the space to explain *what* will happen and *how* to trigger it, using consistent iconography to reinforce the visual language.
