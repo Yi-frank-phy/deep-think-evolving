@@ -544,9 +544,19 @@ if DIST_DIR.exists():
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         # SPA fallback: serve index.html for all non-API routes
-        file_path = DIST_DIR / full_path
-        if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
+        file_path = (DIST_DIR / full_path).resolve()
+
+        # Security: Prevent path traversal
+        try:
+            # Ensure the resolved path is within the DIST_DIR
+            file_path.relative_to(DIST_DIR.resolve())
+
+            if file_path.exists() and file_path.is_file():
+                return FileResponse(file_path)
+        except ValueError:
+            # Path is outside DIST_DIR
+            logger.warning(f"Path traversal attempt detected: {full_path}")
+
         return FileResponse(DIST_DIR / "index.html")
 
 if __name__ == "__main__":
