@@ -200,8 +200,11 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
 
         return (
             <div key={iteration} style={{ marginBottom: '8px' }}>
-                <div
+                <button
+                    type="button"
                     onClick={() => toggleIteration(iteration)}
+                    aria-expanded={isExpanded}
+                    aria-controls={`iteration-content-${iteration}`}
                     style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -210,7 +213,12 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
                         background: isCurrentIteration ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.02)',
                         borderRadius: '6px',
                         cursor: 'pointer',
-                        transition: 'background 0.2s'
+                        transition: 'background 0.2s',
+                        width: '100%',
+                        border: 'none',
+                        color: 'inherit',
+                        textAlign: 'left',
+                        fontFamily: 'inherit'
                     }}
                 >
                     {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -220,10 +228,10 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
                     <span style={{ fontSize: '11px', color: '#666', marginLeft: 'auto' }}>
                         {activities.length} 步骤
                     </span>
-                </div>
+                </button>
 
                 {isExpanded && (
-                    <div style={{ paddingLeft: '24px', paddingTop: '8px' }}>
+                    <div id={`iteration-content-${iteration}`} style={{ paddingLeft: '24px', paddingTop: '8px' }}>
                         {activities.map((activity, idx) => (
                             <div key={activity.id || idx} style={{
                                 display: 'flex',
