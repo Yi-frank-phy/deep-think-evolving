@@ -1,8 +1,8 @@
 /**
- * ThinkingPanel - Gemini Deep Research 风格的思维面板
+ * ThinkingPanel - Gemini Deep Research Style Thinking Panel
  * 
- * 侧边栏实时显示 AI 推理过程，支持展开/折叠。
- * 设计参考 Google Gemini Deep Research 的 Thinking Panel。
+ * Sidebar displaying real-time AI reasoning process, supporting expansion/collapse.
+ * Design inspired by Google Gemini Deep Research Thinking Panel.
  */
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -41,7 +41,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
     const [expandedIterations, setExpandedIterations] = useState<Set<number>>(new Set());
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // 自动滚动到底部
+    // Auto-scroll to bottom
     useEffect(() => {
         if (scrollRef.current && simulationStatus === 'running') {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -60,7 +60,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         });
     };
 
-    // 按迭代分组活动 - Memoized to prevent re-grouping on every render
+    // Group activities by iteration - Memoized
     const iterationGroups = useMemo(() => {
         const groups: Map<number, AgentActivity[]> = new Map();
         let currentIteration = 0;
@@ -80,7 +80,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
 
     const currentIteration = state?.iteration_count || 0;
 
-    // 策略摘要统计 - Memoized
+    // Strategy stats - Memoized
     const strategyStats = useMemo(() => {
         if (!state?.strategies) return null;
         return {
@@ -90,7 +90,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         };
     }, [state?.strategies]);
 
-    // 高分策略计算 - Memoized
+    // Top strategies - Memoized
     const topStrategies = useMemo(() => {
         if (!state?.strategies) return [];
         return state.strategies
@@ -99,64 +99,51 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
             .slice(0, 3);
     }, [state?.strategies]);
 
-    // 渲染策略摘要
+    // Render Strategy Summary
     const renderStrategySummary = () => {
         if (!strategyStats) return null;
 
         return (
-            <div style={{
-                padding: '12px',
-                background: 'rgba(255,255,255,0.03)',
-                borderRadius: '8px',
-                marginBottom: '12px'
-            }}>
-                <div style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>
+            <div className="strategy-summary">
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
                     策略空间
                 </div>
                 <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
-                    <span style={{ color: '#4CAF50' }}>🟢 活跃: {strategyStats.activeCount}</span>
-                    <span style={{ color: '#f44336' }}>🔴 剪枝: {strategyStats.prunedCount}</span>
-                    <span style={{ color: '#888' }}>总计: {strategyStats.total}</span>
+                    <span style={{ color: 'var(--success-color)' }}>🟢 活跃: {strategyStats.activeCount}</span>
+                    <span style={{ color: 'var(--failure-color)' }}>🔴 剪枝: {strategyStats.prunedCount}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>总计: {strategyStats.total}</span>
                 </div>
             </div>
         );
     };
 
-    // 渲染指标
+    // Render Metrics
     const renderMetrics = () => {
         if (!state) return null;
 
         return (
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '8px',
-                padding: '12px',
-                background: 'rgba(255,255,255,0.03)',
-                borderRadius: '8px',
-                marginBottom: '12px'
-            }}>
-                <div>
-                    <div style={{ fontSize: '11px', color: '#666' }}>迭代</div>
-                    <div style={{ fontSize: '18px', fontWeight: 600, color: '#fff' }}>
+            <div className="metric-grid">
+                <div className="metric-card">
+                    <div className="metric-label">迭代</div>
+                    <div className="metric-value">
                         {currentIteration} / {state.config?.max_iterations || 10}
                     </div>
                 </div>
-                <div>
-                    <div style={{ fontSize: '11px', color: '#666' }}>温度 τ</div>
-                    <div style={{ fontSize: '18px', fontWeight: 600, color: getTemperatureColor(state.normalized_temperature || 0) }}>
+                <div className="metric-card">
+                    <div className="metric-label">温度 τ</div>
+                    <div className="metric-value" style={{ color: getTemperatureColor(state.normalized_temperature || 0) }}>
                         {(state.normalized_temperature || 0).toFixed(3)}
                     </div>
                 </div>
-                <div>
-                    <div style={{ fontSize: '11px', color: '#666' }}>空间熵</div>
-                    <div style={{ fontSize: '14px', color: '#fff' }}>
+                <div className="metric-card">
+                    <div className="metric-label">空间熵</div>
+                    <div className="metric-value">
                         {(state.spatial_entropy || 0).toFixed(2)}
                     </div>
                 </div>
-                <div>
-                    <div style={{ fontSize: '11px', color: '#666' }}>状态</div>
-                    <div style={{ fontSize: '14px', color: getStatusColor(simulationStatus) }}>
+                <div className="metric-card">
+                    <div className="metric-label">状态</div>
+                    <div className="metric-value" style={{ color: getStatusColor(simulationStatus), fontSize: '0.9rem' }}>
                         {getStatusLabel(simulationStatus)}
                     </div>
                 </div>
@@ -164,28 +151,22 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         );
     };
 
-    // 渲染当前推理
+    // Render Current Thinking
     const renderCurrentThinking = () => {
         if (simulationStatus !== 'running' || !currentAgent) return null;
 
         const latestActivity = activityLog[activityLog.length - 1];
 
         return (
-            <div style={{
-                padding: '12px',
-                background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(59,130,246,0.1) 100%)',
-                borderRadius: '8px',
-                border: '1px solid rgba(139,92,246,0.3)',
-                marginBottom: '12px'
-            }}>
+            <div className="thinking-active-card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                    <span style={{ fontSize: '12px', color: '#a78bfa' }}>
-                        {AGENT_LABELS[currentAgent]} 正在推理...
+                    <Loader2 size={14} style={{ animation: 'spin 1s linear infinite', color: 'var(--primary-color)' }} />
+                    <span style={{ fontSize: '12px', color: 'var(--primary-color)', fontWeight: 500 }}>
+                        {AGENT_LABELS[currentAgent]}...
                     </span>
                 </div>
                 {latestActivity?.detail && (
-                    <div style={{ fontSize: '13px', color: '#e0e0e0', lineHeight: 1.5 }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-color)', lineHeight: 1.5 }}>
                         {latestActivity.detail}
                     </div>
                 )}
@@ -193,7 +174,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         );
     };
 
-    // 渲染迭代详情
+    // Render Iteration Details
     const renderIterationDetails = (iteration: number, activities: AgentActivity[]) => {
         const isExpanded = expandedIterations.has(iteration);
         const isCurrentIteration = iteration === Math.max(...Array.from(iterationGroups.keys()));
@@ -202,22 +183,16 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
             <div key={iteration} style={{ marginBottom: '8px' }}>
                 <div
                     onClick={() => toggleIteration(iteration)}
+                    className="iteration-header"
                     style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 12px',
-                        background: isCurrentIteration ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.02)',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'background 0.2s'
+                        background: isCurrentIteration ? 'rgba(168, 199, 250, 0.1)' : 'transparent',
                     }}
                 >
-                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    <span style={{ fontSize: '13px', fontWeight: 500 }}>
+                    {isExpanded ? <ChevronDown size={14} color="var(--text-muted)" /> : <ChevronRight size={14} color="var(--text-muted)" />}
+                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-color)' }}>
                         迭代 {iteration}
                     </span>
-                    <span style={{ fontSize: '11px', color: '#666', marginLeft: 'auto' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
                         {activities.length} 步骤
                     </span>
                 </div>
@@ -230,14 +205,14 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
                                 alignItems: 'flex-start',
                                 gap: '8px',
                                 padding: '6px 0',
-                                borderLeft: '2px solid rgba(255,255,255,0.1)',
+                                borderLeft: '1px solid var(--border-color)',
                                 paddingLeft: '12px',
                                 marginLeft: '6px'
                             }}>
-                                <span style={{ fontSize: '12px', color: '#888', minWidth: '80px' }}>
+                                <span style={{ fontSize: '12px', color: 'var(--text-muted)', minWidth: '80px' }}>
                                     {AGENT_LABELS[activity.agent]}
                                 </span>
-                                <span style={{ fontSize: '12px', color: '#e0e0e0', flex: 1 }}>
+                                <span style={{ fontSize: '12px', color: 'var(--text-color)', flex: 1 }}>
                                     {activity.detail || activity.message}
                                 </span>
                             </div>
@@ -248,27 +223,27 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         );
     };
 
-    // 渲染高分策略
+    // Render Top Strategies
     const renderTopStrategies = () => {
         if (topStrategies.length === 0) return null;
 
         return (
             <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>
-                    🏆 当前领先策略
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                    🏆 领先策略
                 </div>
                 {topStrategies.map((s, idx) => (
                     <div key={s.id} style={{
                         padding: '10px 12px',
-                        background: idx === 0 ? 'rgba(76,175,80,0.1)' : 'rgba(255,255,255,0.02)',
-                        borderRadius: '6px',
+                        background: idx === 0 ? 'rgba(129, 201, 149, 0.1)' : 'var(--surface-color)',
+                        borderRadius: 'var(--radius-sm)',
                         marginBottom: '6px',
-                        borderLeft: idx === 0 ? '3px solid #4CAF50' : '3px solid #333'
+                        borderLeft: idx === 0 ? '3px solid var(--success-color)' : '3px solid var(--border-color)'
                     }}>
-                        <div style={{ fontSize: '13px', fontWeight: 500, color: '#fff', marginBottom: '4px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-color)', marginBottom: '4px' }}>
                             {s.name}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#888' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                             UCB: {(s.ucb_score || 0).toFixed(2)} | Score: {(s.score || 0).toFixed(2)}
                         </div>
                     </div>
@@ -278,43 +253,25 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
     };
 
     return (
-        <div style={{
-            background: '#0d0d0d',
-            borderRadius: '12px',
-            border: '1px solid rgba(255,255,255,0.1)',
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            overflow: 'hidden'
-        }}>
+        <div className="thinking-container">
             {/* Header */}
-            <div style={{
-                padding: '16px',
-                borderBottom: '1px solid rgba(255,255,255,0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px'
-            }}>
-                <Brain size={18} style={{ color: '#a78bfa' }} />
-                <span style={{ fontSize: '14px', fontWeight: 600, color: '#fff' }}>
-                    Thinking
+            <div className="thinking-header">
+                <Brain size={18} style={{ color: 'var(--primary-color)' }} />
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-color)' }}>
+                    Thinking Process
                 </span>
                 {simulationStatus === 'running' && (
-                    <Loader2 size={14} style={{ marginLeft: 'auto', animation: 'spin 1s linear infinite', color: '#a78bfa' }} />
+                    <Loader2 size={14} style={{ marginLeft: 'auto', animation: 'spin 1s linear infinite', color: 'var(--primary-color)' }} />
                 )}
                 {simulationStatus === 'completed' && (
-                    <CheckCircle2 size={14} style={{ marginLeft: 'auto', color: '#4CAF50' }} />
+                    <CheckCircle2 size={14} style={{ marginLeft: 'auto', color: 'var(--success-color)' }} />
                 )}
             </div>
 
             {/* Content */}
-            <div ref={scrollRef} style={{
-                flex: 1,
-                overflow: 'auto',
-                padding: '16px'
-            }}>
+            <div ref={scrollRef} className="thinking-content">
                 {simulationStatus === 'idle' && (
-                    <div style={{ color: '#666', fontSize: '13px', textAlign: 'center', padding: '40px 20px' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 20px' }}>
                         输入问题并启动模拟以开始推理...
                     </div>
                 )}
@@ -326,9 +283,9 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
                         {renderStrategySummary()}
                         {renderTopStrategies()}
 
-                        {/* 迭代历史 */}
+                        {/* Iteration History */}
                         <div style={{ marginTop: '16px' }}>
-                            <div style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
                                 📜 推理历史
                             </div>
                             {Array.from(iterationGroups.entries())
@@ -351,20 +308,20 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
     );
 });
 
-// 辅助函数
+// Helper Functions
 function getTemperatureColor(t: number): string {
-    if (t < 0.3) return '#4CAF50';
-    if (t < 0.7) return '#FF9800';
-    return '#f44336';
+    if (t < 0.3) return 'var(--success-color)';
+    if (t < 0.7) return 'var(--warning-color)';
+    return 'var(--failure-color)';
 }
 
 function getStatusColor(status: string): string {
     switch (status) {
-        case 'running': return '#a78bfa';
-        case 'completed': return '#4CAF50';
-        case 'error': return '#f44336';
-        case 'awaiting_human': return '#FF9800';
-        default: return '#666';
+        case 'running': return 'var(--primary-color)';
+        case 'completed': return 'var(--success-color)';
+        case 'error': return 'var(--failure-color)';
+        case 'awaiting_human': return 'var(--warning-color)';
+        default: return 'var(--text-muted)';
     }
 }
 

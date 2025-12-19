@@ -136,95 +136,82 @@ export const ControlTower: React.FC = () => {
                         <h1>Project Prometheus: Control Tower</h1>
                         <span className={`status-badge ${isConnected ? 'online' : 'offline'}`}
                             style={{
-                                background: isConnected ? 'var(--success-color)' : 'var(--error-color)',
+                                color: isConnected ? 'var(--success-color)' : 'var(--error-color)',
                                 padding: '0.25rem 0.5rem',
-                                borderRadius: '4px',
-                                fontSize: '0.8rem'
+                                border: '1px solid currentColor',
+                                borderRadius: 'var(--radius-sm)',
+                                fontSize: '0.8rem',
+                                fontWeight: 500
                             }}>
                             {isConnected ? 'SYSTEM ONLINE' : 'DISCONNECTED'}
                         </span>
                     </div>
                 </div>
 
-                <div className="simulation-controls" style={{
-                    display: 'flex', flexWrap: 'wrap', gap: '0.5rem',
-                    background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '8px'
-                }}>
+                <div className="simulation-controls">
                     <div style={{ display: 'flex', flex: 1, gap: '0.5rem', alignItems: 'center' }}>
                         <input
                             type="text"
                             id="problem-input"
                             aria-label="Problem statement"
+                            className="control-input"
                             value={problemInput}
                             onChange={(e) => setProblemInput(e.target.value)}
                             placeholder={audioBlob ? "Audio recorded - add text..." : "Enter problem statement..."}
-                            style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid #333', background: '#222', color: '#fff' }}
                         />
                         <button
                             type="button"
                             onClick={toggleRecording}
                             title={isRecording ? "Stop recording" : "Record voice problem"}
                             aria-label={isRecording ? "Stop recording" : "Record voice problem"}
-                            className={`voice-btn ${isRecording ? 'recording' : ''}`}
-                            style={{
-                                background: isRecording ? '#e53935' : '#444',
-                                minWidth: '42px',
-                                height: '36px',
-                                padding: '0 0.5rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}
+                            className={`control-btn ${isRecording ? 'danger' : ''}`}
+                            style={{ minWidth: '42px', padding: '0', justifyContent: 'center' }}
                         >
                             {isRecording ? <Square size={18} /> : <Mic size={18} />}
                         </button>
                     </div>
                     <button
+                        className={`control-btn ${showConfig ? 'active' : ''}`}
                         onClick={() => setShowConfig(!showConfig)}
-                        style={{ background: '#444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                         aria-expanded={showConfig}
                         aria-controls="config-panel"
                     >
                         <Settings size={16} />
-                        {showConfig ? 'Hide Config' : 'Config'}
+                        Config
                     </button>
-                    <button onClick={handleStart} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <button onClick={handleStart} className="control-btn primary">
                         <Play size={16} />
                         Start Mission
                     </button>
-                    <button onClick={stopSimulation} className="danger" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <button onClick={stopSimulation} className="control-btn danger">
                         <TriangleAlert size={16} />
                         Abort
                     </button>
                 </div>
 
                 {showConfig && (
-                    <div id="config-panel" className="config-panel" style={{
-                        marginTop: '1rem', padding: '1rem', background: '#2a2a2a',
-                        borderRadius: '8px', border: '1px solid #444',
-                        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem'
-                    }}>
+                    <div id="config-panel" className="config-panel">
                         {/* 1. Model Selection */}
                         <div className="config-section">
-                            <h4 style={{ marginBottom: '0.5rem', borderBottom: '1px solid #444', paddingBottom: '0.25rem' }}>Model & Compute</h4>
+                            <h4>Model & Compute</h4>
                             <div className="config-item">
                                 <label htmlFor="config-model">Core Model</label>
                                 <select
                                     id="config-model"
+                                    className="control-input"
                                     value={config.model_name}
                                     onChange={e => handleModelChange(e.target.value)}
-                                    style={{ width: '100%', padding: '0.5rem', background: '#333', border: '1px solid #555', color: '#fff', borderRadius: '4px' }}
                                 >
                                     {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                                 </select>
                             </div>
-                            <div className="config-item" style={{ marginTop: '0.5rem' }}>
+                            <div className="config-item">
                                 <label htmlFor="config-thinking-level">Thinking Level</label>
                                 <select
                                     id="config-thinking-level"
+                                    className="control-input"
                                     value={config.thinking_level}
                                     onChange={e => setConfig({ ...config, thinking_level: e.target.value })}
-                                    style={{ width: '100%', padding: '0.5rem', background: '#333', border: '1px solid #555', color: '#fff', borderRadius: '4px', marginTop: '0.25rem' }}
                                 >
                                     {(currentModel.thinking_levels || ['LOW', 'HIGH']).map((level: string) => (
                                         <option key={level} value={level}>
@@ -240,11 +227,11 @@ export const ControlTower: React.FC = () => {
 
                         {/* 2. Evolution Engine */}
                         <div className="config-section">
-                            <h4 style={{ marginBottom: '0.5rem', borderBottom: '1px solid #444', paddingBottom: '0.25rem' }}>Evolution Engine</h4>
+                            <h4>Evolution Engine</h4>
                             <div className="config-item">
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <label htmlFor="config-iterations">Max Iterations</label>
-                                    <span aria-hidden="true">{config.max_iterations}</span>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-color)' }}>{config.max_iterations}</span>
                                 </div>
                                 <input
                                     id="config-iterations"
@@ -253,8 +240,7 @@ export const ControlTower: React.FC = () => {
                                     max="50"
                                     value={config.max_iterations}
                                     onChange={e => setConfig({ ...config, max_iterations: parseInt(e.target.value) })}
-                                    aria-valuetext={`${config.max_iterations} iterations`}
-                                    style={{ width: '100%' }} />
+                                    style={{ width: '100%', accentColor: 'var(--primary-color)' }} />
                             </div>
                             <div className="config-item">
                                 <label htmlFor="config-entropy">Entropy Threshold</label>
@@ -262,9 +248,10 @@ export const ControlTower: React.FC = () => {
                                     id="config-entropy"
                                     type="number"
                                     step="0.01"
+                                    className="control-input"
                                     value={config.entropy_threshold}
                                     onChange={e => setConfig({ ...config, entropy_threshold: parseFloat(e.target.value) })}
-                                    style={{ width: '100%', background: '#333', border: '1px solid #555', color: '#fff' }} />
+                                />
                             </div>
                             <div className="config-item">
                                 <label htmlFor="config-child-budget">Child Budget</label>
@@ -273,21 +260,20 @@ export const ControlTower: React.FC = () => {
                                     type="number"
                                     min="2"
                                     max="20"
+                                    className="control-input"
                                     value={config.total_child_budget}
                                     onChange={e => setConfig({ ...config, total_child_budget: parseInt(e.target.value) })}
-                                    style={{ width: '100%', background: '#333', border: '1px solid #555', color: '#fff' }} />
+                                />
                             </div>
                         </div>
 
                         {/* 3. Physics & Temperature */}
                         <div className="config-section">
-                            <h4 style={{ marginBottom: '0.5rem', borderBottom: '1px solid #444', paddingBottom: '0.25rem' }}>Physics & Temp</h4>
-                            {/* NOTE: LLM temperature is always 1.0 (Logic Manifold Integrity) */}
-                            {/* System temperature τ controls Sampling Count (N) / Beam Width */}
+                            <h4>Physics & Temp</h4>
                             <div className="config-item">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} title="Controls initial exploration intensity. Higher values (1.5-2.0) encourage innovation; lower values (0.5-1.0) favor stability.">
-                                    <label htmlFor="config-temp" style={{ borderBottom: '1px dotted #888', cursor: 'help' }}>Max Temp (T_max)</label>
-                                    <span style={{ color: '#888', fontSize: '0.85rem' }} aria-hidden="true">{config.t_max.toFixed(1)}</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <label htmlFor="config-temp" style={{ borderBottom: '1px dotted var(--text-muted)', cursor: 'help' }}>Max Temp (T_max)</label>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-color)' }}>{config.t_max.toFixed(1)}</span>
                                 </div>
                                 <input
                                     id="config-temp"
@@ -297,8 +283,7 @@ export const ControlTower: React.FC = () => {
                                     step="0.1"
                                     value={config.t_max}
                                     onChange={e => setConfig({ ...config, t_max: parseFloat(e.target.value) })}
-                                    aria-valuetext={`Temperature ${config.t_max.toFixed(1)}`}
-                                    style={{ width: '100%', marginTop: '0.5rem' }}
+                                    style={{ width: '100%', marginTop: '0.5rem', accentColor: 'var(--primary-color)' }}
                                 />
                             </div>
                             <div className="config-item">
@@ -307,24 +292,18 @@ export const ControlTower: React.FC = () => {
                                     id="config-explore"
                                     type="number"
                                     step="0.1"
+                                    className="control-input"
                                     value={config.c_explore}
                                     onChange={e => setConfig({ ...config, c_explore: parseFloat(e.target.value) })}
-                                    style={{ width: '100%', background: '#333', border: '1px solid #555', color: '#fff' }} />
+                                />
                             </div>
                         </div>
                     </div>
                 )}
             </header>
 
-            <main className="dashboard-main" style={{
-                display: 'grid',
-                gridTemplateColumns: '320px 1fr 280px',
-                gap: '16px',
-                padding: '16px',
-                height: 'calc(100vh - 180px)',
-                overflow: 'hidden'
-            }}>
-                {/* 左侧: Thinking Panel (Gemini Deep Research 风格) */}
+            <main className="dashboard-main">
+                {/* Left: Thinking Panel */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
                     <ThinkingPanel
                         state={state}
@@ -334,14 +313,13 @@ export const ControlTower: React.FC = () => {
                     />
                 </div>
 
-                {/* 中间: TaskGraph (图状结构演化) */}
+                {/* Center: TaskGraph */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
                     <TaskGraph
                         state={state}
                         onNodeClick={handleNodeClick}
                         selectedNodeIds={selectedForSynthesize}
                     />
-                    {/* 底部 KPI */}
                     <KPIDashboard
                         state={state}
                         currentAgent={currentAgent}
@@ -349,7 +327,7 @@ export const ControlTower: React.FC = () => {
                     />
                 </div>
 
-                {/* 右侧: 知识库 + 报告 */}
+                {/* Right: Knowledge & Chat */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
                     <KnowledgePanel />
                     <ChatPanel />
@@ -362,7 +340,6 @@ export const ControlTower: React.FC = () => {
                 onClose={() => setSelectedNode(null)}
             />
 
-            {/* T-052: Force Synthesize Bar for multi-selected strategies */}
             <ForceSynthesizeBar
                 selectedIds={Array.from(selectedForSynthesize)}
                 strategyNames={strategyNames}
@@ -371,7 +348,6 @@ export const ControlTower: React.FC = () => {
                 isLoading={isSynthesizing}
             />
 
-            {/* Human-in-the-Loop Intervention Panel */}
             <InterventionPanel
                 isOpen={hilRequest !== null}
                 request={hilRequest}
