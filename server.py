@@ -38,6 +38,18 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Content Security Policy (CSP)
+    # Allows scripts/styles from self and inline (required for React/Vite)
+    # Allows WebSockets for real-time updates
+    csp_policy = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "connect-src 'self' ws: wss:; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' data:;"
+    )
+    response.headers["Content-Security-Policy"] = csp_policy
     return response
 
 # Security: Restrict CORS to allowed origins
