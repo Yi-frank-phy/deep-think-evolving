@@ -30,3 +30,10 @@
 - 2916ae6: WebSocket 并行化
 - (审计报告)
 - 899591e: Gemini Deep Research UI (冲突已解决)
+
+### 4. UI Regression Fixes
+
+- [x] Fix layout: Deep graph invisible (zero height)
+- [x] Fix layout: KPI Dashboard vertical stacking
+- [x] Fix layout: Knowledge Base redundant headers & scrolling
+- [x] Verify UI with screenshot

@@ -184,7 +184,7 @@ export const ControlTower: React.FC = () => {
                 </div>
 
                 {/* Thinking Panel (Compact) */}
-                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
                     <ThinkingPanel
                         state={state}
                         activityLog={activityLog}
@@ -229,10 +229,6 @@ export const ControlTower: React.FC = () => {
 
                 {/* Knowledge Drawer (Bottom) */}
                 <div className="knowledge-drawer">
-                    <div className="drawer-header">
-                        <span>Knowledge Base</span>
-                        {/* Could add expand/collapse toggle here */}
-                    </div>
                     <div style={{ flex: 1, overflow: 'hidden' }}>
                         <KnowledgePanel />
                     </div>

@@ -261,11 +261,15 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
     return (
         <div className="task-graph-container" style={{
             flex: 1,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
             background: 'linear-gradient(180deg, #0a0a0a 0%, #111 100%)',
             border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: '12px',
-            minHeight: '500px',
-            position: 'relative'
+            position: 'relative',
+            overflow: 'hidden'
         }}>
             {/* Header */}
             <div style={{

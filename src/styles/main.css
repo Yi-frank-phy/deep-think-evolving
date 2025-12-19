@@ -222,6 +222,8 @@ body {
   background-image: radial-gradient(#e0e3e1 1px, transparent 1px);
   background-size: 20px 20px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   /* React Flow handles its own scroll */
 }
 
