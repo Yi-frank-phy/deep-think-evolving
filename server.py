@@ -218,11 +218,17 @@ class SimulationManager:
             self.active_websockets.remove(websocket)
 
     async def broadcast(self, message: dict):
-        for ws in self.active_websockets:
+        if not self.active_websockets:
+            return
+
+        # Optimization: Send to all clients in parallel to reduce latency
+        async def send_safe(ws):
             try:
                 await ws.send_json(message)
             except Exception as e:
                 logger.warning(f"Failed to send to client: {e}")
+
+        await asyncio.gather(*(send_safe(ws) for ws in self.active_websockets))
 
     async def run_graph(self, problem: str, config: SimulationConfig):
         self.is_running = True
