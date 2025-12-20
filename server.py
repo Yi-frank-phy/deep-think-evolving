@@ -7,10 +7,12 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
+import time
+from collections import defaultdict
 
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException, status, Depends
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import webbrowser
@@ -28,6 +30,35 @@ logger = logging.getLogger(__name__)
 
 # Standard generic error message to prevent information leakage
 GENERIC_ERROR_MESSAGE = "An internal error occurred. Please check the server logs."
+
+# Security: Rate Limiting
+class SimpleRateLimiter:
+    def __init__(self, requests_per_minute: int = 60):
+        self.requests_per_minute = requests_per_minute
+        self.request_counts = defaultdict(list)
+
+    async def __call__(self, request: Request):
+        # Identify client by IP
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+
+        # Clean up old timestamps (older than 1 minute)
+        self.request_counts[client_ip] = [
+            t for t in self.request_counts[client_ip]
+            if now - t < 60
+        ]
+
+        if len(self.request_counts[client_ip]) >= self.requests_per_minute:
+            logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many requests. Please try again later."
+            )
+
+        self.request_counts[client_ip].append(now)
+
+# Create rate limiter instance (60 requests/min)
+rate_limiter = SimpleRateLimiter(requests_per_minute=60)
 
 app = FastAPI(title="Prometheus Control Tower Backend", version="0.1.0")
 
@@ -374,7 +405,7 @@ class SimulationManager:
 
 sim_manager = SimulationManager()
 
-@app.post("/api/simulation/start")
+@app.post("/api/simulation/start", dependencies=[Depends(rate_limiter)])
 async def start_simulation(req: SimulationRequest):
     if sim_manager.is_running:
         return {"status": "error", "message": "Simulation already running"}
@@ -391,7 +422,7 @@ async def stop_simulation():
         return {"status": "stopped"}
     return {"status": "not_running"}
 
-@app.post("/api/expand_node")
+@app.post("/api/expand_node", dependencies=[Depends(rate_limiter)])
 async def expand_node_endpoint(req: ExpandNodeRequest):
     """
     Stateless endpoint to expand a node's rationale.
@@ -424,7 +455,7 @@ async def simulation_websocket(websocket: WebSocket):
         sim_manager.disconnect(websocket)
 
 
-@app.post("/api/chat/stream")
+@app.post("/api/chat/stream", dependencies=[Depends(rate_limiter)])
 async def chat_stream_endpoint(req: ChatRequest):
     """
     Streaming chat endpoint that supports text and audio input.
@@ -490,7 +521,7 @@ async def chat_stream_endpoint(req: ChatRequest):
 
 # --- Human-in-the-Loop API ---
 
-@app.post("/api/hil/response", tags=["hil"])
+@app.post("/api/hil/response", tags=["hil"], dependencies=[Depends(rate_limiter)])
 async def submit_hil_response(response: HilResponse):
     """Submit a human response to a pending HIL request."""
     success = hil_manager.submit_response(response.request_id, response.response)
