@@ -110,6 +110,7 @@ export const ControlTower: React.FC = () => {
                             className={`btn-icon ${isRecording ? 'danger' : ''}`}
                             onClick={toggleRecording}
                             title="Voice Input"
+                            aria-label={isRecording ? "Stop voice input" : "Start voice input"}
                         >
                             {isRecording ? <Square size={16} /> : <Mic size={18} />}
                         </button>
@@ -117,6 +118,7 @@ export const ControlTower: React.FC = () => {
                             className={`btn-icon ${showConfig ? 'active' : ''}`}
                             onClick={() => setShowConfig(!showConfig)}
                             title="Configuration"
+                            aria-label="Configuration"
                             aria-expanded={showConfig}
                             aria-controls="config-card"
                         >
@@ -138,8 +140,9 @@ export const ControlTower: React.FC = () => {
                 {showConfig && (
                     <div id="config-card" className="config-card">
                         <div className="config-group">
-                            <label className="config-label">Model</label>
+                            <label htmlFor="config-model" className="config-label">Model</label>
                             <select
+                                id="config-model"
                                 className="config-select"
                                 value={config.model_name}
                                 onChange={e => setConfig({ ...config, model_name: e.target.value })}
@@ -148,8 +151,9 @@ export const ControlTower: React.FC = () => {
                             </select>
                         </div>
                         <div className="config-group">
-                            <label className="config-label">Thinking Depth</label>
+                            <label htmlFor="config-thinking" className="config-label">Thinking Depth</label>
                             <select
+                                id="config-thinking"
                                 className="config-select"
                                 value={config.thinking_level}
                                 onChange={e => setConfig({ ...config, thinking_level: e.target.value })}
@@ -161,15 +165,17 @@ export const ControlTower: React.FC = () => {
                         </div>
                         <div className="config-group">
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <label className="config-label">Iterations</label>
-                                <span style={{ fontSize: '0.8rem' }}>{config.max_iterations}</span>
+                                <label htmlFor="config-iterations" className="config-label">Iterations</label>
+                                <span aria-hidden="true" style={{ fontSize: '0.8rem' }}>{config.max_iterations}</span>
                             </div>
                             <input
+                                id="config-iterations"
                                 type="range"
                                 min="1" max="50"
                                 style={{ width: '100%' }}
                                 value={config.max_iterations}
                                 onChange={e => setConfig({ ...config, max_iterations: parseInt(e.target.value) })}
+                                aria-valuetext={`${config.max_iterations} iterations`}
                             />
                         </div>
                     </div>
