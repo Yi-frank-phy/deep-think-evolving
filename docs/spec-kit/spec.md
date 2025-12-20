@@ -417,7 +417,7 @@ interface SimulationRequest {
     beam_width?: int;          // 默认: 3
     thinking_budget?: int;     // 默认: 1024
     max_iterations?: int;      // 默认: 10
-    entropy_threshold?: float; // 默认: 0.01
+    entropy_change_threshold?: float; // 熵变化率阈值，默认: 0.1
     total_child_budget?: int;  // 默认: 6
     // NOTE: LLM temperature is always 1.0 (Logic Manifold Integrity)
   };

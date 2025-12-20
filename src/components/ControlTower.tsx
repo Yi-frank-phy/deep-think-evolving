@@ -24,7 +24,7 @@ export const ControlTower: React.FC = () => {
         c_explore: 1.0,
         thinking_level: 'HIGH',
         max_iterations: 10,
-        entropy_threshold: 0.1,
+        entropy_change_threshold: 0.1,
         total_child_budget: 6,
     });
     const [showConfig, setShowConfig] = useState(false);

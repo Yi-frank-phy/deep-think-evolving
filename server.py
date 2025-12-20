@@ -230,7 +230,7 @@ class SimulationConfig(BaseModel):
     thinking_level: str = "HIGH"  # Thinking depth: MINIMAL, LOW, MEDIUM, HIGH
     # --- Added to sync with frontend ---
     max_iterations: int = 10  # Maximum evolution iterations before forced termination
-    entropy_threshold: float = 0.01  # Lower threshold for high-dim embeddings (was 0.1)
+    entropy_change_threshold: float = 0.01  # Lower threshold for high-dim embeddings
     total_child_budget: int = 6  # Total children to allocate across strategies
     # NOTE: LLM temperature is always 1.0 (Logic Manifold Integrity)
     # System temperature τ controls resource allocation only (see temperature_helper.py)
