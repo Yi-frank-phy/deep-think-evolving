@@ -9,3 +9,12 @@ try:
 except ValueError:
     raise SecurityException("Path traversal detected")
 ```
+
+## 2024-05-25 - Memory Exhaustion in Rate Limiter
+**Vulnerability:** The `SimpleRateLimiter` stored request timestamps in a dictionary keyed by client IP. The dictionary keys were never removed, allowing an attacker to exhaust server memory by sending requests from many unique (spoofed) IPs.
+**Learning:** In-memory stateful logic must always have a bounding mechanism (cleanup/eviction) to prevent unbounded growth. Python's `defaultdict` automatically creates keys on access, which makes this pattern easy to miss.
+**Prevention:** Implement periodic cleanup of stale keys and a hard limit (cap) on the number of stored clients.
+```python
+if len(self.request_counts) > self.max_clients:
+    self.request_counts.clear() # Emergency purge
+```
