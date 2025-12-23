@@ -18,6 +18,7 @@ import ReactFlow, {
 import { GitGraph, Layers, BrainCircuit } from 'lucide-react';
 import 'reactflow/dist/style.css';
 import { DeepThinkState, StrategyNode } from '../types';
+import { StrategyNode as StrategyNodeComponent } from './StrategyNode';
 
 interface TaskGraphProps {
     state: DeepThinkState | null;
@@ -73,68 +74,14 @@ const getNodeStyle = (strat: StrategyNode, isSelected: boolean) => {
     };
 };
 
-// 构建节点标签 - 显示完整信息
-const buildNodeLabel = (strat: StrategyNode) => {
-    const score = strat.score?.toFixed(2) ?? '?';
-    const ucb = strat.ucb_score?.toFixed(2) ?? '-';
-    const quota = strat.child_quota ?? 0;
-
-    // 状态图标
-    let statusIcon = '⚪';
-    if (strat.status === 'active') statusIcon = '🟢';
-    else if (strat.status === 'pruned' || strat.status === 'pruned_synthesized') statusIcon = '🔴';
-    else if (strat.status === 'expanded') statusIcon = '🔵';
-    else if (strat.status === 'completed') statusIcon = '🟣';
-
-    // 截断但显示更多
-    const rationalePreview = strat.rationale
-        ? (strat.rationale.length > 80 ? strat.rationale.substring(0, 80) + '...' : strat.rationale)
-        : '';
-
-    return (
-        <div style={{ lineHeight: 1.4 }}>
-            <div style={{
-                fontWeight: 600,
-                fontSize: '13px',
-                marginBottom: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-            }}>
-                <span>{statusIcon}</span>
-                <span style={{ flex: 1 }}>{strat.name}</span>
-            </div>
-
-            <div style={{
-                display: 'flex',
-                gap: '8px',
-                fontSize: '10px',
-                color: '#888',
-                marginBottom: '6px'
-            }}>
-                <span>Score: <b style={{ color: '#4CAF50' }}>{score}</b></span>
-                <span>UCB: <b style={{ color: '#FF9800' }}>{ucb}</b></span>
-                {quota > 0 && <span>配额: <b style={{ color: '#2196F3' }}>{quota}</b></span>}
-            </div>
-
-            {rationalePreview && (
-                <div style={{
-                    fontSize: '11px',
-                    color: '#aaa',
-                    borderTop: '1px solid rgba(255,255,255,0.1)',
-                    paddingTop: '6px',
-                    marginTop: '4px'
-                }}>
-                    {rationalePreview}
-                </div>
-            )}
-        </div>
-    );
-};
-
 export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeClick, selectedNodeIds = new Set() }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+    // Define custom node types
+    const nodeTypes = useMemo(() => ({
+        strategy: StrategyNodeComponent
+    }), []);
 
     // Optimization: Memoize layout calculation so it doesn't run when only selection changes
     // This calculates positions and edges, but leaves styling for the effect
@@ -183,10 +130,10 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
 
             return {
                 id: strat.id,
+                type: 'strategy', // Use custom node type
                 position: { x, y },
                 data: {
-                    label: buildNodeLabel(strat),
-                    strategy: strat // Pass strategy for styling in effect
+                    strategy: strat // Pass strategy data to the custom node
                 }
             };
         });
@@ -304,6 +251,7 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
+                nodeTypes={nodeTypes}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onNodeClick={handleNodeClick}
