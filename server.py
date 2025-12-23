@@ -144,7 +144,7 @@ async def health_check() -> Dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/api/models", tags=["config"])
+@app.get("/api/models", tags=["config"], dependencies=[Depends(rate_limiter)])
 async def get_available_models():
     """Returns available models with their thinking budget constraints."""
     return {"models": AVAILABLE_MODELS}
@@ -413,7 +413,7 @@ async def start_simulation(req: SimulationRequest):
     sim_manager.current_task = asyncio.create_task(sim_manager.run_graph(req.problem, req.config))
     return {"status": "started", "problem": req.problem}
 
-@app.get("/api/simulation/stop")
+@app.get("/api/simulation/stop", dependencies=[Depends(rate_limiter)])
 async def stop_simulation():
     if sim_manager.current_task:
         sim_manager.current_task.cancel()
@@ -541,10 +541,10 @@ async def get_pending_hil_requests():
 
 class ForceSynthesizeRequest(BaseModel):
     """Request to force synthesize selected strategies into a report."""
-    strategy_ids: List[str] = Field(..., description="List of strategy IDs to synthesize")
+    strategy_ids: List[str] = Field(..., min_length=1, max_length=100, description="List of strategy IDs to synthesize (max 100)")
 
 
-@app.post("/api/hil/force_synthesize", tags=["hil"])
+@app.post("/api/hil/force_synthesize", tags=["hil"], dependencies=[Depends(rate_limiter)])
 async def force_synthesize_strategies(req: ForceSynthesizeRequest):
     """
     Force synthesize selected strategies into a report (HIL action).
