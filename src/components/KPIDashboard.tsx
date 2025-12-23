@@ -37,18 +37,43 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = React.memo(({
             {/* Current Agent Status - Compact inline badge */}
             {simulationStatus === 'running' && agentInfo && (
                 <div className="kpi-item" style={{ borderRight: '1px solid var(--border-color)', paddingRight: '1rem' }}>
-                    <span style={{ fontSize: '1rem' }}>{agentInfo.icon}</span>
+                    <span style={{ fontSize: '1rem' }} aria-hidden="true">{agentInfo.icon}</span>
                     <span className="kpi-value" style={{ color: agentInfo.color, fontWeight: 600 }}>
                         {agentInfo.name}
                     </span>
                 </div>
             )}
 
-            <KPIItem label="Iter" value={state?.iteration_count || 0} />
-            <KPIItem label="Active" value={`${activeCount}/${totalCount}`} />
-            <KPIItem label="Entropy" value={(state?.spatial_entropy || 0).toFixed(3)} />
-            <KPIItem label="T_eff" value={(state?.effective_temperature || 0).toFixed(2)} />
-            <KPIItem label="Best UCB" value={bestScore.toFixed(3)} />
+            <KPIItem
+                label="Iter"
+                value={state?.iteration_count || 0}
+                tooltip="Current Iteration Count"
+                ariaLabel="Current iteration count"
+            />
+            <KPIItem
+                label="Active"
+                value={`${activeCount}/${totalCount}`}
+                tooltip="Active / Total Strategies"
+                ariaLabel={`Active strategies: ${activeCount} of ${totalCount}`}
+            />
+            <KPIItem
+                label="Entropy"
+                value={(state?.spatial_entropy || 0).toFixed(3)}
+                tooltip="Spatial Entropy (Diversity of thought)"
+                ariaLabel={`Spatial Entropy: ${(state?.spatial_entropy || 0).toFixed(3)}`}
+            />
+            <KPIItem
+                label="T_eff"
+                value={(state?.effective_temperature || 0).toFixed(2)}
+                tooltip="Effective Temperature (Exploration rate)"
+                ariaLabel={`Effective Temperature: ${(state?.effective_temperature || 0).toFixed(2)}`}
+            />
+            <KPIItem
+                label="Best UCB"
+                value={bestScore.toFixed(3)}
+                tooltip="Best Upper Confidence Bound score"
+                ariaLabel={`Best Upper Confidence Bound score: ${bestScore.toFixed(3)}`}
+            />
         </>
     );
 });
@@ -56,12 +81,19 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = React.memo(({
 interface KPIItemProps {
     label: string;
     value: string | number;
+    tooltip?: string;
+    ariaLabel?: string;
 }
 
-const KPIItem: React.FC<KPIItemProps> = ({ label, value }) => (
-    <div className="kpi-item">
-        <span className="kpi-label">{label}</span>
-        <span className="kpi-value">{value}</span>
+const KPIItem: React.FC<KPIItemProps> = ({ label, value, tooltip, ariaLabel }) => (
+    <div
+        className="kpi-item"
+        title={tooltip}
+        role="group"
+        aria-label={ariaLabel || `${label}: ${value}`}
+        tabIndex={0}
+    >
+        <span className="kpi-label" aria-hidden="true">{label}</span>
+        <span className="kpi-value" aria-hidden="true">{value}</span>
     </div>
 );
-
