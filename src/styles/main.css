@@ -106,6 +106,11 @@ body {
   color: #c5221f;
 }
 
+.status-indicator.icon-only {
+    padding: 0;
+    background: transparent;
+}
+
 .input-area {
   background: #ffffff;
   padding: 1rem;
@@ -290,6 +295,79 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* Knowledge Panel */
+.knowledge-filters {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.filter-tab {
+    background: none;
+    border: none;
+    padding: 0.25rem 0;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-weight: 400;
+    border-bottom: 2px solid transparent;
+}
+
+.filter-tab.active {
+    font-weight: 500;
+}
+
+.filter-tab.all.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+.filter-tab.lesson.active { color: #e53935; border-bottom-color: #e53935; }
+.filter-tab.pattern.active { color: #4CAF50; border-bottom-color: #4CAF50; }
+.filter-tab.insight.active { color: #FFC107; border-bottom-color: #FFC107; }
+
+.knowledge-feed.empty {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 2rem;
+}
+
+.empty-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.03);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.knowledge-entry {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: #fff;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.knowledge-entry__header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.tag {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.05);
+    color: var(--text-secondary);
 }
 
 /* Config Panel - Clean Modal style inside sidebar */
