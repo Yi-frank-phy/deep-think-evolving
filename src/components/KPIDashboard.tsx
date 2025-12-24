@@ -33,35 +33,69 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = React.memo(({
     const agentInfo = currentAgent ? AGENT_DISPLAY[currentAgent] : null;
 
     return (
-        <>
+        <section
+            className="kpi-dashboard"
+            aria-label="Key Performance Indicators"
+            role="region"
+        >
             {/* Current Agent Status - Compact inline badge */}
             {simulationStatus === 'running' && agentInfo && (
-                <div className="kpi-item" style={{ borderRight: '1px solid var(--border-color)', paddingRight: '1rem' }}>
-                    <span style={{ fontSize: '1rem' }}>{agentInfo.icon}</span>
-                    <span className="kpi-value" style={{ color: agentInfo.color, fontWeight: 600 }}>
+                <div
+                    className="kpi-item"
+                    style={{ borderRight: '1px solid var(--border-color)', paddingRight: '1rem' }}
+                    role="status"
+                    aria-label={`Current Agent: ${agentInfo.name}`}
+                >
+                    <span style={{ fontSize: '1rem' }} aria-hidden="true">{agentInfo.icon}</span>
+                    <span className="kpi-value" style={{ color: agentInfo.color, fontWeight: 600 }} aria-hidden="true">
                         {agentInfo.name}
                     </span>
                 </div>
             )}
 
-            <KPIItem label="Iter" value={state?.iteration_count || 0} />
-            <KPIItem label="Active" value={`${activeCount}/${totalCount}`} />
-            <KPIItem label="Entropy" value={(state?.spatial_entropy || 0).toFixed(3)} />
-            <KPIItem label="T_eff" value={(state?.effective_temperature || 0).toFixed(2)} />
-            <KPIItem label="Best UCB" value={bestScore.toFixed(3)} />
-        </>
+            <KPIItem
+                label="Iter"
+                value={state?.iteration_count || 0}
+                description="Current Iteration Count"
+            />
+            <KPIItem
+                label="Active"
+                value={`${activeCount}/${totalCount}`}
+                description="Active Strategies vs Total"
+            />
+            <KPIItem
+                label="Entropy"
+                value={(state?.spatial_entropy || 0).toFixed(3)}
+                description="Spatial Entropy (Diversity Metric)"
+            />
+            <KPIItem
+                label="T_eff"
+                value={(state?.effective_temperature || 0).toFixed(2)}
+                description="Effective Temperature (Exploration Rate)"
+            />
+            <KPIItem
+                label="Best UCB"
+                value={bestScore.toFixed(3)}
+                description="Best Upper Confidence Bound Score"
+            />
+        </section>
     );
 });
 
 interface KPIItemProps {
     label: string;
     value: string | number;
+    description: string;
 }
 
-const KPIItem: React.FC<KPIItemProps> = ({ label, value }) => (
-    <div className="kpi-item">
-        <span className="kpi-label">{label}</span>
-        <span className="kpi-value">{value}</span>
+const KPIItem: React.FC<KPIItemProps> = ({ label, value, description }) => (
+    <div
+        className="kpi-item"
+        title={description}
+        role="group"
+        aria-label={`${description}: ${value}`}
+    >
+        <span className="kpi-label" aria-hidden="true">{label}</span>
+        <span className="kpi-value" aria-hidden="true">{value}</span>
     </div>
 );
-
