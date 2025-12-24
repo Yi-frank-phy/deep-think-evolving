@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { KnowledgeEntry, KnowledgeMessage } from '../types';
-import { BookOpen, Search, Wifi, WifiOff, Database } from 'lucide-react';
+import { BookOpen, Search, Wifi, WifiOff, Database, Copy, Check } from 'lucide-react';
 
 export const KnowledgePanel: React.FC = () => {
     const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
     const [status, setStatus] = useState<"connecting" | "connected" | "error" | "closed">("closed");
     const [filter, setFilter] = useState<'all' | 'lesson_learned' | 'success_pattern' | 'insight'>('all');
+    const [copiedId, setCopiedId] = useState<string | null>(null);
 
     const socketRef = useRef<WebSocket | null>(null);
     const reconnectTimerRef = useRef<number | undefined>(undefined);
@@ -113,6 +114,16 @@ export const KnowledgePanel: React.FC = () => {
         return `[${formatted.join(", ")}]`;
     };
 
+    const handleCopy = async (id: string, text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedId(id);
+            setTimeout(() => setCopiedId(null), 2000);
+        } catch (err) {
+            console.error('Failed to copy text:', err);
+        }
+    };
+
     const filteredEntries = entries.filter(e => {
         if (filter === 'all') return true;
         if (filter === 'insight') return e.outcome === 'insight';
@@ -177,9 +188,28 @@ export const KnowledgePanel: React.FC = () => {
                                 <span className="tag">
                                     {entry.outcome.toUpperCase().replace('_', ' ')}
                                 </span>
-                                <time dateTime={entry.created_at} style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                    {new Date(entry.created_at).toLocaleTimeString()}
-                                </time>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <time dateTime={entry.created_at} style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                        {new Date(entry.created_at).toLocaleTimeString()}
+                                    </time>
+                                    <button
+                                        onClick={() => handleCopy(entry.id, entry.reflection)}
+                                        aria-label={copiedId === entry.id ? "Copied" : "Copy reflection"}
+                                        title={copiedId === entry.id ? "Copied" : "Copy reflection"}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            padding: '4px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            color: copiedId === entry.id ? '#137333' : 'var(--text-muted)',
+                                            transition: 'color 0.2s'
+                                        }}
+                                    >
+                                        {copiedId === entry.id ? <Check size={14} /> : <Copy size={14} />}
+                                    </button>
+                                </div>
                             </div>
                             <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{entry.thread_id}</h4>
                             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 0.75rem 0' }}>{entry.reflection}</p>
