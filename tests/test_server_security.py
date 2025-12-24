@@ -111,3 +111,19 @@ class TestServerSecurity:
         assert response.status_code == 422
         errors = response.json().get("detail", [])
         assert any("response" in e["loc"] for e in errors)
+
+    def test_force_synthesize_too_many_strategies(self):
+        """Test that force_synthesize requests with too many strategy IDs are rejected."""
+        # 101 strategy IDs should be too many (assuming we set limit to 100)
+        strategy_ids = [f"strat-{i}" for i in range(101)]
+        payload = {
+            "strategy_ids": strategy_ids
+        }
+
+        # This should fail after we implement the fix
+        response = client.post("/api/hil/force_synthesize", json=payload)
+
+        # Currently it might return 200 (if sim running) or 400 (if not running)
+        # We want it to be 422 (Unprocessable Entity) due to validation
+        if response.status_code != 422:
+             pytest.fail(f"Should have failed validation with 422, got {response.status_code}")
