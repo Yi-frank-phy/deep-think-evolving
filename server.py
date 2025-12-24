@@ -33,16 +33,36 @@ GENERIC_ERROR_MESSAGE = "An internal error occurred. Please check the server log
 
 # Security: Rate Limiting
 class SimpleRateLimiter:
-    def __init__(self, requests_per_minute: int = 60):
+    def __init__(self, requests_per_minute: int = 60, max_clients: int = 10000):
         self.requests_per_minute = requests_per_minute
+        self.max_clients = max_clients
         self.request_counts = defaultdict(list)
+        self.cleanup_counter = 0
 
     async def __call__(self, request: Request):
         # Identify client by IP
         client_ip = request.client.host if request.client else "unknown"
         now = time.time()
 
-        # Clean up old timestamps (older than 1 minute)
+        # Periodic cleanup of stale clients (every 1000 requests)
+        self.cleanup_counter += 1
+        if self.cleanup_counter >= 1000:
+            self.cleanup_counter = 0
+            # Remove clients with no recent activity
+            stale_ips = [
+                ip for ip, timestamps in self.request_counts.items()
+                if not timestamps or (now - timestamps[-1] > 60)
+            ]
+            for ip in stale_ips:
+                del self.request_counts[ip]
+
+        # Safety valve: if still too many clients, clear oldest to prevent OOM
+        if len(self.request_counts) > self.max_clients:
+            logger.warning("Rate limiter client limit reached, purging oldest entries")
+            # Clear 20% of entries randomly (or just clear dict for simplicity/safety)
+            self.request_counts.clear()
+
+        # Clean up old timestamps for current client (older than 1 minute)
         self.request_counts[client_ip] = [
             t for t in self.request_counts[client_ip]
             if now - t < 60
