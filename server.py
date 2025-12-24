@@ -211,6 +211,7 @@ async def knowledge_base_updates(websocket: WebSocket) -> None:
 # --- Simulation Control & Telemetry ---
 
 import base64
+from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 from fastapi.responses import StreamingResponse
 from google import genai
@@ -241,13 +242,30 @@ class ExpandNodeRequest(BaseModel):
     context: str | None = Field(None, max_length=1_000_000, description="Optional context limited to 1M chars")
     model_name: str = "gemini-2.5-flash"  # Default
 
+    @field_validator("model_name")
+    @classmethod
+    def validate_model_name(cls, v: str) -> str:
+        valid_ids = {m["id"] for m in AVAILABLE_MODELS}
+        if v not in valid_ids:
+            raise ValueError(f"Invalid model name: {v}. Must be one of {valid_ids}")
+        return v
+
 
 class SimulationConfig(BaseModel):
     model_name: str = "gemini-2.5-flash-lite-preview-06-17"  # Default model
     t_max: float = 2.0
     c_explore: float = 1.0
     beam_width: int = 3
-    thinking_level: str = "HIGH"  # Thinking depth: MINIMAL, LOW, MEDIUM, HIGH
+    thinking_level: Literal["MINIMAL", "LOW", "MEDIUM", "HIGH"] = "HIGH"  # Thinking depth
+
+    @field_validator("model_name")
+    @classmethod
+    def validate_model_name(cls, v: str) -> str:
+        valid_ids = {m["id"] for m in AVAILABLE_MODELS}
+        if v not in valid_ids:
+            raise ValueError(f"Invalid model name: {v}. Must be one of {valid_ids}")
+        return v
+
     # --- Added to sync with frontend ---
     max_iterations: int = 10  # Maximum evolution iterations before forced termination
     entropy_change_threshold: float = 0.1  # Convergence threshold per spec.md §2.2
