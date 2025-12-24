@@ -284,10 +284,37 @@ class SimulationManager:
         if not self.active_websockets:
             return
 
+        # Optimization: Strip embeddings from strategies before sending to frontend
+        # This saves ~16KB per strategy node (4096 floats * 4 bytes)
+        payload = message
+        if message.get("type") == "state_update" and "strategies" in message.get("data", {}):
+            try:
+                # Create a shallow copy of the message to modify data
+                payload = message.copy()
+                data = payload["data"].copy()
+                strategies = data["strategies"]
+
+                # Create clean strategies list without embeddings
+                clean_strategies = []
+                for s in strategies:
+                    if "embedding" in s:
+                        s_copy = s.copy()
+                        s_copy.pop("embedding", None)
+                        clean_strategies.append(s_copy)
+                    else:
+                        clean_strategies.append(s)
+
+                data["strategies"] = clean_strategies
+                payload["data"] = data
+            except Exception as e:
+                logger.warning(f"Failed to strip embeddings: {e}")
+                # Fallback to original message if stripping fails
+                payload = message
+
         # Optimization: Send to all clients in parallel to reduce latency
         async def send_safe(ws):
             try:
-                await ws.send_json(message)
+                await ws.send_json(payload)
             except Exception as e:
                 logger.warning(f"Failed to send to client: {e}")
 
