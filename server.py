@@ -80,6 +80,76 @@ class SimpleRateLimiter:
 # Create rate limiter instance (60 requests/min)
 rate_limiter = SimpleRateLimiter(requests_per_minute=60)
 
+# Security: WebSocket Rate Limiting
+class WebSocketRateLimiter:
+    def __init__(self, requests_per_minute: int = 30, max_concurrent_per_ip: int = 10):
+        self.requests_per_minute = requests_per_minute
+        self.max_concurrent_per_ip = max_concurrent_per_ip
+        # IP -> list of timestamps
+        self.connection_attempts = defaultdict(list)
+        # IP -> set of active websocket objects
+        self.active_connections = defaultdict(set)
+        self.cleanup_counter = 0
+
+    async def accept(self, websocket: WebSocket) -> bool:
+        client_ip = websocket.client.host if websocket.client else "unknown"
+        now = time.time()
+
+        # Periodic cleanup
+        self.cleanup_counter += 1
+        if self.cleanup_counter >= 100:
+            self.cleanup_counter = 0
+            self._cleanup_stale_data(now)
+
+        # 1. Rate Limit: Connection Attempts
+        # Clean old timestamps
+        self.connection_attempts[client_ip] = [
+            t for t in self.connection_attempts[client_ip]
+            if now - t < 60
+        ]
+
+        if len(self.connection_attempts[client_ip]) >= self.requests_per_minute:
+            logger.warning(f"WS Rate limit exceeded for IP: {client_ip}")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Rate limit exceeded")
+            return False
+
+        # 2. Concurrency Limit
+        active_count = len(self.active_connections[client_ip])
+        if active_count >= self.max_concurrent_per_ip:
+             logger.warning(f"WS Concurrency limit exceeded for IP: {client_ip}")
+             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Too many connections")
+             return False
+
+        self.connection_attempts[client_ip].append(now)
+        self.active_connections[client_ip].add(websocket)
+        return True
+
+    def disconnect(self, websocket: WebSocket):
+        client_ip = websocket.client.host if websocket.client else "unknown"
+        if websocket in self.active_connections[client_ip]:
+            self.active_connections[client_ip].remove(websocket)
+            if not self.active_connections[client_ip]:
+                del self.active_connections[client_ip]
+
+    def _cleanup_stale_data(self, now):
+        # Remove IPs with no active connections and no recent attempts
+        for ip in list(self.connection_attempts.keys()):
+            # If no attempts or list empty, treat as stale
+            last_attempt = self.connection_attempts[ip][-1] if self.connection_attempts[ip] else 0
+
+            # Check if IP has active connections without triggering defaultdict creation
+            is_active = len(self.active_connections.get(ip, set())) > 0
+
+            if not is_active and (now - last_attempt > 60):
+                del self.connection_attempts[ip]
+                # Safely remove from active_connections if present
+                if ip in self.active_connections:
+                     del self.active_connections[ip]
+
+# Create global WS limiter
+# Limits: 30 connections/min/IP, 20 concurrent connections/IP
+ws_limiter = WebSocketRateLimiter(requests_per_minute=30, max_concurrent_per_ip=20)
+
 app = FastAPI(title="Prometheus Control Tower Backend", version="0.1.0")
 
 # Security: Add security headers
@@ -172,6 +242,10 @@ async def get_available_models():
 
 @app.websocket("/ws/knowledge_base")
 async def knowledge_base_updates(websocket: WebSocket) -> None:
+    # Security: Rate Limit
+    if not await ws_limiter.accept(websocket):
+        return
+
     await websocket.accept()
 
     reflection_files = _list_reflection_files()
@@ -202,9 +276,11 @@ async def knowledge_base_updates(websocket: WebSocket) -> None:
                     last_seen[path.stem] = modified
 
     except WebSocketDisconnect:
+        ws_limiter.disconnect(websocket)
         return
     except Exception as exc:  # pragma: no cover - defensive guard
         logger.exception("Knowledge base websocket crashed", exc_info=exc)
+        ws_limiter.disconnect(websocket)
         await websocket.close(code=1011)
 
 
@@ -507,6 +583,10 @@ async def expand_node_endpoint(req: ExpandNodeRequest):
 
 @app.websocket("/ws/simulation")
 async def simulation_websocket(websocket: WebSocket):
+    # Security: Rate Limit
+    if not await ws_limiter.accept(websocket):
+        return
+
     await sim_manager.connect(websocket)
     try:
         while True:
@@ -515,9 +595,11 @@ async def simulation_websocket(websocket: WebSocket):
             # Echo or process
     except WebSocketDisconnect:
         sim_manager.disconnect(websocket)
+        ws_limiter.disconnect(websocket)
     except Exception as e:
         logger.error(f"WS error: {e}")
         sim_manager.disconnect(websocket)
+        ws_limiter.disconnect(websocket)
 
 
 @app.post("/api/chat/stream", dependencies=[Depends(rate_limiter)])
