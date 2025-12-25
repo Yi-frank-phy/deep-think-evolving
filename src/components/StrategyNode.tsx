@@ -50,7 +50,7 @@ const StrategyNodeComponent: React.FC<NodeProps<CustomStrategyNodeData>> = ({ da
             }}>
                 <span>Score: <b style={{ color: '#4CAF50' }}>{score}</b></span>
                 <span>UCB: <b style={{ color: '#FF9800' }}>{ucb}</b></span>
-                {quota > 0 && <span>配额: <b style={{ color: '#2196F3' }}>{quota}</b></span>}
+                {quota > 0 && <span>Quota: <b style={{ color: '#2196F3' }}>{quota}</b></span>}
             </div>
 
             {rationalePreview && (
