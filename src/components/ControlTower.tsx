@@ -112,7 +112,7 @@ export const ControlTower: React.FC = () => {
                             title="Voice Input"
                             aria-label={isRecording ? "Stop voice input" : "Start voice input"}
                         >
-                            {isRecording ? <Square size={16} /> : <Mic size={18} />}
+                            {isRecording ? <Square size={16} fill="currentColor" /> : <Mic size={18} />}
                         </button>
                         <button
                             className={`btn-icon ${showConfig ? 'active' : ''}`}

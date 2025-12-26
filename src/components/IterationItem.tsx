@@ -11,17 +11,17 @@ interface IterationItemProps {
 }
 
 const AGENT_LABELS: Record<AgentPhase, string> = {
-    task_decomposer: '任务分解',
-    researcher: '信息收集',
-    strategy_generator: '策略生成',
-    distiller: '上下文蒸馏',
-    architect: '战略规划',
-    architect_scheduler: '执行调度',
-    distiller_for_judge: '评估准备',
-    executor: '策略执行',
-    judge: '可行性评估',
-    evolution: '演化迭代',
-    propagation: '知识传播'
+    task_decomposer: 'Task Decomposition',
+    researcher: 'Information Gathering',
+    strategy_generator: 'Strategy Generation',
+    distiller: 'Context Distillation',
+    architect: 'Strategic Planning',
+    architect_scheduler: 'Execution Scheduling',
+    distiller_for_judge: 'Evaluation Prep',
+    executor: 'Strategy Execution',
+    judge: 'Feasibility Assessment',
+    evolution: 'Evolutionary Iteration',
+    propagation: 'Knowledge Propagation'
 };
 
 export const IterationItem = React.memo(({
@@ -45,10 +45,10 @@ export const IterationItem = React.memo(({
             >
                 {isExpanded ? <ChevronDown size={14} color="var(--text-muted)" /> : <ChevronRight size={14} color="var(--text-muted)" />}
                 <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-color)' }}>
-                    迭代 {iteration}
+                    Iteration {iteration}
                 </span>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                    {activities.length} 步骤
+                    {activities.length} Steps
                 </span>
             </button>
 

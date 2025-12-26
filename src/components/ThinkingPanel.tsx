@@ -18,17 +18,17 @@ interface ThinkingPanelProps {
 }
 
 const AGENT_LABELS: Record<AgentPhase, string> = {
-    task_decomposer: '任务分解',
-    researcher: '信息收集',
-    strategy_generator: '策略生成',
-    distiller: '上下文蒸馏',
-    architect: '战略规划',
-    architect_scheduler: '执行调度',
-    distiller_for_judge: '评估准备',
-    executor: '策略执行',
-    judge: '可行性评估',
-    evolution: '演化迭代',
-    propagation: '知识传播'
+    task_decomposer: 'Task Decomposition',
+    researcher: 'Information Gathering',
+    strategy_generator: 'Strategy Generation',
+    distiller: 'Context Distillation',
+    architect: 'Strategic Planning',
+    architect_scheduler: 'Execution Scheduling',
+    distiller_for_judge: 'Evaluation Prep',
+    executor: 'Strategy Execution',
+    judge: 'Feasibility Assessment',
+    evolution: 'Evolutionary Iteration',
+    propagation: 'Knowledge Propagation'
 };
 
 export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
@@ -107,12 +107,12 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         return (
             <div className="strategy-summary">
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                    策略空间
+                    Strategy Space
                 </div>
                 <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--success-color)' }}>🟢 活跃: {strategyStats.activeCount}</span>
-                    <span style={{ color: 'var(--failure-color)' }}>🔴 剪枝: {strategyStats.prunedCount}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>总计: {strategyStats.total}</span>
+                    <span style={{ color: 'var(--success-color)' }}>🟢 Active: {strategyStats.activeCount}</span>
+                    <span style={{ color: 'var(--failure-color)' }}>🔴 Pruned: {strategyStats.prunedCount}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Total: {strategyStats.total}</span>
                 </div>
             </div>
         );
@@ -125,25 +125,25 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         return (
             <div className="metric-grid">
                 <div className="metric-card">
-                    <div className="metric-label">迭代</div>
+                    <div className="metric-label">Iteration</div>
                     <div className="metric-value">
                         {currentIteration} / {state.config?.max_iterations || 10}
                     </div>
                 </div>
                 <div className="metric-card">
-                    <div className="metric-label">温度 τ</div>
+                    <div className="metric-label">Temperature τ</div>
                     <div className="metric-value" style={{ color: getTemperatureColor(state.normalized_temperature || 0) }}>
                         {(state.normalized_temperature || 0).toFixed(3)}
                     </div>
                 </div>
                 <div className="metric-card">
-                    <div className="metric-label">空间熵</div>
+                    <div className="metric-label">Entropy</div>
                     <div className="metric-value">
                         {(state.spatial_entropy || 0).toFixed(2)}
                     </div>
                 </div>
                 <div className="metric-card">
-                    <div className="metric-label">状态</div>
+                    <div className="metric-label">Status</div>
                     <div className="metric-value" style={{ color: getStatusColor(simulationStatus), fontSize: '0.9rem' }}>
                         {getStatusLabel(simulationStatus)}
                     </div>
@@ -175,6 +175,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         );
     };
 
+
     // Render Top Strategies
     const renderTopStrategies = () => {
         if (topStrategies.length === 0) return null;
@@ -182,7 +183,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         return (
             <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                    🏆 领先策略
+                    🏆 Top Strategies
                 </div>
                 {topStrategies.map((s, idx) => (
                     <div key={s.id} style={{
@@ -224,7 +225,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
             <div ref={scrollRef} className="thinking-content">
                 {simulationStatus === 'idle' && (
                     <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 20px' }}>
-                        输入问题并启动模拟以开始推理...
+                        Enter a problem and start simulation to begin reasoning...
                     </div>
                 )}
 
@@ -238,7 +239,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
                         {/* Iteration History */}
                         <div style={{ marginTop: '16px' }}>
                             <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                                📜 推理历史
+                                📜 Reasoning History
                             </div>
                             {Array.from(iterationGroups.entries())
                                 .reverse()
@@ -286,11 +287,11 @@ function getStatusColor(status: string): string {
 
 function getStatusLabel(status: string): string {
     switch (status) {
-        case 'idle': return '待命';
-        case 'running': return '推理中';
-        case 'completed': return '已完成';
-        case 'error': return '错误';
-        case 'awaiting_human': return '等待输入';
+        case 'idle': return 'Idle';
+        case 'running': return 'Reasoning';
+        case 'completed': return 'Completed';
+        case 'error': return 'Error';
+        case 'awaiting_human': return 'Awaiting Input';
         default: return status;
     }
 }
