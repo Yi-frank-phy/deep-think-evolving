@@ -5,9 +5,10 @@
  * Design inspired by Google Gemini Deep Research Thinking Panel.
  */
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ChevronDown, ChevronRight, Brain, Loader2, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Brain, Loader2, CheckCircle2 } from 'lucide-react';
 import { DeepThinkState, AgentActivity, AgentPhase } from '../types';
+import { IterationItem } from './IterationItem';
 
 interface ThinkingPanelProps {
     state: DeepThinkState | null;
@@ -48,7 +49,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         }
     }, [activityLog, simulationStatus]);
 
-    const toggleIteration = (iteration: number) => {
+    const toggleIteration = useCallback((iteration: number) => {
         setExpandedIterations(prev => {
             const newSet = new Set(prev);
             if (newSet.has(iteration)) {
@@ -58,7 +59,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
             }
             return newSet;
         });
-    };
+    }, []);
 
     // Group activities by iteration - Memoized
     const iterationGroups = useMemo(() => {
@@ -174,59 +175,6 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         );
     };
 
-    // Render Iteration Details
-    const renderIterationDetails = (iteration: number, activities: AgentActivity[]) => {
-        const isExpanded = expandedIterations.has(iteration);
-        const isCurrentIteration = iteration === Math.max(...Array.from(iterationGroups.keys()));
-
-        return (
-            <div key={iteration} style={{ marginBottom: '8px' }}>
-                <button
-                    type="button"
-                    onClick={() => toggleIteration(iteration)}
-                    aria-expanded={isExpanded}
-                    aria-controls={`iteration-content-${iteration}`}
-                    className="iteration-header"
-                    style={{
-                        background: isCurrentIteration ? 'rgba(168, 199, 250, 0.1)' : 'transparent',
-                    }}
-                >
-
-                    {isExpanded ? <ChevronDown size={14} color="var(--text-muted)" /> : <ChevronRight size={14} color="var(--text-muted)" />}
-                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-color)' }}>
-                        迭代 {iteration}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                        {activities.length} 步骤
-                    </span>
-                </button>
-
-                {isExpanded && (
-                    <div id={`iteration-content-${iteration}`} style={{ paddingLeft: '24px', paddingTop: '8px' }}>
-                        {activities.map((activity, idx) => (
-                            <div key={activity.id || idx} style={{
-                                display: 'flex',
-                                alignItems: 'flex-start',
-                                gap: '8px',
-                                padding: '6px 0',
-                                borderLeft: '1px solid var(--border-color)',
-                                paddingLeft: '12px',
-                                marginLeft: '6px'
-                            }}>
-                                <span style={{ fontSize: '12px', color: 'var(--text-muted)', minWidth: '80px' }}>
-                                    {AGENT_LABELS[activity.agent]}
-                                </span>
-                                <span style={{ fontSize: '12px', color: 'var(--text-color)', flex: 1 }}>
-                                    {activity.detail || activity.message}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
-    };
-
     // Render Top Strategies
     const renderTopStrategies = () => {
         if (topStrategies.length === 0) return null;
@@ -294,9 +242,16 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
                             </div>
                             {Array.from(iterationGroups.entries())
                                 .reverse()
-                                .map(([iteration, activities]) =>
-                                    renderIterationDetails(iteration, activities)
-                                )}
+                                .map(([iteration, activities]) => (
+                                    <IterationItem
+                                        key={iteration}
+                                        iteration={iteration}
+                                        activities={activities}
+                                        isExpanded={expandedIterations.has(iteration)}
+                                        isCurrentIteration={iteration === Math.max(...Array.from(iterationGroups.keys()))}
+                                        onToggle={toggleIteration}
+                                    />
+                                ))}
                         </div>
                     </>
                 )}
