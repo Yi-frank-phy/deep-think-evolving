@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DeepThinkState, AgentPhase } from '../types';
 
 interface KPIDashboardProps {
@@ -26,9 +26,26 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = React.memo(({
     currentAgent,
     simulationStatus = 'idle'
 }) => {
-    const activeCount = state?.strategies.filter(s => s.status === 'active').length || 0;
-    const totalCount = state?.strategies.length || 0;
-    const bestScore = state?.strategies.reduce((max, s) => Math.max(max, s.score || 0), 0) || 0;
+    // Optimization: Calculate stats in a single pass to avoid multiple array iterations
+    const { activeCount, totalCount, bestScore } = useMemo(() => {
+        if (!state?.strategies) return { activeCount: 0, totalCount: 0, bestScore: 0 };
+
+        let active = 0;
+        let maxScore = 0;
+        const total = state.strategies.length;
+
+        for (let i = 0; i < total; i++) {
+            const s = state.strategies[i];
+            if (s.status === 'active') {
+                active++;
+            }
+            if ((s.score || 0) > maxScore) {
+                maxScore = s.score || 0;
+            }
+        }
+
+        return { activeCount: active, totalCount: total, bestScore: maxScore };
+    }, [state?.strategies]);
 
     const agentInfo = currentAgent ? AGENT_DISPLAY[currentAgent] : null;
 
