@@ -739,13 +739,19 @@ if DIST_DIR.exists():
     
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
+        # Security: Don't mask API errors with index.html
+        # If client requests /api/..., they expect JSON/404, not HTML
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+
         # SPA fallback: serve index.html for all non-API routes
         file_path = (DIST_DIR / full_path).resolve()
+        dist_resolved = DIST_DIR.resolve()
 
         # Security: Prevent path traversal
         try:
             # Ensure the resolved path is within the DIST_DIR
-            file_path.relative_to(DIST_DIR.resolve())
+            file_path.relative_to(dist_resolved)
 
             if file_path.exists() and file_path.is_file():
                 return FileResponse(file_path)
