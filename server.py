@@ -159,6 +159,7 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     # Content Security Policy (CSP)
     # Allows scripts/styles from self and inline (required for React/Vite)
     # Allows WebSockets for real-time updates
@@ -739,6 +740,10 @@ if DIST_DIR.exists():
     
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
+        # Security: Don't serve SPA for missing API endpoints
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+
         # SPA fallback: serve index.html for all non-API routes
         file_path = (DIST_DIR / full_path).resolve()
 
