@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import { StrategyNode } from '../types';
 import { useModels } from '../hooks/useModels';
 
@@ -217,8 +218,9 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, 
                         <h3 style={{ color: 'var(--primary-color)', marginBottom: '1rem' }}>🔍 深度展开策略</h3>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
                             <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--header-color)' }}>选择模型</label>
+                                <label htmlFor="model-select" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--header-color)' }}>选择模型</label>
                                 <select
+                                    id="model-select"
                                     value={selectedModel}
                                     onChange={(e) => setSelectedModel(e.target.value)}
                                     style={{
@@ -235,10 +237,29 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, 
                                 onClick={handleExpand}
                                 disabled={isLoading}
                                 className="primary-glow"
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    opacity: isLoading ? 0.7 : 1
+                                }}
                             >
-                                {isLoading ? '生成中...' : '展开策略'}
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                                        <span>生成中...</span>
+                                    </>
+                                ) : (
+                                    <span>展开策略</span>
+                                )}
                             </button>
                         </div>
+                        <style>{`
+                            @keyframes spin {
+                                from { transform: rotate(0deg); }
+                                to { transform: rotate(360deg); }
+                            }
+                        `}</style>
 
                         {expandedContent && (
                             <div className="expansion-result markdown-body" style={{
