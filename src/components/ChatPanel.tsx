@@ -147,7 +147,13 @@ export const ChatPanel: React.FC = React.memo(() => {
 
     return (
         <section id="chat-container">
-            <div id="chat-log" ref={chatLogRef}>
+            <div
+                id="chat-log"
+                ref={chatLogRef}
+                role="log"
+                aria-live="polite"
+                aria-atomic="false"
+            >
                 {messages.map((msg, idx) => (
                     <MessageItem key={idx} message={msg} />
                 ))}
