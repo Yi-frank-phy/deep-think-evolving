@@ -343,9 +343,14 @@ class SimulationConfig(BaseModel):
         return v
 
     # --- Added to sync with frontend ---
-    max_iterations: int = 10  # Maximum evolution iterations before forced termination
-    entropy_change_threshold: float = 0.1  # Convergence threshold per spec.md §2.2
-    total_child_budget: int = 6  # Total children to allocate across strategies
+    # Security: Constrain inputs to prevent DoS via resource exhaustion
+    max_iterations: int = Field(10, ge=1, le=100, description="Max evolution iterations (1-100)")
+    entropy_change_threshold: float = Field(0.1, ge=0.0, le=1.0, description="Convergence threshold (0.0-1.0)")
+    total_child_budget: int = Field(6, ge=1, le=50, description="Total children budget per step (1-50)")
+    beam_width: int = Field(3, ge=1, le=20, description="Beam width for search (1-20)")
+    t_max: float = Field(2.0, ge=0.1, le=10.0, description="Max system temperature (0.1-10.0)")
+    c_explore: float = Field(1.0, ge=0.0, le=10.0, description="Exploration constant (0.0-10.0)")
+
     # NOTE: LLM temperature is always 1.0 (Logic Manifold Integrity)
     # System temperature τ controls resource allocation only (see temperature_helper.py)
 
