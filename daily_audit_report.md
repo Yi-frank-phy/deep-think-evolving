@@ -1,37 +1,39 @@
 # 📋 Daily Consistency Audit Report - [Date]
 
-### 🚨 Critical Mismatches (Action Required)
+## 🚨 Critical Mismatches (Action Required)
 
-> List logic errors or direct contradictions.
+### 1. Thinking Budget Configuration
+- **Requirement:** `spec.md` (Sec 4.1 & 5.3) defines `thinking_budget` as an integer with a default of 1024.
+- **Implementation:** `server.py` and agents use `thinking_level` (Literal["MINIMAL", "LOW", "MEDIUM", "HIGH"]) for Gemini 3.0 compatibility.
+- **File:** `server.py`, `src/core/state.py`
+- **Severity:** High (API Interface Mismatch)
 
-- **Requirement:** `docs/spec-kit/spec.md` §5.3 defines `thinking_budget` as an integer (default 1024) in `SimulationConfig` to control thinking depth.
-- **Implementation:** `server.py` defines `thinking_level` as a Literal ("MINIMAL", "LOW", "MEDIUM", "HIGH") in `SimulationConfig`. The `thinking_budget` field is missing.
-- **File:** `server.py`
-- **Severity:** High (API Contract Break)
-
-- **Requirement:** `docs/spec-kit/spec.md` §6.2 defines `search_experiences` tool signature as `search_experiences(query, query_embedding, current_embeddings, experience_type, limit, epsilon_threshold)`.
-- **Implementation:** `src/tools/knowledge_base.py` exposes a `@tool` decorated function `search_experiences(query, experience_type, limit)`. It hides `epsilon_threshold` and embedding parameters, preventing agents from fine-tuning search precision as specified.
+### 2. Knowledge Base Tool Signature
+- **Requirement:** `spec.md` (Sec 6.2) defines `search_experiences` as taking `epsilon_threshold` (float) and `current_embeddings`.
+- **Implementation:** `src/tools/knowledge_base.py` wrapper only exposes `query`, `experience_type`, and `limit`. The internal `_search_experiences_impl` has the full signature, but it is hidden from the agent.
 - **File:** `src/tools/knowledge_base.py`
-- **Severity:** Medium (Functional Limitation)
+- **Severity:** Medium (Capability Restriction)
 
-### ⚠️ Implementation Gaps
+## ⚠️ Implementation Gaps
 
-> List features that are documented but completely missing.
+### 1. State Schema Gaps
+- [ ] `final_report`: Used in `src/core/state.py` and `src/agents/executor.py`, but not explicitly listed in `spec.md` Section 4.1 (though mentioned in Sec 3.7 output).
+- [ ] `report_version`: Same as above.
 
-- [ ] **Milestone Type Strictness**: `docs/spec-kit/spec.md` §3.3 defines `milestones` as `Array<{title, summary}>`, but `src/core/state.py` defines it as `Any`.
-- [ ] **Test Coverage**: Behavioral tests for Graph Structure, Convergence, and Hard Pruning are failing or missing (indicated by `scripts/check_specs.py` failure).
+### 2. StrategyNode Schema Gaps
+- [ ] `milestones`: `spec.md` defines this as `Array<{title, summary}>`, but `src/core/state.py` types it as `Any` (JSON object).
 
-### 👻 Unsolicited Code (Hallucination Check)
+## 👻 Unsolicited Code (Hallucination Check)
 
-> List major logic found in code but NOT in docs.
+### 1. Rate Limiting Logic
+- **Found:** `SimpleRateLimiter` and `WebSocketRateLimiter` classes in `server.py`.
+- **Risk:** Low. These are security enhancements (DoS protection) not explicitly requested in the spec but beneficial.
 
-- **Found:** `strategy_architect_node` in `src/agents/architect.py`.
-- **Risk:** Legacy code that duplicates functionality of `strategy_generator_node` and `architect_scheduler_node`. It is marked as deprecated but still present.
+### 2. UI Enhancements
+- **Found:** `StrategyNode` fields `full_response` and `thinking_summary`.
+- **Risk:** Low. These are marked as `UI 增强字段 (T-050)` and actually *do* appear in `spec.md` Section 3.3, so this is a **Verified Match**, not a hallucination. (Self-correction).
 
-- **Found:** `POST /api/hil/force_synthesize` endpoint in `server.py`.
-- **Risk:** This endpoint is implemented and documented in `spec.md` §5.1 table, but the detailed request model `ForceSynthesizeRequest` is not explicitly detailed in the spec text (though implied by the endpoint). *Self-correction: The endpoint IS in the spec table, so not a hallucination, but the request body detail is light.*
+## ✅ Verification Status
 
-### ✅ Verification Status
-
-- **Overall Consistency Score:** 90%
-- **Summary:** The system is largely consistent with the "Deep Think Evolving" architecture (v2.0). The primary deviation is the shift from integer-based `thinking_budget` to categorical `thinking_level` (likely for Gemini 3.0 support), which has not been reflected in the spec. Most core agents and flows match the design.
+- **Overall Consistency Score:** 85%
+- **Summary:** The core "Deep Think Evolving" architecture (Phases 1-3) is correctly implemented. The primary deviations are due to recent Gemini 3.0 model updates (`thinking_level`) that haven't propagated to the spec, and some tool signature simplifications.
