@@ -1,37 +1,30 @@
-# 📋 Daily Consistency Audit Report - [Date]
+# 📋 Daily Consistency Audit Report - 2024-12-14
 
 ### 🚨 Critical Mismatches (Action Required)
-
 > List logic errors or direct contradictions.
 
-- **Requirement:** `docs/spec-kit/spec.md` §5.3 defines `thinking_budget` as an integer (default 1024) in `SimulationConfig` to control thinking depth.
-- **Implementation:** `server.py` defines `thinking_level` as a Literal ("MINIMAL", "LOW", "MEDIUM", "HIGH") in `SimulationConfig`. The `thinking_budget` field is missing.
-- **File:** `server.py`
-- **Severity:** High (API Contract Break)
+- **Requirement:** `docs/spec-kit/spec.md` §5.3 (Simulation Request) and §4.1 (State) define `thinking_budget?: int` (default 1024).
+- **Implementation:** `server.py` and `src/agents/executor.py` implement `thinking_level: Literal["MINIMAL", "LOW", "MEDIUM", "HIGH"]`. The backend API validates against this Literal, rejecting integer budgets.
+- **File:** `server.py`, `src/core/state.py`
+- **Severity:** High (API Contract Violation)
 
-- **Requirement:** `docs/spec-kit/spec.md` §6.2 defines `search_experiences` tool signature as `search_experiences(query, query_embedding, current_embeddings, experience_type, limit, epsilon_threshold)`.
-- **Implementation:** `src/tools/knowledge_base.py` exposes a `@tool` decorated function `search_experiences(query, experience_type, limit)`. It hides `epsilon_threshold` and embedding parameters, preventing agents from fine-tuning search precision as specified.
-- **File:** `src/tools/knowledge_base.py`
-- **Severity:** Medium (Functional Limitation)
+- **Requirement:** `docs/spec-kit/spec.md` §7.1 defines `ask_human` tool for Agents to request human input.
+- **Implementation:** While `src/tools/ask_human.py` exists, the `ask_human` tool is **not** added to the `tools` list in `src/agents/executor.py` (only `grounding_tool` is present). Agents cannot currently invoke HIL.
+- **File:** `src/agents/executor.py`
+- **Severity:** High (Feature Missing from Agent)
 
 ### ⚠️ Implementation Gaps
+> List features that are documented but completely missing or partially implemented.
 
-> List features that are documented but completely missing.
-
-- [ ] **Milestone Type Strictness**: `docs/spec-kit/spec.md` §3.3 defines `milestones` as `Array<{title, summary}>`, but `src/core/state.py` defines it as `Any`.
-- [ ] **Test Coverage**: Behavioral tests for Graph Structure, Convergence, and Hard Pruning are failing or missing (indicated by `scripts/check_specs.py` failure).
+- [ ] **Adaptive Retrieval Parameters**: `docs/spec-kit/spec.md` §6.2 states `search_experiences` takes `query_embedding` and `current_embeddings` to calculate adaptive ε thresholds. The `@tool` definition in `src/tools/knowledge_base.py` hides these parameters, exposing only `query`, `type`, and `limit`. Agents cannot utilize the adaptive bandwidth logic.
+- [ ] **StrategyNode Type Safety**: `docs/spec-kit/spec.md` §3.3 defines `milestones` as `Array<{title, summary}>`. `src/core/state.py` types it as `Any`, though `strategy_generator.py` generates the correct structure.
 
 ### 👻 Unsolicited Code (Hallucination Check)
-
 > List major logic found in code but NOT in docs.
 
-- **Found:** `strategy_architect_node` in `src/agents/architect.py`.
-- **Risk:** Legacy code that duplicates functionality of `strategy_generator_node` and `architect_scheduler_node`. It is marked as deprecated but still present.
-
-- **Found:** `POST /api/hil/force_synthesize` endpoint in `server.py`.
-- **Risk:** This endpoint is implemented and documented in `spec.md` §5.1 table, but the detailed request model `ForceSynthesizeRequest` is not explicitly detailed in the spec text (though implied by the endpoint). *Self-correction: The endpoint IS in the spec table, so not a hallucination, but the request body detail is light.*
+- **Found**: `src/agents/executor.py` implements a hardcoded `thinking_budget=0` in `ThinkingConfig` while reading `thinking_level` from config.
+- **Risk**: Confusing configuration logic mixed between Gemini 2.0 (budget) and 3.0 (level) paradigms.
 
 ### ✅ Verification Status
-
-- **Overall Consistency Score:** 90%
-- **Summary:** The system is largely consistent with the "Deep Think Evolving" architecture (v2.0). The primary deviation is the shift from integer-based `thinking_budget` to categorical `thinking_level` (likely for Gemini 3.0 support), which has not been reflected in the spec. Most core agents and flows match the design.
+- **Overall Consistency Score:** 85%
+- **Summary:** The core "Deep Think Evolving" architecture (Graph, Evolution, KDE/Boltzmann logic) is implemented with high fidelity to the specs. The primary deviations are the shift from "Thinking Budget" to "Thinking Levels" (Gemini 3.0 support) and the missing integration of the HIL tool into the Executor agent.
