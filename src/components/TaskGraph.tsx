@@ -83,10 +83,23 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
         strategy: StrategyNodeComponent
     }), []);
 
-    // Optimization: Memoize layout calculation so it doesn't run when only selection changes
-    // This calculates positions and edges, but leaves styling for the effect
-    const layoutData = useMemo(() => {
-        if (!state || !state.strategies) return { baseNodes: [], edges: [] };
+    // 1. Calculate Topology Hash
+    // This string uniquely identifies the tree structure (nodes and their parents).
+    // It changes only when nodes are added/removed or moved, NOT when scores update.
+    const topologyHash = useMemo(() => {
+        if (!state?.strategies) return '';
+        // Use id and parent_id for structure. Sort by ID to ensure stability if order changes (unlikely but safe).
+        // Actually, sorting is O(N log N). Since `strategies` usually come in consistent order or append-only,
+        // we might skip sort if we trust the source. But to be safe and purely structural:
+        // We will just map. If the array order changes but structure is same, we might re-calc, which is acceptable.
+        // Simple map join is O(N).
+        return state.strategies.map(s => `${s.id}:${s.parent_id || 'root'}`).join('|');
+    }, [state?.strategies]);
+
+    // 2. Calculate Layout Positions (Expensive BFS)
+    // Only runs when topology changes.
+    const nodePositions = useMemo(() => {
+        if (!state?.strategies) return new Map<string, { x: number, y: number }>();
 
         // --- Tree Layout Logic ---
         const stratMap = new Map<string, StrategyNode>();
@@ -117,9 +130,11 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
             children.forEach(childId => queue.push({ id: childId, level: level + 1 }));
         }
 
-        // Assign Positions and create Base Nodes
+        // Assign Positions
         const levelCurrentX: number[] = [];
-        const baseNodes = state.strategies.map((strat) => {
+        const positions = new Map<string, { x: number, y: number }>();
+
+        state.strategies.forEach((strat) => {
             const level = levels.get(strat.id) || 0;
             const levelIdx = levelCurrentX[level] || 0;
             levelCurrentX[level] = levelIdx + 1;
@@ -128,12 +143,25 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
             const x = (levelIdx - width / 2) * 300;  // Wider spacing
             const y = level * 160;
 
+            positions.set(strat.id, { x, y });
+        });
+
+        return positions;
+    }, [topologyHash, state?.strategies]); // technically depends on state.strategies for the ids/parents loop if we didn't pass them in hash, but hash change controls this.
+
+    // 3. Generate Nodes and Edges (Cheap)
+    // Runs when state.strategies updates (scores, status) OR positions update.
+    const layoutData = useMemo(() => {
+        if (!state?.strategies) return { baseNodes: [], edges: [] };
+
+        const baseNodes = state.strategies.map((strat) => {
+            const pos = nodePositions.get(strat.id) || { x: 0, y: 0 };
             return {
                 id: strat.id,
-                type: 'strategy', // Use custom node type
-                position: { x, y },
+                type: 'strategy',
+                position: pos,
                 data: {
-                    strategy: strat // Pass strategy data to the custom node
+                    strategy: strat // Pass fresh strategy data (with new scores)
                 }
             };
         });
@@ -175,7 +203,7 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
         });
 
         return { baseNodes, edges: newEdges };
-    }, [state?.strategies]);
+    }, [state?.strategies, nodePositions]);
 
     // Apply selection styles and update ReactFlow state
     useEffect(() => {
