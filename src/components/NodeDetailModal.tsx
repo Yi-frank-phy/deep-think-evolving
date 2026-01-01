@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { StrategyNode } from '../types';
 import { useModels } from '../hooks/useModels';
+import { X } from 'lucide-react';
 
 interface NodeDetailModalProps {
     node: StrategyNode | null;
@@ -148,23 +149,15 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, 
                         type="button"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
                         aria-label="Close details"
+                        className="btn-icon"
                         style={{
                             background: 'rgba(255,255,255,0.1)',
                             border: '1px solid rgba(255,255,255,0.2)',
                             color: '#fff',
-                            fontSize: '1.25rem',
-                            cursor: 'pointer',
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'background 0.2s'
                         }}
-                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,100,100,0.3)'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                    >✕</button>
+                    >
+                        <X size={20} />
+                    </button>
                 </header>
 
                 <div className="modal-body" style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
