@@ -161,7 +161,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
         return (
             <div className="thinking-active-card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <Loader2 size={14} style={{ animation: 'spin 1s linear infinite', color: 'var(--primary-color)' }} />
+                    <Loader2 size={14} className="animate-spin" style={{ color: 'var(--primary-color)' }} />
                     <span style={{ fontSize: '12px', color: 'var(--primary-color)', fontWeight: 500 }}>
                         {AGENT_LABELS[currentAgent]}...
                     </span>
@@ -214,7 +214,7 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
                     Thinking Process
                 </span>
                 {simulationStatus === 'running' && (
-                    <Loader2 size={14} style={{ marginLeft: 'auto', animation: 'spin 1s linear infinite', color: 'var(--primary-color)' }} />
+                    <Loader2 size={14} className="animate-spin" style={{ marginLeft: 'auto', color: 'var(--primary-color)' }} />
                 )}
                 {simulationStatus === 'completed' && (
                     <CheckCircle2 size={14} style={{ marginLeft: 'auto', color: 'var(--success-color)' }} />
@@ -257,13 +257,6 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
                     </>
                 )}
             </div>
-
-            <style>{`
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 });
