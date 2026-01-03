@@ -127,3 +127,28 @@ class TestServerSecurity:
         # We want it to be 422 (Unprocessable Entity) due to validation
         if response.status_code != 422:
              pytest.fail(f"Should have failed validation with 422, got {response.status_code}")
+
+    def test_simulation_config_validation(self):
+        """Test that invalid simulation config values are rejected."""
+        # Case 1: max_iterations too high
+        payload = {
+            "problem": "Test problem",
+            "config": {
+                "max_iterations": 1000
+            }
+        }
+        response = client.post("/api/simulation/start", json=payload)
+        assert response.status_code == 422
+        assert "max_iterations" in response.text
+
+        # Case 2: beam_width too high
+        payload["config"] = {"beam_width": 100}
+        response = client.post("/api/simulation/start", json=payload)
+        assert response.status_code == 422
+        assert "beam_width" in response.text
+
+        # Case 3: total_child_budget too high
+        payload["config"] = {"total_child_budget": 100}
+        response = client.post("/api/simulation/start", json=payload)
+        assert response.status_code == 422
+        assert "total_child_budget" in response.text

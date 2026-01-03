@@ -329,9 +329,9 @@ class ExpandNodeRequest(BaseModel):
 
 class SimulationConfig(BaseModel):
     model_name: str = "gemini-2.5-flash-lite-preview-06-17"  # Default model
-    t_max: float = 2.0
-    c_explore: float = 1.0
-    beam_width: int = 3
+    t_max: float = Field(2.0, ge=0.0, le=100.0, description="Max temperature for exploration")
+    c_explore: float = Field(1.0, ge=0.0, le=10.0, description="Exploration constant")
+    beam_width: int = Field(3, gt=0, le=20, description="Beam search width (1-20)")
     thinking_level: Literal["MINIMAL", "LOW", "MEDIUM", "HIGH"] = "HIGH"  # Thinking depth
 
     @field_validator("model_name")
@@ -343,9 +343,9 @@ class SimulationConfig(BaseModel):
         return v
 
     # --- Added to sync with frontend ---
-    max_iterations: int = 10  # Maximum evolution iterations before forced termination
-    entropy_change_threshold: float = 0.1  # Convergence threshold per spec.md §2.2
-    total_child_budget: int = 6  # Total children to allocate across strategies
+    max_iterations: int = Field(10, gt=0, le=100, description="Max iterations (1-100)")
+    entropy_change_threshold: float = Field(0.1, ge=0.0, le=1.0, description="Convergence threshold")
+    total_child_budget: int = Field(6, gt=0, le=50, description="Total child budget (1-50)")
     # NOTE: LLM temperature is always 1.0 (Logic Manifold Integrity)
     # System temperature τ controls resource allocation only (see temperature_helper.py)
 
