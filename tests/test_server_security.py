@@ -127,3 +127,49 @@ class TestServerSecurity:
         # We want it to be 422 (Unprocessable Entity) due to validation
         if response.status_code != 422:
              pytest.fail(f"Should have failed validation with 422, got {response.status_code}")
+
+    def test_simulation_config_numerical_constraints(self):
+        """Test that excessive numerical values in simulation config are rejected (DoS prevention)."""
+        payload = {
+            "problem": "Test Problem",
+            "config": {
+                "max_iterations": 1000000,
+                "beam_width": 10000,
+                "total_child_budget": 10000,
+                "t_max": 20.0
+            }
+        }
+
+        response = client.post("/api/simulation/start", json=payload)
+        assert response.status_code == 422
+
+        errors = response.json().get("detail", [])
+        error_locs = [e["loc"][-1] for e in errors]
+        assert "max_iterations" in error_locs
+        assert "beam_width" in error_locs
+        assert "total_child_budget" in error_locs
+        assert "t_max" in error_locs
+
+    def test_simulation_config_negative_values(self):
+        """Test that negative numerical values are rejected."""
+        payload = {
+            "problem": "Test Problem",
+            "config": {
+                "max_iterations": -5,
+                "beam_width": 0,
+                "total_child_budget": -1,
+                "t_max": 0.0, # min is 0.1
+                "entropy_change_threshold": -0.1
+            }
+        }
+
+        response = client.post("/api/simulation/start", json=payload)
+        assert response.status_code == 422
+
+        errors = response.json().get("detail", [])
+        error_locs = [e["loc"][-1] for e in errors]
+        assert "max_iterations" in error_locs
+        assert "beam_width" in error_locs
+        assert "total_child_budget" in error_locs
+        assert "t_max" in error_locs
+        assert "entropy_change_threshold" in error_locs
