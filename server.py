@@ -159,6 +159,24 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
+
+    # Sentinel: Add Referrer-Policy to control referrer information leakage
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # Sentinel: Add Permissions-Policy to restrict browser features
+    # Explicitly allow microphone for self (since app uses voice input)
+    # Disable potentially dangerous features like geolocation, camera, payment
+    response.headers["Permissions-Policy"] = (
+        "accelerometer=(), "
+        "camera=(), "
+        "geolocation=(), "
+        "gyroscope=(), "
+        "magnetometer=(), "
+        "microphone=(self), "
+        "payment=(), "
+        "usb=()"
+    )
+
     # Content Security Policy (CSP)
     # Allows scripts/styles from self and inline (required for React/Vite)
     # Allows WebSockets for real-time updates
