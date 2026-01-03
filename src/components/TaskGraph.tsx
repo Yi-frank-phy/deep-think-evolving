@@ -15,7 +15,7 @@ import ReactFlow, {
     MarkerType,
     MiniMap
 } from 'reactflow';
-import { GitGraph, Layers, BrainCircuit } from 'lucide-react';
+import { GitGraph, Layers, BrainCircuit, Sparkles } from 'lucide-react';
 import 'reactflow/dist/style.css';
 import { DeepThinkState, StrategyNode } from '../types';
 import { StrategyNode as StrategyNodeComponent } from './StrategyNode';
@@ -292,28 +292,62 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '12px'
+                    gap: '16px',
+                    pointerEvents: 'none'
                 }}>
                     <div style={{
-                        width: '64px',
-                        height: '64px',
-                        borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.05)',
+                        position: 'relative',
+                        width: '80px',
+                        height: '80px',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '8px'
+                        justifyContent: 'center'
                     }}>
-                        <BrainCircuit size={32} color="#a78bfa" style={{ opacity: 0.6 }} />
+                        {/* Background circle with subtle pulse */}
+                        <div style={{
+                            position: 'absolute',
+                            width: '100%',
+                            height: '100%',
+                            borderRadius: '50%',
+                            background: 'rgba(167, 139, 250, 0.05)',
+                            animation: 'task-graph-pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                        }} />
+
+                        <BrainCircuit size={40} color="#a78bfa" style={{ opacity: 0.8, zIndex: 1 }} />
+                        <Sparkles
+                            size={20}
+                            color="#e0e0e0"
+                            style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                animation: 'task-graph-float 3s ease-in-out infinite',
+                                opacity: 0.8
+                            }}
+                        />
                     </div>
-                    <div>
-                        <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', color: '#e0e0e0', fontWeight: 500 }}>
-                            Ready to Evolve Strategies
+
+                    <div style={{ pointerEvents: 'auto' }}>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#e0e0e0', fontWeight: 500, letterSpacing: '0.01em' }}>
+                            Awaiting Mission Parameters
                         </h3>
-                        <p style={{ margin: 0, fontSize: '13px', color: '#888', maxWidth: '240px', lineHeight: 1.5 }}>
-                            Enter a problem statement and start the mission to visualize the reasoning process.
+                        <p style={{ margin: 0, fontSize: '14px', color: '#888', maxWidth: '280px', lineHeight: 1.6 }}>
+                            Define your research goal in the sidebar to begin the evolutionary process.
                         </p>
                     </div>
+
+                    <style>{`
+                        @keyframes task-graph-pulse-ring {
+                            0% { transform: scale(0.8); opacity: 0.3; }
+                            50% { transform: scale(1.1); opacity: 0.1; }
+                            100% { transform: scale(0.8); opacity: 0.3; }
+                        }
+                        @keyframes task-graph-float {
+                            0% { transform: translateY(0px); }
+                            50% { transform: translateY(-5px); }
+                            100% { transform: translateY(0px); }
+                        }
+                    `}</style>
                 </div>
             )}
         </div>
