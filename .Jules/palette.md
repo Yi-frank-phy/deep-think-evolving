@@ -21,3 +21,11 @@
 ## 2025-06-03 - [TaskGraph Empty State]
 **Learning:** Empty states in data visualization components are prime real estate for user education. Replacing a generic "Waiting..." message with a descriptive, icon-rich call-to-action significantly improves perceived polish and usability.
 **Action:** Avoid generic empty states. Use the space to explain *what* will happen and *how* to trigger it, using consistent iconography to reinforce the visual language.
+
+## 2025-06-15 - [Global Utility for Animations]
+**Learning:** Local <style> blocks in components for simple animations (like spinners) pollute the component code and lead to inconsistency.
+**Action:** Move standard animations to global utility classes (e.g., .animate-spin) in src/styles/main.css to ensure reuse and cleaner component code.
+
+## 2025-06-15 - [Live Regions for Logs]
+**Learning:** Fast-updating logs (like thinking processes) are invisible to screen readers unless marked as live regions.
+**Action:** Add role="log" and aria-live="polite" to containers that stream text updates to ensure screen reader users can follow the process.
