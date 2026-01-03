@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sender } from '../types';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { MessageItem, Message } from './MessageItem';
 import { Send, Mic, Square, X, Loader2 } from 'lucide-react';
@@ -161,7 +160,7 @@ export const ChatPanel: React.FC = React.memo(() => {
             </div>
             <form id="chat-form" onSubmit={handleSubmit}>
                 <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
-                    <label htmlFor="user-input" className="sr-only" style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}>
+                    <label htmlFor="user-input" className="sr-only">
                         User Input
                     </label>
                     <input
@@ -231,7 +230,7 @@ export const ChatPanel: React.FC = React.memo(() => {
                 >
                     {isLoading ? (
                         <>
-                            <Loader2 className="animate-spin" size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                            <Loader2 className="animate-spin" size={18} />
                             <span>Sending...</span>
                         </>
                     ) : (
@@ -241,12 +240,6 @@ export const ChatPanel: React.FC = React.memo(() => {
                         </>
                     )}
                 </button>
-                <style>{`
-                    @keyframes spin {
-                        from { transform: rotate(0deg); }
-                        to { transform: rotate(360deg); }
-                    }
-                `}</style>
             </form>
         </section>
     );
