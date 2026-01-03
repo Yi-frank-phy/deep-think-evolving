@@ -83,10 +83,14 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
         strategy: StrategyNodeComponent
     }), []);
 
-    // Optimization: Memoize layout calculation so it doesn't run when only selection changes
-    // This calculates positions and edges, but leaves styling for the effect
-    const layoutData = useMemo(() => {
-        if (!state || !state.strategies) return { baseNodes: [], edges: [] };
+    // Optimization: Split graph layout from node rendering.
+    // Layout (BFS + Position) only runs when the NUMBER of strategies changes (assuming append-only).
+    // Node style/content updates run on every state change but are cheap (just mapping).
+
+    const strategyCount = state?.strategies?.length || 0;
+
+    const nodePositions = useMemo(() => {
+        if (!state || !state.strategies) return new Map<string, { x: number, y: number }>();
 
         // --- Tree Layout Logic ---
         const stratMap = new Map<string, StrategyNode>();
@@ -117,9 +121,11 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
             children.forEach(childId => queue.push({ id: childId, level: level + 1 }));
         }
 
-        // Assign Positions and create Base Nodes
+        // Assign Positions
         const levelCurrentX: number[] = [];
-        const baseNodes = state.strategies.map((strat) => {
+        const positions = new Map<string, { x: number, y: number }>();
+
+        state.strategies.forEach((strat) => {
             const level = levels.get(strat.id) || 0;
             const levelIdx = levelCurrentX[level] || 0;
             levelCurrentX[level] = levelIdx + 1;
@@ -128,17 +134,32 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
             const x = (levelIdx - width / 2) * 300;  // Wider spacing
             const y = level * 160;
 
+            positions.set(strat.id, { x, y });
+        });
+
+        return positions;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [strategyCount]); // Only re-calculate positions if count changes (structural update)
+
+    // Apply selection styles and update ReactFlow state
+    useEffect(() => {
+        if (!state || !state.strategies) return;
+
+        // 1. Create Nodes using Memoized Positions + Fresh Strategy Data
+        const finalNodes: Node[] = state.strategies.map(strat => {
+            const pos = nodePositions.get(strat.id) || { x: 0, y: 0 };
+            const isSelected = selectedNodeIds.has(strat.id);
+
             return {
                 id: strat.id,
-                type: 'strategy', // Use custom node type
-                position: { x, y },
-                data: {
-                    strategy: strat // Pass strategy data to the custom node
-                }
+                type: 'strategy',
+                position: pos,
+                data: { strategy: strat }, // Pass FRESH strategy data
+                style: getNodeStyle(strat, isSelected)
             };
         });
 
-        // Create Edges with UCB labels
+        // 2. Create Edges with Fresh UCB labels
         const newEdges: Edge[] = [];
         state.strategies.forEach(s => {
             if (s.parent_id) {
@@ -174,27 +195,9 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
             }
         });
 
-        return { baseNodes, edges: newEdges };
-    }, [state?.strategies]);
-
-    // Apply selection styles and update ReactFlow state
-    useEffect(() => {
-        const { baseNodes, edges } = layoutData;
-
-        if (baseNodes.length === 0 && edges.length === 0) return;
-
-        const finalNodes: Node[] = baseNodes.map(node => {
-            const strat = node.data.strategy;
-            const isSelected = selectedNodeIds.has(node.id);
-            return {
-                ...node,
-                style: getNodeStyle(strat, isSelected)
-            };
-        });
-
         setNodes(finalNodes);
-        setEdges(edges);
-    }, [layoutData, selectedNodeIds, setNodes, setEdges]);
+        setEdges(newEdges);
+    }, [state?.strategies, nodePositions, selectedNodeIds, setNodes, setEdges]);
 
     const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
         if (!state?.strategies) return;
