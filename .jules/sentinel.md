@@ -7,6 +7,12 @@
 3.  Ensure the limiter cleans up state on `disconnect`.
 4.  Avoid `defaultdict` side-effects in cleanup loops that can cause memory leaks.
 
+## 2025-05-27 - SPA Fallback Masking API Errors
+**Vulnerability:** The SPA catch-all route (`/{full_path:path}`) blindly returned `index.html` for any unmatched path, including invalid API endpoints (e.g., `/api/v2/unknown`). This caused API clients to receive a 200 OK HTML response instead of a 404 JSON error, potentially breaking client-side logic that expects JSON.
+**Learning:** In full-stack applications serving an SPA from the backend, the "catch-all" handler must explicitly exclude API namespaces. FastAPI's route matching order sends everything not matched by a specific API route to the catch-all.
+**Prevention:**
+1.  In the SPA fallback handler, verify the path does not start with the API prefix (e.g., `api/`).
+2.  Explicitly raise `HTTPException(404)` for unmatched API routes to provide correct status codes and prevent confusion.
 ## 2026-01-01 - Numerical Range DoS Vulnerability
 **Vulnerability:** The `SimulationConfig` Pydantic model lacked numerical range validation (e.g., `ge`, `le`). Attackers could submit excessively large values (e.g., `beam_width=10000`, `max_iterations=1000000`), forcing the server to allocate massive graph structures and run infinite loops, leading to memory/CPU exhaustion (DoS).
 **Learning:** Pydantic's type hints (`int`) validate *types* but not *values*. For resource-intensive parameters (iterations, budget, buffer sizes), explicit `Field(..., le=MAX)` constraints are mandatory to prevent resource exhaustion attacks.
