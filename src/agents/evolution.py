@@ -5,7 +5,7 @@ import os
 from typing import List, Dict
 
 from src.core.state import DeepThinkState, StrategyNode
-from src.math_engine.kde import gaussian_kernel_log_density, estimate_density, estimate_bandwidth
+from src.math_engine.kde import gaussian_kernel_log_density, estimate_density, estimate_bandwidth, compute_kde_optimized
 from src.math_engine.temperature import calculate_effective_temperature, calculate_normalized_temperature
 from src.math_engine.ucb import batch_calculate_ucb
 from src.embedding_client import embed_text
@@ -144,10 +144,10 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
     embeddings = np.array([s["embedding"] for s in valid_active])
     
     # 2. Density Estimation (KDE) with AUTO BANDWIDTH (Silverman rule)
-    bandwidth = estimate_bandwidth(embeddings)
+    # Optimized: Use single pass to compute bandwidth and log densities
+    bandwidth, log_densities = compute_kde_optimized(embeddings)
     print(f"  [KDE] Auto bandwidth: {bandwidth:.6f}")
     
-    log_densities = gaussian_kernel_log_density(embeddings, bandwidth=bandwidth)
     densities = np.exp(log_densities)
     
     # Update strategies with density info
