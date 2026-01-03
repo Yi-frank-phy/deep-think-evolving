@@ -29,3 +29,6 @@
 ## 2025-06-15 - [Live Regions for Logs]
 **Learning:** Fast-updating logs (like thinking processes) are invisible to screen readers unless marked as live regions.
 **Action:** Add role="log" and aria-live="polite" to containers that stream text updates to ensure screen reader users can follow the process.
+## 2025-06-03 - [Chat Accessibility]
+**Learning:** Chat interfaces often lack automatic announcements for incoming messages. Adding `role="log"` with `aria-live="polite"` to the message container ensures screen reader users are notified of new content without losing focus.
+**Action:** Always apply `role="log"` and `aria-live` to dynamic chat or log containers.

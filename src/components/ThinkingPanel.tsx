@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Brain, Loader2, CheckCircle2 } from 'lucide-react';
+import { Brain, Loader2, CheckCircle2, Trophy, Sparkles } from 'lucide-react';
 import { DeepThinkState, AgentActivity, AgentPhase } from '../types';
 import { IterationItem } from './IterationItem';
 
@@ -182,8 +182,9 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
 
         return (
             <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                    🏆 Top Strategies
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                    <Trophy size={14} />
+                    <span>Top Strategies</span>
                 </div>
                 {topStrategies.map((s, idx) => (
                     <div key={s.id} style={{
@@ -230,8 +231,44 @@ export const ThinkingPanel: React.FC<ThinkingPanelProps> = React.memo(({
                 aria-atomic="false"
             >
                 {simulationStatus === 'idle' && (
-                    <div style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '40px 20px' }}>
-                        Enter a problem and start simulation to begin reasoning...
+                    <div style={{
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '40px 20px',
+                        color: 'var(--text-muted)',
+                        textAlign: 'center'
+                    }}>
+                        <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '50%',
+                            background: 'rgba(0,0,0,0.03)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '16px'
+                        }}>
+                            <Sparkles size={24} style={{ color: 'var(--primary-color)' }} />
+                        </div>
+                        <h3 style={{
+                            margin: '0 0 8px 0',
+                            fontSize: '15px',
+                            fontWeight: 600,
+                            color: 'var(--text-primary)'
+                        }}>
+                            Ready to Reason
+                        </h3>
+                        <p style={{
+                            margin: 0,
+                            fontSize: '13px',
+                            lineHeight: '1.5',
+                            maxWidth: '240px'
+                        }}>
+                            Enter a complex problem to start the Deep Think simulation.
+                        </p>
                     </div>
                 )}
 
