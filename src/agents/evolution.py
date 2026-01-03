@@ -5,10 +5,10 @@ import os
 from typing import List, Dict
 
 from src.core.state import DeepThinkState, StrategyNode
-from src.math_engine.kde import gaussian_kernel_log_density, estimate_density, estimate_bandwidth
+from src.math_engine.kde import gaussian_kernel_log_density, estimate_density, estimate_bandwidth, compute_kde_optimized
 from src.math_engine.temperature import calculate_effective_temperature, calculate_normalized_temperature
 from src.math_engine.ucb import batch_calculate_ucb
-from src.embedding_client import embed_text
+from src.embedding_client import embed_text, embed_strategies
 
 
 def calculate_boltzmann_allocation(
@@ -117,20 +117,18 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
             "iteration_count": iteration_count,
         }
 
-    for strategy in active_strategies:
-        if not strategy.get("embedding"):
-            text_to_embed = (
-                f"Strategy: {strategy['name']}\n"
-                f"Rationale: {strategy['rationale']}\n"
-                f"Assumption: {strategy['assumption']}"
-            )
-            print(f"  > Embedding '{strategy['name']}'...")
-            vec = embed_text(text_to_embed)
-            if vec:
-                strategy["embedding"] = vec
-            else:
-                print(f"  [Warning] Failed to embed '{strategy['name']}'. Marked for pruning.")
-                strategy["status"] = "pruned"  # Use standard status value
+    # Parallel embedding of new strategies
+    strategies_to_embed = [s for s in active_strategies if not s.get("embedding")]
+    if strategies_to_embed:
+        print(f"  > Batch embedding {len(strategies_to_embed)} new strategies...")
+        # embed_strategies modifies objects in place
+        embed_strategies(strategies_to_embed)
+
+        # Check for failures
+        for s in strategies_to_embed:
+            if not s.get("embedding"):
+                print(f"  [Warning] Failed to embed '{s['name']}'. Marked for pruning.")
+                s["status"] = "pruned"
 
     # Filter out any that failed embedding
     valid_active = [s for s in active_strategies if s.get("embedding") and s.get("status") == "active"]
@@ -144,10 +142,10 @@ def evolution_node(state: DeepThinkState) -> DeepThinkState:
     embeddings = np.array([s["embedding"] for s in valid_active])
     
     # 2. Density Estimation (KDE) with AUTO BANDWIDTH (Silverman rule)
-    bandwidth = estimate_bandwidth(embeddings)
+    # Optimized: Use single pass to compute bandwidth and log densities
+    bandwidth, log_densities = compute_kde_optimized(embeddings)
     print(f"  [KDE] Auto bandwidth: {bandwidth:.6f}")
     
-    log_densities = gaussian_kernel_log_density(embeddings, bandwidth=bandwidth)
     densities = np.exp(log_densities)
     
     # Update strategies with density info

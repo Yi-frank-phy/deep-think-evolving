@@ -122,10 +122,14 @@ def embed_strategies(strategies: list[dict], use_mock: Optional[bool] = None) ->
 
     def process_strategy(strategy_idx_pair):
         idx, strategy = strategy_idx_pair
+        # Support both legacy keys and standard StrategyNode keys
+        name = strategy.get('strategy_name') or strategy.get('name') or ''
+        assumption = strategy.get('initial_assumption') or strategy.get('assumption') or ''
+
         document_to_embed = (
-            f"Strategy: {strategy.get('strategy_name', '')}\n"
+            f"Strategy: {name}\n"
             f"Rationale: {strategy.get('rationale', '')}\n"
-            f"Assumption: {strategy.get('initial_assumption', '')}"
+            f"Assumption: {assumption}"
         )
 
         try:

@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import { StrategyNode } from '../types';
 import { useModels } from '../hooks/useModels';
+import { X } from 'lucide-react';
 
 interface NodeDetailModalProps {
     node: StrategyNode | null;
@@ -148,23 +150,15 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, 
                         type="button"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
                         aria-label="Close details"
+                        className="btn-icon"
                         style={{
                             background: 'rgba(255,255,255,0.1)',
                             border: '1px solid rgba(255,255,255,0.2)',
                             color: '#fff',
-                            fontSize: '1.25rem',
-                            cursor: 'pointer',
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'background 0.2s'
                         }}
-                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,100,100,0.3)'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                    >✕</button>
+                    >
+                        <X size={20} />
+                    </button>
                 </header>
 
                 <div className="modal-body" style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
@@ -217,8 +211,9 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, 
                         <h3 style={{ color: 'var(--primary-color)', marginBottom: '1rem' }}>🔍 深度展开策略</h3>
                         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
                             <div style={{ flex: 1 }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--header-color)' }}>选择模型</label>
+                                <label htmlFor="model-select" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--header-color)' }}>选择模型</label>
                                 <select
+                                    id="model-select"
                                     value={selectedModel}
                                     onChange={(e) => setSelectedModel(e.target.value)}
                                     style={{
@@ -235,10 +230,29 @@ export const NodeDetailModal: React.FC<NodeDetailModalProps> = ({ node, isOpen, 
                                 onClick={handleExpand}
                                 disabled={isLoading}
                                 className="primary-glow"
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    opacity: isLoading ? 0.7 : 1
+                                }}
                             >
-                                {isLoading ? '生成中...' : '展开策略'}
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                                        <span>生成中...</span>
+                                    </>
+                                ) : (
+                                    <span>展开策略</span>
+                                )}
                             </button>
                         </div>
+                        <style>{`
+                            @keyframes spin {
+                                from { transform: rotate(0deg); }
+                                to { transform: rotate(360deg); }
+                            }
+                        `}</style>
 
                         {expandedContent && (
                             <div className="expansion-result markdown-body" style={{

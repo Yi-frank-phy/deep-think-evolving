@@ -26,9 +26,26 @@ export const KPIDashboard: React.FC<KPIDashboardProps> = React.memo(({
     currentAgent,
     simulationStatus = 'idle'
 }) => {
-    const activeCount = state?.strategies.filter(s => s.status === 'active').length || 0;
-    const totalCount = state?.strategies.length || 0;
-    const bestScore = state?.strategies.reduce((max, s) => Math.max(max, s.score || 0), 0) || 0;
+    // Optimization: Calculate all metrics in a single pass to avoid multiple array traversals
+    const { activeCount, totalCount, bestScore } = React.useMemo(() => {
+        if (!state?.strategies) return { activeCount: 0, totalCount: 0, bestScore: 0 };
+
+        let active = 0;
+        let max = 0;
+        const total = state.strategies.length;
+
+        for (const s of state.strategies) {
+            if (s.status === 'active') active++;
+            const score = s.score || 0;
+            if (score > max) max = score;
+        }
+
+        return {
+            activeCount: active,
+            totalCount: total,
+            bestScore: max
+        };
+    }, [state?.strategies]);
 
     const agentInfo = currentAgent ? AGENT_DISPLAY[currentAgent] : null;
 

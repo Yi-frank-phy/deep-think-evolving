@@ -15,7 +15,7 @@ import ReactFlow, {
     MarkerType,
     MiniMap
 } from 'reactflow';
-import { GitGraph, Layers, BrainCircuit } from 'lucide-react';
+import { GitGraph, Layers, BrainCircuit, Sparkles } from 'lucide-react';
 import 'reactflow/dist/style.css';
 import { DeepThinkState, StrategyNode } from '../types';
 import { StrategyNode as StrategyNodeComponent } from './StrategyNode';
@@ -83,10 +83,14 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
         strategy: StrategyNodeComponent
     }), []);
 
-    // Optimization: Memoize layout calculation so it doesn't run when only selection changes
-    // This calculates positions and edges, but leaves styling for the effect
-    const layoutData = useMemo(() => {
-        if (!state || !state.strategies) return { baseNodes: [], edges: [] };
+    // Optimization: Split graph layout from node rendering.
+    // Layout (BFS + Position) only runs when the NUMBER of strategies changes (assuming append-only).
+    // Node style/content updates run on every state change but are cheap (just mapping).
+
+    const strategyCount = state?.strategies?.length || 0;
+
+    const nodePositions = useMemo(() => {
+        if (!state || !state.strategies) return new Map<string, { x: number, y: number }>();
 
         // --- Tree Layout Logic ---
         const stratMap = new Map<string, StrategyNode>();
@@ -117,9 +121,11 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
             children.forEach(childId => queue.push({ id: childId, level: level + 1 }));
         }
 
-        // Assign Positions and create Base Nodes
+        // Assign Positions
         const levelCurrentX: number[] = [];
-        const baseNodes = state.strategies.map((strat) => {
+        const positions = new Map<string, { x: number, y: number }>();
+
+        state.strategies.forEach((strat) => {
             const level = levels.get(strat.id) || 0;
             const levelIdx = levelCurrentX[level] || 0;
             levelCurrentX[level] = levelIdx + 1;
@@ -128,17 +134,32 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
             const x = (levelIdx - width / 2) * 300;  // Wider spacing
             const y = level * 160;
 
+            positions.set(strat.id, { x, y });
+        });
+
+        return positions;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [strategyCount]); // Only re-calculate positions if count changes (structural update)
+
+    // Apply selection styles and update ReactFlow state
+    useEffect(() => {
+        if (!state || !state.strategies) return;
+
+        // 1. Create Nodes using Memoized Positions + Fresh Strategy Data
+        const finalNodes: Node[] = state.strategies.map(strat => {
+            const pos = nodePositions.get(strat.id) || { x: 0, y: 0 };
+            const isSelected = selectedNodeIds.has(strat.id);
+
             return {
                 id: strat.id,
-                type: 'strategy', // Use custom node type
-                position: { x, y },
-                data: {
-                    strategy: strat // Pass strategy data to the custom node
-                }
+                type: 'strategy',
+                position: pos,
+                data: { strategy: strat }, // Pass FRESH strategy data
+                style: getNodeStyle(strat, isSelected)
             };
         });
 
-        // Create Edges with UCB labels
+        // 2. Create Edges with Fresh UCB labels
         const newEdges: Edge[] = [];
         state.strategies.forEach(s => {
             if (s.parent_id) {
@@ -174,27 +195,9 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
             }
         });
 
-        return { baseNodes, edges: newEdges };
-    }, [state?.strategies]);
-
-    // Apply selection styles and update ReactFlow state
-    useEffect(() => {
-        const { baseNodes, edges } = layoutData;
-
-        if (baseNodes.length === 0 && edges.length === 0) return;
-
-        const finalNodes: Node[] = baseNodes.map(node => {
-            const strat = node.data.strategy;
-            const isSelected = selectedNodeIds.has(node.id);
-            return {
-                ...node,
-                style: getNodeStyle(strat, isSelected)
-            };
-        });
-
         setNodes(finalNodes);
-        setEdges(edges);
-    }, [layoutData, selectedNodeIds, setNodes, setEdges]);
+        setEdges(newEdges);
+    }, [state?.strategies, nodePositions, selectedNodeIds, setNodes, setEdges]);
 
     const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
         if (!state?.strategies) return;
@@ -289,28 +292,62 @@ export const TaskGraph: React.FC<TaskGraphProps> = React.memo(({ state, onNodeCl
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '12px'
+                    gap: '16px',
+                    pointerEvents: 'none'
                 }}>
                     <div style={{
-                        width: '64px',
-                        height: '64px',
-                        borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.05)',
+                        position: 'relative',
+                        width: '80px',
+                        height: '80px',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '8px'
+                        justifyContent: 'center'
                     }}>
-                        <BrainCircuit size={32} color="#a78bfa" style={{ opacity: 0.6 }} />
+                        {/* Background circle with subtle pulse */}
+                        <div style={{
+                            position: 'absolute',
+                            width: '100%',
+                            height: '100%',
+                            borderRadius: '50%',
+                            background: 'rgba(167, 139, 250, 0.05)',
+                            animation: 'task-graph-pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                        }} />
+
+                        <BrainCircuit size={40} color="#a78bfa" style={{ opacity: 0.8, zIndex: 1 }} />
+                        <Sparkles
+                            size={20}
+                            color="#e0e0e0"
+                            style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                animation: 'task-graph-float 3s ease-in-out infinite',
+                                opacity: 0.8
+                            }}
+                        />
                     </div>
-                    <div>
-                        <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', color: '#e0e0e0', fontWeight: 500 }}>
-                            Ready to Evolve Strategies
+
+                    <div style={{ pointerEvents: 'auto' }}>
+                        <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', color: '#e0e0e0', fontWeight: 500, letterSpacing: '0.01em' }}>
+                            Awaiting Mission Parameters
                         </h3>
-                        <p style={{ margin: 0, fontSize: '13px', color: '#888', maxWidth: '240px', lineHeight: 1.5 }}>
-                            Enter a problem statement and start the mission to visualize the reasoning process.
+                        <p style={{ margin: 0, fontSize: '14px', color: '#888', maxWidth: '280px', lineHeight: 1.6 }}>
+                            Define your research goal in the sidebar to begin the evolutionary process.
                         </p>
                     </div>
+
+                    <style>{`
+                        @keyframes task-graph-pulse-ring {
+                            0% { transform: scale(0.8); opacity: 0.3; }
+                            50% { transform: scale(1.1); opacity: 0.1; }
+                            100% { transform: scale(0.8); opacity: 0.3; }
+                        }
+                        @keyframes task-graph-float {
+                            0% { transform: translateY(0px); }
+                            50% { transform: translateY(-5px); }
+                            100% { transform: translateY(0px); }
+                        }
+                    `}</style>
                 </div>
             )}
         </div>

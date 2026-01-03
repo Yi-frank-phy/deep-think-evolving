@@ -144,6 +144,7 @@ export const ForceSynthesizeBar: React.FC<ForceSynthesizeBarProps> = ({
                             alignItems: 'center'
                         }}
                         title="清除选择"
+                        aria-label="清除选择"
                     >
                         <X size={18} />
                     </button>
