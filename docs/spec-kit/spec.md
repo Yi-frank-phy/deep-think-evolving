@@ -66,6 +66,7 @@ Phase 3 (执行循环): Evolution → (收敛?) → Propagation → ArchitectSch
 
 - 基于信息需求清单进行 Google Search Grounding
 - 在单次调用中自我反思信息充足性（成本优化设计）
+- 支持有限次数的研究循环 (max_research_iterations)，以确保信息充足
 
 **输入**:
 
@@ -415,7 +416,7 @@ interface SimulationRequest {
     t_max?: float;             // 默认: 2.0
     c_explore?: float;         // 默认: 1.0
     beam_width?: int;          // 默认: 3
-    thinking_budget?: int;     // 默认: 1024
+    thinking_level?: "MINIMAL" | "LOW" | "MEDIUM" | "HIGH"; // Gemini 3.0 思考等级 (替代 budget)
     max_iterations?: int;      // 默认: 10
     entropy_change_threshold?: float; // 熵变化率阈值，默认: 0.1
     total_child_budget?: int;  // 默认: 6
