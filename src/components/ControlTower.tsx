@@ -222,7 +222,7 @@ export const ControlTower: React.FC = () => {
 
                 {/* Force Synthesize Floating Bar */}
                 {selectedForSynthesize.size > 0 && (
-                    <div className="synth-bar">
+                    <div className="synth-bar" role="toolbar" aria-label="Strategy Selection Actions">
                         <ForceSynthesizeBar
                             selectedIds={Array.from(selectedForSynthesize)}
                             strategyNames={strategyNames}

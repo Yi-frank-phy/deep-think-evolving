@@ -438,6 +438,22 @@ body {
   }
 }
 
+@keyframes slideUp {
+  from {
+    transform: translateX(-50%) translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
 /* Force Synthesize Bar adaptation */
 .synth-bar {
   position: absolute;
@@ -454,6 +470,7 @@ body {
   gap: 1rem;
   box-shadow: var(--shadow-md);
   z-index: 20;
+  animation: slideUp 0.3s ease-out;
 }
 /* --- Utilities --- */
 .animate-spin {
