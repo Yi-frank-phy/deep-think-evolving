@@ -59,8 +59,17 @@ class SimpleRateLimiter:
         # Safety valve: if still too many clients, clear oldest to prevent OOM
         if len(self.request_counts) > self.max_clients:
             logger.warning("Rate limiter client limit reached, purging oldest entries")
-            # Clear 20% of entries randomly (or just clear dict for simplicity/safety)
-            self.request_counts.clear()
+            # Sentinel: Only clear oldest 20% to prevent DoS reset vulnerability
+            # In Python 3.7+, dicts preserve insertion order
+            items_to_remove = int(self.max_clients * 0.2)
+            if items_to_remove < 1:
+                items_to_remove = 1
+
+            # Create a list of keys to remove to avoid runtime error during iteration
+            # (iterating over keys of a dict while modifying it is unsafe)
+            keys_to_remove = list(self.request_counts.keys())[:items_to_remove]
+            for k in keys_to_remove:
+                del self.request_counts[k]
 
         # Clean up old timestamps for current client (older than 1 minute)
         self.request_counts[client_ip] = [
@@ -82,9 +91,10 @@ rate_limiter = SimpleRateLimiter(requests_per_minute=60)
 
 # Security: WebSocket Rate Limiting
 class WebSocketRateLimiter:
-    def __init__(self, requests_per_minute: int = 30, max_concurrent_per_ip: int = 10):
+    def __init__(self, requests_per_minute: int = 30, max_concurrent_per_ip: int = 10, max_clients: int = 5000):
         self.requests_per_minute = requests_per_minute
         self.max_concurrent_per_ip = max_concurrent_per_ip
+        self.max_clients = max_clients
         # IP -> list of timestamps
         self.connection_attempts = defaultdict(list)
         # IP -> set of active websocket objects
@@ -100,6 +110,18 @@ class WebSocketRateLimiter:
         if self.cleanup_counter >= 100:
             self.cleanup_counter = 0
             self._cleanup_stale_data(now)
+
+        # Safety valve: Prevent OOM from too many distinct IPs (DoS protection)
+        if len(self.connection_attempts) > self.max_clients:
+             # Purge oldest 20%
+             items_to_remove = int(self.max_clients * 0.2)
+             if items_to_remove < 1: items_to_remove = 1
+             keys_to_remove = list(self.connection_attempts.keys())[:items_to_remove]
+             for k in keys_to_remove:
+                 del self.connection_attempts[k]
+                 # Also remove active connections for these IPs if any
+                 if k in self.active_connections:
+                     del self.active_connections[k]
 
         # 1. Rate Limit: Connection Attempts
         # Clean old timestamps
