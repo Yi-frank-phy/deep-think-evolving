@@ -1,8 +1,8 @@
 /**
- * ForceSynthesizeBar - 强制收束控制栏
+ * ForceSynthesizeBar - Force Synthesize Control Bar
  * 
- * 当用户选择多个策略节点时显示，提供"收束为报告"操作。
- * HIL (Human-in-the-Loop) 功能实现 - T-052
+ * Displayed when multiple strategy nodes are selected, allowing the user to "Synthesize Report".
+ * HIL (Human-in-the-Loop) Feature Implementation - T-052
  */
 
 import React, { useState } from 'react';
@@ -37,27 +37,12 @@ export const ForceSynthesizeBar: React.FC<ForceSynthesizeBarProps> = ({
     };
 
     return (
-        <div style={{
-            position: 'fixed',
-            bottom: '2rem',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-            border: '1px solid #4CAF50',
-            borderRadius: '12px',
-            padding: '1rem 1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            boxShadow: '0 8px 32px rgba(76, 175, 80, 0.3)',
-            zIndex: 999,
-            animation: 'slideUp 0.3s ease-out'
-        }}>
+        <>
             {/* Selection Info */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <CheckCircle size={18} color="#4CAF50" />
-                <span style={{ color: '#fff', fontWeight: 'bold' }}>
-                    已选择 {selectedIds.length} 个策略
+                <span style={{ fontWeight: 'bold' }}>
+                    Selected {selectedIds.length} strategies
                 </span>
             </div>
 
@@ -67,46 +52,44 @@ export const ForceSynthesizeBar: React.FC<ForceSynthesizeBarProps> = ({
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
-                color: '#888',
+                color: '#ccc',
                 fontSize: '0.85rem'
             }}>
                 {selectedIds.slice(0, 3).map(id => strategyNames.get(id) || id).join(', ')}
-                {selectedIds.length > 3 && ` +${selectedIds.length - 3} 更多`}
+                {selectedIds.length > 3 && ` +${selectedIds.length - 3} more`}
             </div>
 
             {/* Confirm Dialog or Action Buttons */}
             {showConfirm ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ color: '#feca57', fontSize: '0.9rem' }}>
-                        确定收束这些策略?
+                        Synthesize these strategies?
                     </span>
                     <button
                         onClick={handleSynthesize}
                         disabled={isLoading}
+                        className="btn-primary"
                         style={{
                             background: '#4CAF50',
-                            color: '#fff',
-                            border: 'none',
-                            padding: '0.5rem 1rem',
-                            borderRadius: '6px',
-                            cursor: isLoading ? 'wait' : 'pointer',
-                            fontWeight: 'bold'
+                            padding: '0.4rem 0.8rem',
+                            fontSize: '0.9rem'
                         }}
                     >
-                        {isLoading ? '处理中...' : '确认'}
+                        {isLoading ? 'Processing...' : 'Confirm'}
                     </button>
                     <button
                         onClick={() => setShowConfirm(false)}
                         style={{
                             background: 'transparent',
-                            color: '#888',
-                            border: '1px solid #444',
-                            padding: '0.5rem 1rem',
-                            borderRadius: '6px',
-                            cursor: 'pointer'
+                            color: '#ccc',
+                            border: '1px solid #666',
+                            padding: '0.4rem 0.8rem',
+                            borderRadius: '100px',
+                            cursor: 'pointer',
+                            fontSize: '0.9rem'
                         }}
                     >
-                        取消
+                        Cancel
                     </button>
                 </div>
             ) : (
@@ -114,49 +97,32 @@ export const ForceSynthesizeBar: React.FC<ForceSynthesizeBarProps> = ({
                     <button
                         onClick={handleSynthesize}
                         disabled={isLoading}
+                        className="btn-primary"
                         style={{
                             background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-                            color: '#fff',
-                            border: 'none',
-                            padding: '0.6rem 1.2rem',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            fontWeight: 'bold',
-                            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)'
+                            boxShadow: 'none',
+                            padding: '0.5rem 1rem'
                         }}
                     >
                         <FileText size={16} />
-                        收束为报告
+                        Synthesize Report
                     </button>
                     <button
                         onClick={onClearSelection}
+                        className="btn-icon"
                         style={{
-                            background: 'transparent',
-                            color: '#888',
-                            border: 'none',
-                            padding: '0.5rem',
-                            borderRadius: '50%',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center'
+                            color: '#ccc',
+                            borderColor: 'transparent',
+                            width: '32px',
+                            height: '32px'
                         }}
-                        title="清除选择"
-                        aria-label="清除选择"
+                        title="Clear selection"
+                        aria-label="Clear selection"
                     >
                         <X size={18} />
                     </button>
                 </>
             )}
-
-            <style>{`
-                @keyframes slideUp {
-                    from { transform: translateX(-50%) translateY(20px); opacity: 0; }
-                    to { transform: translateX(-50%) translateY(0); opacity: 1; }
-                }
-            `}</style>
-        </div>
+        </>
     );
 };
