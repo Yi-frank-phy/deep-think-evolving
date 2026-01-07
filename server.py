@@ -58,9 +58,15 @@ class SimpleRateLimiter:
 
         # Safety valve: if still too many clients, clear oldest to prevent OOM
         if len(self.request_counts) > self.max_clients:
-            logger.warning("Rate limiter client limit reached, purging oldest entries")
-            # Clear 20% of entries randomly (or just clear dict for simplicity/safety)
-            self.request_counts.clear()
+            logger.warning("Rate limiter client limit reached, pruning oldest entries")
+            # Prune oldest 20% of keys to maintain memory stability without full reset
+            # This prevents a vulnerability where an attacker could force a global reset
+            keys = list(self.request_counts.keys())
+            prune_count = int(self.max_clients * 0.2)
+            prune_count = max(prune_count, 1)  # Ensure at least 1 is removed
+
+            for k in keys[:prune_count]:
+                del self.request_counts[k]
 
         # Clean up old timestamps for current client (older than 1 minute)
         self.request_counts[client_ip] = [
@@ -82,9 +88,10 @@ rate_limiter = SimpleRateLimiter(requests_per_minute=60)
 
 # Security: WebSocket Rate Limiting
 class WebSocketRateLimiter:
-    def __init__(self, requests_per_minute: int = 30, max_concurrent_per_ip: int = 10):
+    def __init__(self, requests_per_minute: int = 30, max_concurrent_per_ip: int = 10, max_clients: int = 10000):
         self.requests_per_minute = requests_per_minute
         self.max_concurrent_per_ip = max_concurrent_per_ip
+        self.max_clients = max_clients
         # IP -> list of timestamps
         self.connection_attempts = defaultdict(list)
         # IP -> set of active websocket objects
@@ -100,6 +107,18 @@ class WebSocketRateLimiter:
         if self.cleanup_counter >= 100:
             self.cleanup_counter = 0
             self._cleanup_stale_data(now)
+
+            # Safety valve: if too many clients tracked, prune
+            if len(self.connection_attempts) > self.max_clients:
+                logger.warning("WS Rate limiter client limit reached, pruning oldest entries")
+                keys = list(self.connection_attempts.keys())
+                prune_count = int(self.max_clients * 0.2)
+                prune_count = max(prune_count, 1)
+                for k in keys[:prune_count]:
+                    del self.connection_attempts[k]
+                    # Also cleanup active connections if they exist for this IP
+                    if k in self.active_connections:
+                        del self.active_connections[k]
 
         # 1. Rate Limit: Connection Attempts
         # Clean old timestamps
