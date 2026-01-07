@@ -32,13 +32,6 @@ export const ControlTower: React.FC = () => {
     const [selectedForSynthesize, setSelectedForSynthesize] = useState<Set<string>>(new Set());
     const [isSynthesizing, setIsSynthesizing] = useState(false);
 
-    // Strategy name map
-    const strategyNames = useMemo(() => {
-        const map = new Map<string, string>();
-        state?.strategies?.forEach(s => map.set(s.id, s.name));
-        return map;
-    }, [state?.strategies]);
-
     // Handle Node Click
     const handleNodeClick = useCallback((node: StrategyNode, ctrlKey: boolean) => {
         if (ctrlKey) {
@@ -225,7 +218,7 @@ export const ControlTower: React.FC = () => {
                     <div className="synth-bar">
                         <ForceSynthesizeBar
                             selectedIds={Array.from(selectedForSynthesize)}
-                            strategyNames={strategyNames}
+                            strategies={state?.strategies}
                             onSynthesize={handleForceSynthesize}
                             onClearSelection={() => setSelectedForSynthesize(new Set())}
                             isLoading={isSynthesizing}
