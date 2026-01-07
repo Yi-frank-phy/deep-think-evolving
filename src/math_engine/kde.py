@@ -34,7 +34,7 @@ def estimate_bandwidth(
     Returns:
         Estimated bandwidth h.
     """
-    embeddings = np.array(embeddings, dtype=float)
+    embeddings = np.asarray(embeddings, dtype=float)
     if embeddings.ndim == 1:
         embeddings = embeddings[np.newaxis, :]
     
@@ -91,7 +91,7 @@ def gaussian_kernel_log_density(
     Returns:
         (N,) array comprising the log-density estimate for each input embedding.
     """
-    embeddings = np.array(embeddings, dtype=float)
+    embeddings = np.asarray(embeddings, dtype=float)
     if embeddings.ndim == 1:
         embeddings = embeddings[np.newaxis, :]
         
