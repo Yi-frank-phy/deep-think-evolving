@@ -7,10 +7,11 @@
 
 import React, { useState } from 'react';
 import { FileText, X, CheckCircle } from 'lucide-react';
+import { StrategyNode } from '../types';
 
 interface ForceSynthesizeBarProps {
     selectedIds: string[];
-    strategyNames: Map<string, string>;
+    strategies?: StrategyNode[];
     onSynthesize: (ids: string[]) => void;
     onClearSelection: () => void;
     isLoading?: boolean;
@@ -18,7 +19,7 @@ interface ForceSynthesizeBarProps {
 
 export const ForceSynthesizeBar: React.FC<ForceSynthesizeBarProps> = ({
     selectedIds,
-    strategyNames,
+    strategies = [],
     onSynthesize,
     onClearSelection,
     isLoading = false
@@ -26,6 +27,14 @@ export const ForceSynthesizeBar: React.FC<ForceSynthesizeBarProps> = ({
     const [showConfirm, setShowConfirm] = useState(false);
 
     if (selectedIds.length === 0) return null;
+
+    // Helper to get name from ID.
+    // Optimization: We scan the array only for the few selected IDs.
+    // Since this component is only mounted when user selects nodes,
+    // this avoids the O(N) map construction in the main ControlTower loop.
+    const getStrategyName = (id: string) => {
+        return strategies.find(s => s.id === id)?.name || id;
+    };
 
     const handleSynthesize = async () => {
         if (showConfirm) {
@@ -70,7 +79,7 @@ export const ForceSynthesizeBar: React.FC<ForceSynthesizeBarProps> = ({
                 color: '#888',
                 fontSize: '0.85rem'
             }}>
-                {selectedIds.slice(0, 3).map(id => strategyNames.get(id) || id).join(', ')}
+                {selectedIds.slice(0, 3).map(id => getStrategyName(id)).join(', ')}
                 {selectedIds.length > 3 && ` +${selectedIds.length - 3} 更多`}
             </div>
 
