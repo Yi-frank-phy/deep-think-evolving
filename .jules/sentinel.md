@@ -17,3 +17,10 @@
 **Vulnerability:** The `SimulationConfig` Pydantic model lacked numerical range validation (e.g., `ge`, `le`). Attackers could submit excessively large values (e.g., `beam_width=10000`, `max_iterations=1000000`), forcing the server to allocate massive graph structures and run infinite loops, leading to memory/CPU exhaustion (DoS).
 **Learning:** Pydantic's type hints (`int`) validate *types* but not *values*. For resource-intensive parameters (iterations, budget, buffer sizes), explicit `Field(..., le=MAX)` constraints are mandatory to prevent resource exhaustion attacks.
 **Prevention:** Always use `pydantic.Field` with `gt/ge` and `lt/le` constraints for any numerical input that affects loop counters, memory allocation, or complexity.
+## 2026-01-05 - Rate Limiter Global Reset Vulnerability
+**Vulnerability:** The `SimpleRateLimiter` and `WebSocketRateLimiter` implemented a "Safety Valve" that cleared *all* client history (`self.request_counts.clear()`) when the client limit was reached. An attacker could exploit this by flooding the server with requests from spoofed IPs to hit the limit, triggering a global reset that wiped the rate limit history for *all* users (including the attacker), effectively bypassing the rate limit.
+**Learning:** Security controls that "fail open" or reset completely under stress are valid attack targets. A "safety valve" for memory protection must degrade gracefully (e.g., pruning old entries) rather than failing into an insecure state (resetting checks).
+**Prevention:**
+1.  Implement LRU (Least Recently Used) or similar pruning strategies to remove *only* a subset of entries when capacity is reached.
+2.  Never use `.clear()` on security-critical state tables unless the service is restarting.
+3.  Add tests specifically for "overflow" conditions to ensure the security control maintains integrity under load.
