@@ -427,7 +427,8 @@ class SimulationManager:
         # Optimization: Send to all clients in parallel to reduce latency
         async def send_safe(ws):
             try:
-                await ws.send_json(payload)
+                # Security: Add timeout to prevent slow clients from blocking everyone (DoS prevention)
+                await asyncio.wait_for(ws.send_json(payload), timeout=2.0)
             except Exception as e:
                 logger.warning(f"Failed to send to client: {e}")
 
